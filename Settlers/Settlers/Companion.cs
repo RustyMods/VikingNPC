@@ -27,7 +27,7 @@ public class Companion : Humanoid, Interactable
     public int m_autoPickupMask;
     public float m_checkDistanceTimer;
     public string m_followTargetName = "";
-    public const float m_playerMaxDistance = 50f;
+    public float m_playerMaxDistance = 50f;
     public float m_fedDuration = 30f;
     public float m_tamingTime = 1800f;
     public float m_baseHealth = 50f;
@@ -37,6 +37,7 @@ public class Companion : Humanoid, Interactable
     public EffectList m_warpEffect = new EffectList();
     public EffectList m_drownEffects = new EffectList();
     public EffectList m_equipStartEffects = new();
+    public EffectList m_dodgeEffects = new();
     public float m_lastPetTime;
     public GameObject? m_tombstone;
     public readonly List<Player.Food> m_foods = new();
@@ -53,6 +54,7 @@ public class Companion : Humanoid, Interactable
     private float m_statsTimer;
     public bool m_attached;
     private bool m_attachedToShip;
+    public Chair? m_attachedChair;
     private Transform? m_attachPoint;
     private Vector3 m_detachOffset;
     private string m_attachAnimation = "";
@@ -78,7 +80,7 @@ public class Companion : Humanoid, Interactable
             m_companionAI.m_aggravatable = false;
             m_faction = Faction.Players;
         }
-        m_baseHealth *= m_level;
+        SetMaxHealth(m_baseHealth * m_level);
     }
     
     public override void Start()
@@ -102,7 +104,7 @@ public class Companion : Humanoid, Interactable
         if (UpdateAttach()) return;
         UpdateActionQueue(fixedDeltaTime);
         AutoPickup(fixedDeltaTime);
-        Warp(fixedDeltaTime);
+        UpdateWarp(fixedDeltaTime);
         UpdateFood(fixedDeltaTime, false);
         UpdateBiome(fixedDeltaTime);
         UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
@@ -136,7 +138,7 @@ public class Companion : Humanoid, Interactable
     }
 
     public Heightmap.Biome GetCurrentBiome() => m_currentBiome;
-    public void Warp(float dt)
+    public void UpdateWarp(float dt)
     {
         if (IsEncumbered()) return;
         m_checkDistanceTimer += dt;
@@ -147,11 +149,15 @@ public class Companion : Humanoid, Interactable
         if (m_companionAI.GetFollowTarget() == null) return;
         if (!m_companionAI.GetFollowTarget().TryGetComponent(out Player component)) return;
         if (Vector3.Distance(transform.position, component.transform.position) < m_playerMaxDistance) return;
+        Warp(component);
+    }
 
-        Vector3 location = component.GetLookDir() * 5f + component.transform.position;
+    public void Warp(Player player)
+    {
+        if (m_companionAI == null) return;
+        Vector3 location = player.GetLookDir() * 5f + player.transform.position;
         ZoneSystem.instance.GetSolidHeight(location, out float height, 1000);
-        if (height >= 0.0 && Mathf.Abs(height - location.y) <= 2f &&
-            Vector3.Distance(location, component.transform.position) >= 2f)
+        if (height >= 0.0 && Mathf.Abs(height - location.y) <= 2f && Vector3.Distance(location, player.transform.position) >= 2f)
         {
             location.y = height;
         }
@@ -776,7 +782,7 @@ public class Companion : Humanoid, Interactable
 
     private void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
     {
-        hp = m_baseHealth;
+        hp = m_baseHealth * m_level;
         stamina = 50f;
         eitr = 0.0f;
         foreach (Player.Food? food in m_foods)
@@ -893,21 +899,36 @@ public class Companion : Humanoid, Interactable
         }
     }
 
-    public static void MakeAllFollow(Player player, float radius)
+    public static void MakeAllFollow(Player player, float radius, bool follow = true)
     {
         int count = 0;
-        foreach (Companion companion in m_instances)
+        if (follow)
         {
-            if (!companion.IsTamed()) continue;
-            if (companion.m_companionAI == null) continue;
-            if (companion.m_companionAI.GetFollowTarget() != null) continue;
-            if (Vector3.Distance(player.transform.position, companion.transform.position) > radius) continue;
-            companion.Command(player, false);
-            ++count;
+            foreach (Companion companion in m_instances)
+            {
+                if (!companion.IsTamed()) continue;
+                if (companion.m_companionAI == null) continue;
+                if (companion.m_companionAI.GetFollowTarget() != null) continue;
+                if (Vector3.Distance(player.transform.position, companion.transform.position) > radius) continue;
+                companion.Command(player, false);
+                ++count;
+            }
+        }
+        else
+        {
+            foreach (Companion companion in m_instances)
+            {
+                if (!companion.IsTamed()) continue;
+                if (companion.m_companionAI == null) continue;
+                if (companion.m_companionAI.GetFollowTarget() == null) continue;
+                if (companion.m_followTargetName != player.GetPlayerName()) continue;
+                companion.Command(player, false);
+                ++count;
+            }
         }
         player.Message(MessageHud.MessageType.Center, count + " $msg_settlerfollows");
     }
-    
+
     public void DecreaseRemainingTime(float time)
     {
         if (!m_nview.IsValid()) return;
@@ -1159,7 +1180,7 @@ public class Companion : Humanoid, Interactable
     
 
     public override void AttachStart(Transform attachPoint, GameObject colliderRoot, bool hideWeapons, bool isBed, bool onShip,
-        string attachAnimation, Vector3 detachOffset, Transform cameraPos = null)
+        string attachAnimation, Vector3 detachOffset, Transform? cameraPos = null)
     {
         if (m_attached) return;
         m_attached = true;
@@ -1194,6 +1215,17 @@ public class Companion : Humanoid, Interactable
                 UnequipItem(m_leftItem);
                 m_hiddenLeftItem = leftItem;
             }
+
+            if (m_rightItem == null)
+            {
+                foreach (var item in GetInventory().GetAllItems())
+                {
+                    if (item.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Torch) continue;
+                    EquipItem(item);
+                    break;
+                }
+            }
+            
             SetupVisEquipment(m_visEquipment, false);
         }
         UpdateAttach();
@@ -1217,9 +1249,8 @@ public class Companion : Humanoid, Interactable
         m_maxAirAltitude = transform.position.y;
         return true;
     }
-
+    public override bool IsAttached() => m_attached || base.IsAttached();
     public override bool IsAttachedToShip() => m_attached && m_attachedToShip;
-
     public override void AttachStop()
     {
         if (!m_attached) return;
@@ -1245,6 +1276,14 @@ public class Companion : Humanoid, Interactable
         m_attached = false;
         m_attachPoint = null;
         m_animator.SetBool(m_attachAnimation, false);
+        if (m_attachedChair != null)
+        {
+            if (CompanionAI.m_occupiedChairs.ContainsKey(m_attachedChair))
+            {
+                CompanionAI.m_occupiedChairs.Remove(m_attachedChair);
+            }
+            m_attachedChair = null;
+        }
         ResetCloth();
     }
     

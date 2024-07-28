@@ -56,7 +56,7 @@ public class CompanionTalk : MonoBehaviour
     private bool ShouldUpdate()
     {
         return m_companionAI.m_treeTarget == null && m_companionAI.m_rockTarget == null &&
-               m_companionAI.m_fishTarget == null || m_companion.m_attached;
+               m_companionAI.m_fishTarget == null && !m_companion.m_attached;
     }
 
     public void Update()

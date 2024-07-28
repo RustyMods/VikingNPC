@@ -42,6 +42,7 @@ namespace Settlers
         public static ConfigEntry<string> _lastNames = null!;
         public static ConfigEntry<float> _baseMaxCarryWeight = null!;
         public static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
+        private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
 
         private void InitConfigs()
         {
@@ -63,7 +64,8 @@ namespace Settlers
                 "Set base carry weight for settlers");
             _makeAllFollowKey = config("2 - Settings", "Make All Follow Key", KeyCode.None,
                 "Set the key that will make all tamed settlers follow you, if they aren't following");
-            
+            _makeAllUnfollowKey = config("2 - Settings", "Make All Unfollow Key", KeyCode.None,
+                "Set the key that will make all tamed settlers unfollow, if they are following");
             var m_firstNames = new List<string>()
             {
                 "Bjorn", "Harald", "Bo", "Frode", 
@@ -108,7 +110,12 @@ namespace Settlers
             if (!Player.m_localPlayer) return;
             if (Input.GetKeyDown(_makeAllFollowKey.Value))
             {
-                Companion.MakeAllFollow(Player.m_localPlayer, 30f);
+                Companion.MakeAllFollow(Player.m_localPlayer, 30f, true);
+            }
+
+            if (Input.GetKeyDown(_makeAllUnfollowKey.Value))
+            {
+                Companion.MakeAllFollow(Player.m_localPlayer, 30f, false);
             }
         }
 

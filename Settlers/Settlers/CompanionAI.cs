@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿using System.Collections.Generic;
+using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 
@@ -6,6 +7,7 @@ namespace Settlers.Settlers;
 
 public class CompanionAI : MonsterAI
 {
+    public static Dictionary<Chair, Companion> m_occupiedChairs = new();
     private Companion m_companion = null!;
     private ItemDrop.ItemData? m_axe;
     private ItemDrop.ItemData? m_pickaxe;
@@ -20,7 +22,7 @@ public class CompanionAI : MonsterAI
     public int m_targetCount;
     private float m_cooldownTimer;
     public bool m_resting;
-    private string m_action = "";
+    public string m_action = "";
     public float m_lastFishTime;
     public override void Awake()
     {
@@ -28,7 +30,6 @@ public class CompanionAI : MonsterAI
         m_companion = GetComponent<Companion>();
         m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "");
     }
-
     public override bool UpdateAI(float dt)
     {
         if (m_companion.m_inUse)
@@ -306,22 +307,30 @@ public class CompanionAI : MonsterAI
     private bool UpdateAttach(float dt)
     {
         if (!m_companion.IsTamed()) return false;
-        if (GetFollowTarget() == null)
+        m_searchAttachTimer += dt;
+        if (m_searchAttachTimer < 1f) return false;
+        m_searchAttachTimer = 0.0f;
+        var follow = GetFollowTarget();
+        if (!m_companion.m_attached && follow != null)
         {
-            m_companion.AttachStop();
-            return false;
-        }
-        if (!m_companion.m_attached)
-        {
-            m_searchAttachTimer += dt;
-            if (m_searchAttachTimer < 1f) return false;
-            m_searchAttachTimer = 0.0f;
             Chair? chair = FindNearestChair();
             if (chair == null) return false;
             if (!MoveTo(dt, chair.transform.position, 10f, true)) return true;
             LookAt(chair.transform.position);
             chair.Interact(m_companion, false, false);
             return true;
+        }
+        if (m_companion.m_attached)
+        {
+            if (follow != null && follow.TryGetComponent(out Player player))
+            {
+                if (Vector3.Distance(follow.transform.position, transform.position) < 25f) return true;
+                m_companion.AttachStop();
+                m_companion.Warp(player);
+                return false;
+            }
+            m_companion.AttachStop();
+            return false;
         }
 
         return true;
@@ -337,6 +346,7 @@ public class CompanionAI : MonsterAI
         {
             Chair chair = collider.GetComponentInParent<Chair>();
             if (!chair) continue;
+            if (m_occupiedChairs.ContainsKey(chair)) continue;
             var distance = Vector3.Distance(chair.transform.position, transform.position);
             if (distance < num1 || closestChair == null)
             {
@@ -533,7 +543,7 @@ public class CompanionAI : MonsterAI
             }
         }
     }
-
+    
     [HarmonyPatch(typeof(Chair), nameof(Chair.Interact))]
     private static class Chair_Interact_Patch
     {
@@ -544,6 +554,8 @@ public class CompanionAI : MonsterAI
             
             companion.AttachStart(__instance.m_attachPoint, null, false, false, __instance.m_inShip,
                 __instance.m_attachAnimation, __instance.m_detachOffset, null);
+            m_occupiedChairs[__instance] = companion;
+            companion.m_attachedChair = __instance;
             return false;
         }
     }

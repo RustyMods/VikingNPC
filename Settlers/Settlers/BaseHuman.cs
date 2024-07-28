@@ -247,6 +247,7 @@ public static class BaseHuman
         companion.m_equipStartEffects = component.m_equipStartEffects;
         companion.m_warpEffect = component.m_skillLevelupEffects;
         companion.m_tombstone = component.m_tombstone;
+        companion.m_dodgeEffects = component.m_dodgeEffects;
 
         GameObject newRagDoll = Object.Instantiate(ZNetScene.instance.GetPrefab("Player_ragdoll"), SettlersPlugin._Root.transform, false);
         if (newRagDoll.TryGetComponent(out Ragdoll rag))

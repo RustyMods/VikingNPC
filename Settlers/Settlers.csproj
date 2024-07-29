@@ -124,7 +124,9 @@
         <Compile Include="Settlers\Companion.cs" />
         <Compile Include="Settlers\CompanionAI.cs" />
         <Compile Include="Settlers\CompanionTalk.cs" />
+        <Compile Include="Settlers\Raids.cs" />
         <Compile Include="Settlers\RandomHuman.cs" />
+        <Compile Include="Settlers\ReplaceSpawns.cs" />
     </ItemGroup>
     <ItemGroup>
         <Content Include=".gitignore" />

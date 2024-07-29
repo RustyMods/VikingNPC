@@ -7,13 +7,12 @@ namespace Settlers.Settlers;
 
 public class CompanionAI : MonsterAI
 {
-    public static Dictionary<Chair, Companion> m_occupiedChairs = new();
+    public static readonly Dictionary<Chair, Companion> m_occupiedChairs = new();
     private Companion m_companion = null!;
     private ItemDrop.ItemData? m_axe;
     private ItemDrop.ItemData? m_pickaxe;
     private readonly float m_searchRange = 10f;
     private float m_searchTargetTimer;
-    // private bool m_moving;
     public GameObject? m_treeTarget;
     public GameObject? m_rockTarget;
     public GameObject? m_fishTarget;
@@ -32,6 +31,7 @@ public class CompanionAI : MonsterAI
     }
     public override bool UpdateAI(float dt)
     {
+        if (!m_companion.IsTamed()) return base.UpdateAI(dt);
         if (m_companion.m_inUse)
         {
             StopMoving();
@@ -44,10 +44,23 @@ public class CompanionAI : MonsterAI
             return true;
         }
         if (UpdateAttach(dt)) return true;
-        if (GetFollowTarget() != null) base.UpdateAI(dt);
-        
-        if (!UpdateTargetCount(dt)) return base.UpdateAI(dt);
-        if (IsAlerted() || m_companion.IsSwimming()) return base.UpdateAI(dt);
+        if (GetFollowTarget() != null)
+        {
+            ResetActions();
+            base.UpdateAI(dt);
+        }
+
+        if (!UpdateTargetCount(dt))
+        {
+            ResetActions();
+            return base.UpdateAI(dt);
+        }
+
+        if (IsAlerted() || m_companion.IsSwimming())
+        {
+            ResetActions();
+            return base.UpdateAI(dt);
+        }
         if (m_companion.InAttack()) return base.UpdateAI(dt);
         if (m_companion.IsInventoryFull()) return base.UpdateAI(dt);
         if (m_companion.IsHungry()) 
@@ -56,7 +69,16 @@ public class CompanionAI : MonsterAI
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
         if (UpdateFishing(dt)) return true;
+        ResetActions();
         return base.UpdateAI(dt);
+    }
+
+    private void ResetActions()
+    {
+        m_action = "";
+        m_fishTarget = null;
+        m_treeTarget = null;
+        m_rockTarget = null;
     }
 
     private bool HasFishingRodAndBait()
@@ -181,12 +203,7 @@ public class CompanionAI : MonsterAI
         if (m_treeTarget == null) return false;
         if (m_companion.IsHungry()) return false;
         m_action = "lumber";
-        if (!MoveTo(dt, m_treeTarget.transform.position, 1.5f, false))
-        {
-            // m_moving = true;
-            return true;
-        }
-        // m_moving = false;
+        if (!MoveTo(dt, m_treeTarget.transform.position, 1.5f, false)) return true;
         StopMoving();
         LookAt(m_treeTarget.transform.position);
         if (!IsLookingAt(m_treeTarget.transform.position, 1f))
@@ -206,17 +223,9 @@ public class CompanionAI : MonsterAI
         if (m_rockTarget == null) return false;
         if (m_companion.IsHungry()) return false;
         m_action = "mining";
-        if (!MoveTo(dt, m_rockTarget.transform.position, 1.5f, false))
-        {
-            // m_moving = true;
-            return true;
-        }
+        if (!MoveTo(dt, m_rockTarget.transform.position, 1.5f, false)) return true;
         LookAt(m_rockTarget.transform.position);
-        if (!IsLookingAt(m_rockTarget.transform.position, 1f))
-        {
-            return true;
-        }
-        // m_moving = false;
+        if (!IsLookingAt(m_rockTarget.transform.position, 1f)) return true;
         if (!DoPickaxe())
         {
             RandomMovement(dt, m_rockTarget.transform.position);
@@ -557,6 +566,26 @@ public class CompanionAI : MonsterAI
             m_occupiedChairs[__instance] = companion;
             companion.m_attachedChair = __instance;
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(BaseAI), nameof(IsEnemy), typeof(Character),typeof(Character))]
+    private static class BaseAI_IsEnemy_Patch
+    {
+        private static void Postfix(Character a, Character b, ref bool __result)
+        {
+            if (a is Companion companionA && b is Companion companionB)
+            {
+                if (companionA.IsRaider() && !companionB.IsRaider())
+                {
+                    __result = true;
+                }
+
+                if (companionB.IsRaider() && !companionA.IsRaider())
+                {
+                    __result = true;
+                }
+            }
         }
     }
 }

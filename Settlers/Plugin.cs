@@ -43,7 +43,10 @@ namespace Settlers
         public static ConfigEntry<float> _baseMaxCarryWeight = null!;
         public static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
         private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
-
+        public static ConfigEntry<Toggle> _spawnRaiders = null!;
+        public static ConfigEntry<float> _raiderDropChance = null!;
+        public static ConfigEntry<Character.Faction> _raiderFaction = null!;
+        public static ConfigEntry<float> _raiderBaseHealth = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
@@ -66,6 +69,13 @@ namespace Settlers
                 "Set the key that will make all tamed settlers follow you, if they aren't following");
             _makeAllUnfollowKey = config("2 - Settings", "Make All Unfollow Key", KeyCode.None,
                 "Set the key that will make all tamed settlers unfollow, if they are following");
+            _spawnRaiders = config("2 - Settings", "Raiders", Toggle.On, "If on, raiders have taken over the world");
+            _raiderDropChance = config("2 - Settings", "Raider Item Drop Chance", 0.2f,
+                new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
+            _raiderFaction = config("2 - Settings", "Raider Faction", Character.Faction.SeaMonsters,
+                "Set raider faction");
+            _raiderBaseHealth = config("2 - Settings", "Raider Base Health", 75f,
+                "Set raider base health, multiplied by level");
             var m_firstNames = new List<string>()
             {
                 "Bjorn", "Harald", "Bo", "Frode", 

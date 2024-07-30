@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using BepInEx;
 using HarmonyLib;
 using UnityEngine;
@@ -23,6 +24,9 @@ public class CompanionAI : MonsterAI
     public bool m_resting;
     public string m_action = "";
     public float m_lastFishTime;
+    public Piece? m_repairPiece;
+    public float m_repairTimer;
+    public double m_timeSinceLastSeedConversion;
     public override void Awake()
     {
         base.Awake();
@@ -69,8 +73,105 @@ public class CompanionAI : MonsterAI
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
         if (UpdateFishing(dt)) return true;
+        if (UpdateRepair(dt)) return true;
         ResetActions();
         return base.UpdateAI(dt);
+    }
+
+    private void UpdateFarming()
+    {
+        if (!HasCultivator()) return;
+        if (m_companion.GetCurrentWeapon() == null || m_companion.GetCurrentWeapon().m_shared.m_name != "$item_cultivator") return;
+        if (ZNet.instance.GetTimeSeconds() - m_timeSinceLastSeedConversion < 100f) return;
+        ConvertSeeds();
+        m_timeSinceLastSeedConversion = ZNet.instance.GetTimeSeconds();
+    }
+
+    private void ConvertSeeds()
+    {
+        ItemDrop.ItemData? itemToConvert = null;
+        ItemDrop.ItemData? itemResult = null;
+        foreach (ItemDrop.ItemData? item in m_companion.GetInventory().GetAllItems())
+        {
+            if (item.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Material) continue;
+            ItemDrop.ItemData? conversion = GetSeedConversion(item);
+            if (conversion == null) continue;
+            itemToConvert = item;
+            itemResult = conversion;
+            break;
+        }
+
+        m_companion.GetInventory().RemoveOneItem(itemToConvert);
+        m_companion.GetInventory().AddItem(itemResult);
+    }
+
+    private ItemDrop.ItemData? GetSeedConversion(ItemDrop.ItemData seed)
+    {
+        var itemName = seed.m_shared.m_name switch
+        {
+            "$item_carrotseeds" => "Carrot",
+            "$item_turnipseeds" => "Turnip",
+            "$item_onionseeds" => "Onion",
+            "$item_barley" => "Barley",
+            "$item_flax" => "Flax",
+            _ => ""
+        };
+        if (itemName.IsNullOrWhiteSpace()) return null;
+        var prefab = ObjectDB.instance.GetItemPrefab(itemName);
+        if (!prefab) return null;
+        return prefab.TryGetComponent(out ItemDrop component) ? component.m_itemData : null;
+    }
+    private bool HasCultivator() => m_companion.GetInventory().GetAllItems().Any(item => item.m_shared.m_name == "$item_cultivator");
+    private bool UpdateRepair(float dt)
+    {
+        ItemDrop.ItemData? hammer = GetHammer();
+        if (hammer == null) return false;
+        m_repairTimer += dt;
+        if (m_repairTimer < 5) return false;
+        m_repairTimer = 0.0f;
+        m_repairPiece = FindRepairPiece();
+        if (m_repairPiece == null) return false;
+
+        if (m_repairPiece.TryGetComponent(out WearNTear component))
+        {
+            if (!MoveTo(dt, m_repairPiece.transform.position, 10f, false)) return true;
+            LookAt(m_repairPiece.transform.position);
+            if (!IsLookingAt(m_repairPiece.transform.position, 50f)) return true;
+            if (m_companion.GetCurrentWeapon() != hammer) m_companion.EquipItem(hammer);
+            m_animator.SetTrigger(hammer.m_shared.m_attack.m_attackAnimation);
+            component.Repair();
+            m_repairPiece.m_placeEffect.Create(m_repairPiece.transform.position, Quaternion.identity);
+            m_repairPiece = null;
+        }
+        return false;
+    }
+
+    private ItemDrop.ItemData? GetHammer() => m_companion.GetInventory().GetAllItems().FirstOrDefault(item => item.m_shared.m_name == "$item_hammer");
+    private Piece? FindRepairPiece()
+    {
+        if (GetHammer() == null)
+        {
+            m_repairPiece = null;
+            return null;
+        }
+        if (m_repairPiece != null) return m_repairPiece;
+        Piece? result = null;
+        float num1 = m_searchRange;
+        foreach (var collider in Physics.OverlapSphere(transform.position, m_searchRange, LayerMask.GetMask("piece")))
+        {
+            Piece piece = collider.GetComponentInParent<Piece>();
+            if (piece == null) continue;
+            if (!piece.TryGetComponent(out WearNTear component)) continue;
+            if (component.GetHealthPercentage() > 0.5f) continue;
+            float distance = Vector3.Distance(transform.position, piece.transform.position);
+            if (result == null || num1 < distance)
+            {
+                result = piece;
+                num1 = distance;
+            }
+        }
+
+        return result;
     }
 
     private void ResetActions()

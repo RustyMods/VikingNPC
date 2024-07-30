@@ -36,13 +36,6 @@ public static class ReplaceSpawns
             __instance.m_nview.GetZDO().Set(ZDOVars.s_aliveTime, ZNet.instance.GetTime().Ticks);
             __instance.SpawnEffect(viking);
             __result = component1;
-
-            if (__instance.m_creaturePrefab.TryGetComponent(out CharacterDrop characterDrop))
-            {
-                CharacterDrop drop = viking.AddComponent<CharacterDrop>();
-                drop.m_drops = characterDrop.m_drops;
-                drop.m_spawnOffset = characterDrop.m_spawnOffset;
-            }
             return false;
         }
     }

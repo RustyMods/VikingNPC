@@ -129,6 +129,9 @@
         <Compile Include="Settlers\ReplaceSpawns.cs" />
     </ItemGroup>
     <ItemGroup>
+        <EmbeddedResource Include="..\..\..\bundles_2024\settlerbundle">
+          <Link>assets\settlerbundle</Link>
+        </EmbeddedResource>
         <Content Include=".gitignore" />
         <Content Include="environment.props" />
         <Content Include="ILRepack.targets" />
@@ -144,9 +147,6 @@
     <ItemGroup>
         <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2" />
         <PackageReference Include="YamlDotNet" Version="16.0.0" />
-    </ItemGroup>
-    <ItemGroup>
-      <Folder Include="assets" />
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

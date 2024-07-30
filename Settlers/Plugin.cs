@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -30,6 +31,8 @@ namespace Settlers
         
         public static SettlersPlugin _Plugin = null!;
         public static GameObject _Root = null!;
+        public static AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
+        public static Sprite m_settlerPin = null!;
         public enum Toggle { On = 1, Off = 0 }
         
         private static ConfigEntry<Toggle> _serverConfigLocked = null!;
@@ -47,6 +50,9 @@ namespace Settlers
         public static ConfigEntry<float> _raiderDropChance = null!;
         public static ConfigEntry<Character.Faction> _raiderFaction = null!;
         public static ConfigEntry<float> _raiderBaseHealth = null!;
+        public static ConfigEntry<Toggle> _addMinimapPin = null!;
+        public static ConfigEntry<float> _settlerTamingTime = null!;
+        public static ConfigEntry<Toggle> _ownerLock = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
@@ -63,19 +69,25 @@ namespace Settlers
                 "Set how many lumber or mining strikes until settler is tired");
             _autoPickup = config("Behavior Settings", "Pickup Items", Toggle.On,
                 "If on, settler picks up items around him");
+            _settlerTamingTime = config("2 - Settings", "Tame Duration", 1800f,
+                "Set amount of time required to tame settler");
             _baseMaxCarryWeight = config("Behavior Settings", "Base Carry Weight", 300f,
                 "Set base carry weight for settlers");
             _makeAllFollowKey = config("2 - Settings", "Make All Follow Key", KeyCode.None,
                 "Set the key that will make all tamed settlers follow you, if they aren't following");
             _makeAllUnfollowKey = config("2 - Settings", "Make All Unfollow Key", KeyCode.None,
                 "Set the key that will make all tamed settlers unfollow, if they are following");
-            _spawnRaiders = config("2 - Settings", "Raiders", Toggle.On, "If on, raiders have taken over the world");
+            _spawnRaiders = config("2 - Settings", "Raiders", Toggle.Off, "If on, raiders have taken over the world");
             _raiderDropChance = config("2 - Settings", "Raider Item Drop Chance", 0.2f,
                 new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
             _raiderFaction = config("2 - Settings", "Raider Faction", Character.Faction.SeaMonsters,
                 "Set raider faction");
             _raiderBaseHealth = config("2 - Settings", "Raider Base Health", 75f,
                 "Set raider base health, multiplied by level");
+            _addMinimapPin = config("2 - Settings", "Add Pin", Toggle.On,
+                "If on, when settler is following a pin will be added on the minimap to track them");
+            _ownerLock = config("2 - Settings", "Inventory Locked", Toggle.On,
+                "If on, only owner can access settler inventory");
             var m_firstNames = new List<string>()
             {
                 "Bjorn", "Harald", "Bo", "Frode", 
@@ -104,6 +116,7 @@ namespace Settlers
 
         public void Awake()
         {
+            m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;
             _Root = new GameObject("root");
             DontDestroyOnLoad(_Root);
@@ -158,6 +171,14 @@ namespace Settlers
                 SettlersLogger.LogError($"There was an issue loading your {ConfigFileName}");
                 SettlersLogger.LogError("Please check your config entries for spelling and format!");
             }
+        }
+        
+        private static AssetBundle GetAssetBundle(string fileName)
+        {
+            Assembly execAssembly = Assembly.GetExecutingAssembly();
+            string resourceName = execAssembly.GetManifestResourceNames().Single(str => str.EndsWith(fileName));
+            using Stream? stream = execAssembly.GetManifestResourceStream(resourceName);
+            return AssetBundle.LoadFromStream(stream);
         }
         
         public ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description,

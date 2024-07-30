@@ -352,7 +352,7 @@ public static class BaseHuman
         if (boar.TryGetComponent(out Tameable tame))
         {
             companion.m_fedDuration = 600f;
-            companion.m_tamingTime = 1800f;
+            // companion.m_tamingTime = SettlersPlugin._settlerTamingTime.Value;
             companion.m_tamedEffect = tame.m_tamedEffect;
             companion.m_sootheEffect = tame.m_sootheEffect;
             companion.m_petEffect = tame.m_petEffect;
@@ -474,49 +474,49 @@ public static class BaseHuman
         GameObject player = ZNetScene.instance.GetPrefab("Player");
         if (!player) return null;
         if (!player.TryGetComponent(out Player component)) return null;
-        GameObject human = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
-        human.name = "VikingRaider";
-        Object.Destroy(human.GetComponent<PlayerController>());
-        Object.Destroy(human.GetComponent<Player>());
-        Object.Destroy(human.GetComponent<Talker>());
-        Object.Destroy(human.GetComponent<Skills>());
-        if (human.TryGetComponent(out ZNetView zNetView))
+        GameObject raiderHuman = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
+        raiderHuman.name = "VikingRaider";
+        Object.Destroy(raiderHuman.GetComponent<PlayerController>());
+        Object.Destroy(raiderHuman.GetComponent<Player>());
+        Object.Destroy(raiderHuman.GetComponent<Talker>());
+        Object.Destroy(raiderHuman.GetComponent<Skills>());
+        if (raiderHuman.TryGetComponent(out ZNetView zNetView))
         {
             zNetView.m_persistent = true;
         }
-        Companion companion = human.AddComponent<Companion>();
-        companion.m_startAsRaider = true;
-        companion.name = human.name;
-        companion.m_name = "Human";
-        companion.m_group = "Humans";
-        companion.m_faction = Character.Faction.SeaMonsters;
-        companion.m_crouchSpeed = component.m_crouchSpeed;
-        companion.m_walkSpeed = component.m_walkSpeed;
-        companion.m_speed = component.m_speed;
-        companion.m_runSpeed = component.m_runSpeed;
-        companion.m_runTurnSpeed = component.m_runTurnSpeed;
-        companion.m_acceleration = component.m_acceleration;
-        companion.m_jumpForce = component.m_jumpForce;
-        companion.m_jumpForceForward = component.m_jumpForceForward;
-        companion.m_jumpForceTiredFactor = component.m_jumpForceForward;
-        companion.m_airControl = component.m_airControl;
-        companion.m_canSwim = true;
-        companion.m_swimDepth = component.m_swimDepth;
-        companion.m_swimSpeed = component.m_swimSpeed;
-        companion.m_swimTurnSpeed = component.m_swimTurnSpeed;
-        companion.m_swimAcceleration = component.m_swimAcceleration;
-        companion.m_groundTilt = component.m_groundTilt;
-        companion.m_groundTiltSpeed = component.m_groundTiltSpeed;
-        companion.m_jumpStaminaUsage = component.m_jumpStaminaUsage;
-        companion.m_eye = Utils.FindChild(human.transform, "EyePos");
-        companion.m_hitEffects = component.m_hitEffects;
-        companion.m_critHitEffects = component.m_critHitEffects;
-        companion.m_backstabHitEffects = component.m_backstabHitEffects;
-        companion.m_drownEffects = component.m_drownEffects;
-        companion.m_equipStartEffects = component.m_equipStartEffects;
-        companion.m_warpEffect = component.m_skillLevelupEffects;
-        companion.m_tombstone = component.m_tombstone;
-        companion.m_dodgeEffects = component.m_dodgeEffects;
+        Companion raider = raiderHuman.AddComponent<Companion>();
+        raider.m_startAsRaider = true;
+        raider.name = raiderHuman.name;
+        raider.m_name = "Human";
+        raider.m_group = "Humans";
+        raider.m_faction = Character.Faction.SeaMonsters;
+        raider.m_crouchSpeed = component.m_crouchSpeed;
+        raider.m_walkSpeed = component.m_walkSpeed;
+        raider.m_speed = component.m_speed;
+        raider.m_runSpeed = component.m_runSpeed;
+        raider.m_runTurnSpeed = component.m_runTurnSpeed;
+        raider.m_acceleration = component.m_acceleration;
+        raider.m_jumpForce = component.m_jumpForce;
+        raider.m_jumpForceForward = component.m_jumpForceForward;
+        raider.m_jumpForceTiredFactor = component.m_jumpForceForward;
+        raider.m_airControl = component.m_airControl;
+        raider.m_canSwim = true;
+        raider.m_swimDepth = component.m_swimDepth;
+        raider.m_swimSpeed = component.m_swimSpeed;
+        raider.m_swimTurnSpeed = component.m_swimTurnSpeed;
+        raider.m_swimAcceleration = component.m_swimAcceleration;
+        raider.m_groundTilt = component.m_groundTilt;
+        raider.m_groundTiltSpeed = component.m_groundTiltSpeed;
+        raider.m_jumpStaminaUsage = component.m_jumpStaminaUsage;
+        raider.m_eye = Utils.FindChild(raiderHuman.transform, "EyePos");
+        raider.m_hitEffects = component.m_hitEffects;
+        raider.m_critHitEffects = component.m_critHitEffects;
+        raider.m_backstabHitEffects = component.m_backstabHitEffects;
+        raider.m_drownEffects = component.m_drownEffects;
+        raider.m_equipStartEffects = component.m_equipStartEffects;
+        raider.m_warpEffect = component.m_skillLevelupEffects;
+        raider.m_tombstone = component.m_tombstone;
+        raider.m_dodgeEffects = component.m_dodgeEffects;
 
         GameObject newRagDoll = Object.Instantiate(ZNetScene.instance.GetPrefab("Player_ragdoll"), SettlersPlugin._Root.transform, false);
         if (newRagDoll.TryGetComponent(out Ragdoll rag))
@@ -538,7 +538,7 @@ public static class BaseHuman
         }
         newRagDoll.name = "viking_settler_ragdoll";
         RegisterToZNetScene(newRagDoll);
-        companion.m_deathEffects = new()
+        raider.m_deathEffects = new()
         {
             m_effectPrefabs = new[]
             {
@@ -554,17 +554,17 @@ public static class BaseHuman
                 }
             }
         };
-        companion.m_waterEffects = component.m_waterEffects;
-        companion.m_tarEffects = component.m_tarEffects;
-        companion.m_slideEffects = component.m_slideEffects;
-        companion.m_jumpEffects = component.m_jumpEffects;
-        companion.m_flyingContinuousEffect = component.m_flyingContinuousEffect;
-        companion.m_tolerateWater = true;
-        companion.m_health = 50f;
-        companion.m_damageModifiers = component.m_damageModifiers;
-        companion.m_staggerWhenBlocked = true;
-        companion.m_staggerDamageFactor = component.m_staggerDamageFactor;
-        companion.m_defaultItems = new []
+        raider.m_waterEffects = component.m_waterEffects;
+        raider.m_tarEffects = component.m_tarEffects;
+        raider.m_slideEffects = component.m_slideEffects;
+        raider.m_jumpEffects = component.m_jumpEffects;
+        raider.m_flyingContinuousEffect = component.m_flyingContinuousEffect;
+        raider.m_tolerateWater = true;
+        raider.m_health = 50f;
+        raider.m_damageModifiers = component.m_damageModifiers;
+        raider.m_staggerWhenBlocked = true;
+        raider.m_staggerDamageFactor = component.m_staggerDamageFactor;
+        raider.m_defaultItems = new []
         {
             ZNetScene.instance.GetPrefab("AxeStone"),
             ZNetScene.instance.GetPrefab("ShieldWood"),
@@ -572,40 +572,40 @@ public static class BaseHuman
             ZNetScene.instance.GetPrefab("ArmorRagsLegs"),
             ZNetScene.instance.GetPrefab("Torch")
         };
-        companion.m_unarmedWeapon = component.m_unarmedWeapon;
-        companion.m_pickupEffects = component.m_autopickupEffects;
-        companion.m_dropEffects = component.m_dropEffects;
-        companion.m_consumeItemEffects = component.m_consumeItemEffects;
-        companion.m_equipEffects = component.m_equipStartEffects;
-        companion.m_perfectBlockEffect = component.m_perfectBlockEffect;
+        raider.m_unarmedWeapon = component.m_unarmedWeapon;
+        raider.m_pickupEffects = component.m_autopickupEffects;
+        raider.m_dropEffects = component.m_dropEffects;
+        raider.m_consumeItemEffects = component.m_consumeItemEffects;
+        raider.m_equipEffects = component.m_equipStartEffects;
+        raider.m_perfectBlockEffect = component.m_perfectBlockEffect;
 
-        CompanionAI AI = human.AddComponent<CompanionAI>();
-        AI.m_viewRange = 30f;
-        AI.m_viewAngle = 90f;
-        AI.m_hearRange = 9999f;
-        AI.m_idleSoundInterval = 10f;
-        AI.m_idleSoundChance = 0f;
-        AI.m_pathAgentType = Pathfinding.AgentType.Humanoid;
-        AI.m_moveMinAngle = 90f;
-        AI.m_smoothMovement = true;
-        AI.m_jumpInterval = 10f;
-        AI.m_randomCircleInterval = 2f;
-        AI.m_randomMoveInterval = 30f;
-        AI.m_randomMoveRange = 3f;
-        AI.m_alertRange = 20f;
-        AI.m_circulateWhileCharging = true;
-        AI.m_interceptTimeMax = 2f;
-        AI.m_maxChaseDistance = 300f;
-        AI.m_circleTargetInterval = 8f;
-        AI.m_circleTargetDuration = 6f;
-        AI.m_circleTargetDistance = 8f;
-        AI.m_consumeRange = 2f;
-        AI.m_consumeSearchRange = 5f;
-        AI.m_consumeSearchInterval = 10f;
-        AI.m_consumeItems = new();
-        AI.m_aggravatable = true;
-        AI.m_attackPlayerObjects = true;
-        RandomAnimation randomAnimation = human.AddComponent<RandomAnimation>();
+        CompanionAI raiderAI = raiderHuman.AddComponent<CompanionAI>();
+        raiderAI.m_viewRange = 30f;
+        raiderAI.m_viewAngle = 90f;
+        raiderAI.m_hearRange = 9999f;
+        raiderAI.m_idleSoundInterval = 10f;
+        raiderAI.m_idleSoundChance = 0f;
+        raiderAI.m_pathAgentType = Pathfinding.AgentType.Humanoid;
+        raiderAI.m_moveMinAngle = 90f;
+        raiderAI.m_smoothMovement = true;
+        raiderAI.m_jumpInterval = 10f;
+        raiderAI.m_randomCircleInterval = 2f;
+        raiderAI.m_randomMoveInterval = 30f;
+        raiderAI.m_randomMoveRange = 3f;
+        raiderAI.m_alertRange = 20f;
+        raiderAI.m_circulateWhileCharging = true;
+        raiderAI.m_interceptTimeMax = 2f;
+        raiderAI.m_maxChaseDistance = 300f;
+        raiderAI.m_circleTargetInterval = 8f;
+        raiderAI.m_circleTargetDuration = 6f;
+        raiderAI.m_circleTargetDistance = 8f;
+        raiderAI.m_consumeRange = 2f;
+        raiderAI.m_consumeSearchRange = 5f;
+        raiderAI.m_consumeSearchInterval = 10f;
+        raiderAI.m_consumeItems = new();
+        raiderAI.m_aggravatable = true;
+        raiderAI.m_attackPlayerObjects = true;
+        RandomAnimation randomAnimation = raiderHuman.AddComponent<RandomAnimation>();
         randomAnimation.m_values = new()
         {
             new RandomAnimation.RandomValue()
@@ -619,16 +619,16 @@ public static class BaseHuman
         GameObject boar = ZNetScene.instance.GetPrefab("Boar");
         if (boar.TryGetComponent(out Tameable tame))
         {
-            companion.m_fedDuration = 600f;
-            companion.m_tamingTime = 1800f;
-            companion.m_tamedEffect = tame.m_tamedEffect;
-            companion.m_sootheEffect = tame.m_sootheEffect;
-            companion.m_petEffect = tame.m_petEffect;
+            raider.m_fedDuration = 600f;
+            // companion.m_tamingTime = 1800f;
+            raider.m_tamedEffect = tame.m_tamedEffect;
+            raider.m_sootheEffect = tame.m_sootheEffect;
+            raider.m_petEffect = tame.m_petEffect;
         }
 
-        human.AddComponent<RandomHuman>();
+        raiderHuman.AddComponent<RandomHuman>();
 
-        CompanionTalk npcTalk = human.AddComponent<CompanionTalk>();
+        CompanionTalk npcTalk = raiderHuman.AddComponent<CompanionTalk>();
         npcTalk.m_maxRange = 20f;
         npcTalk.m_greetRange = 10f;
         npcTalk.m_byeRange = 15f;
@@ -733,9 +733,9 @@ public static class BaseHuman
                 }
             }
         };
-        RegisterToZNetScene(human);
-        AddToSpawnList(human);
-        return human;
+        raiderHuman.AddComponent<CharacterDrop>();
+        RegisterToZNetScene(raiderHuman);
+        return raiderHuman;
     }
 
     private static void RegisterToDatabase(GameObject prefab)

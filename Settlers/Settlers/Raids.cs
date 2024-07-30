@@ -15,9 +15,9 @@ public static class Raids
         ConfigEntry<bool> nearBaseOnly = SettlersPlugin._Plugin.config("Raid Event", "Near Base Only", false, "If true, viking raid only happens near bases");
         ConfigEntry<bool> pause = SettlersPlugin._Plugin.config("Raid Event", "Pause If No Player", false, "If true, raid pauses while no player in area");
         ConfigEntry<float> range = SettlersPlugin._Plugin.config("Raid Event", "Event Range", 96f, "Set range of event");
-        ConfigEntry<float> interval = SettlersPlugin._Plugin.config("Raid Event", "Interval", 300f, "Set interval between raids");
-        ConfigEntry<float> chance = SettlersPlugin._Plugin.config("Raid Event", "Chance", 100f, new ConfigDescription("Set chance for raid to start", new AcceptableValueRange<float>(0f, 100f)));
-        ConfigEntry<float> spawnDelay = SettlersPlugin._Plugin.config("Raid Event", "Spawn Delay", 10f, "Set delay between spawns");
+        ConfigEntry<float> interval = SettlersPlugin._Plugin.config("Raid Event", "Interval", 1300f, "Set interval between raids");
+        ConfigEntry<float> chance = SettlersPlugin._Plugin.config("Raid Event", "Chance", 75f, new ConfigDescription("Set chance for raid to start", new AcceptableValueRange<float>(0f, 100f)));
+        ConfigEntry<float> spawnDelay = SettlersPlugin._Plugin.config("Raid Event", "Spawn Delay", 30f, "Set delay between spawns");
         ConfigEntry<Heightmap.Biome> biome = SettlersPlugin._Plugin.config("Raid Event", "Biomes", Heightmap.Biome.All, "Set biomes raid can happen");
         ConfigEntry<string> key = SettlersPlugin._Plugin.config("Raid Event", "Required Keys", "defeated_vikingraider", "Set required keys to have raids, many can be set by seperated with :");
         ConfigEntry<string> startMessage = SettlersPlugin._Plugin.config("Raid Event", "Start Message", "", "Set start message");

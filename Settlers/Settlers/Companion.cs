@@ -5,7 +5,6 @@ using System.Text;
 using BepInEx;
 using HarmonyLib;
 using UnityEngine;
-using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace Settlers.Settlers;
@@ -31,7 +30,6 @@ public class Companion : Humanoid, Interactable
     public string m_followTargetName = "";
     public float m_playerMaxDistance = 50f;
     public float m_fedDuration = 30f;
-    public float m_tamingTime = 1800f;
     public float m_baseHealth = 50f;
     public EffectList m_tamedEffect = new EffectList();
     public EffectList m_sootheEffect = new EffectList();
@@ -62,6 +60,9 @@ public class Companion : Humanoid, Interactable
     private string m_attachAnimation = "";
     private Collider[]? m_attachColliders;
     public bool m_startAsRaider;
+    private readonly List<Minimap.PinData> m_pins = new();
+    private float m_pinTimer;
+    private float m_envStatusTimer;
     public override void Awake()
     {
         base.Awake();
@@ -74,6 +75,7 @@ public class Companion : Humanoid, Interactable
         m_nview.Register<ZDOID, bool>(nameof(RPC_Command), RPC_Command);
         m_nview.Register<long>(nameof(RPC_RequestStack), RPC_RequestStack);
         m_nview.Register<bool>(nameof(RPC_StackResponse), RPC_StackResponse);
+        m_nview.Register<Vector3, Vector3>(nameof(RPC_Warp), RPC_Warp);
         m_name = m_nview.GetZDO().GetString(ZDOVars.s_tamedName);
         m_instances.Add(this);
         m_visEquipment.m_isPlayer = true;
@@ -131,9 +133,54 @@ public class Companion : Humanoid, Interactable
             UpdateBiome(fixedDeltaTime);
             UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
             UpdateStats(fixedDeltaTime);
+            UpdatePins(fixedDeltaTime);
+            UpdateEnvStatusEffects(fixedDeltaTime);
         }
     }
-    
+
+    private void UpdateEnvStatusEffects(float dt)
+    {
+        m_envStatusTimer += dt;
+        if (m_envStatusTimer < 1f) return;
+        m_envStatusTimer = 0.0f;
+        HitData.DamageModifiers damageModifiers = GetDamageModifiers();
+        if (EnvMan.IsFreezing())
+        {
+            if (m_shoulderItem != null &&
+                damageModifiers.GetModifier(HitData.DamageType.Frost) is HitData.DamageModifier.Resistant
+                    or HitData.DamageModifier.VeryResistant)
+            {
+                m_seman.RemoveStatusEffect(SEMan.s_statusEffectFreezing);
+            }
+            else
+            {
+                m_seman.AddStatusEffect(SEMan.s_statusEffectFreezing);
+            }
+
+            return;
+        }
+        if (EnvMan.IsWet())
+        {
+            m_seman.AddStatusEffect(SEMan.s_statusEffectWet, true);
+        }
+        else
+        {
+            m_seman.RemoveStatusEffect(SEMan.s_statusEffectWet);
+        }
+    }
+
+    public void UpdatePins(float dt)
+    {
+        if (m_pins.Count == 0) return;
+        m_pinTimer += dt;
+        if (m_pinTimer < 1f) return;
+        m_pinTimer = 0.0f;
+
+        foreach (Minimap.PinData pin in m_pins)
+        {
+            pin.m_pos = transform.position;
+        }
+    }
     public bool IsRaider() => m_nview.GetZDO().GetBool(m_raider);
     public void SetRaider(bool enable)
     {
@@ -157,11 +204,12 @@ public class Companion : Humanoid, Interactable
                     new() { "HelmetTrollLeather", "ArmorTrollLeatherChest", "ArmorTrollLeatherLegs" }
                 };
                 List<string> BFMelee = new List<string>() { "AtgeirBronze", "SwordBronze", "KnifeCopper", "MaceBronze" };
+                List<string> BFShields = new() { "ShieldBronzeBuckler", "ShieldBoneTower" };
                 itemNames.Add(BFMelee[Random.Range(0, BFMelee.Count)]);
-                itemNames.Add("Bow");
+                itemNames.Add("FineWoodBow");
                 itemNames.Add("CapeTrollHide");
                 itemNames.AddRange(BFArmors[Random.Range(0, BFArmors.Count)]);
-                itemNames.Add("ShieldBronzeBuckler");
+                itemNames.Add(BFShields[Random.Range(0, BFShields.Count)]);
                 break;
             case Heightmap.Biome.Swamp:
                 List<List<string>> swampArmors = new()
@@ -170,10 +218,11 @@ public class Companion : Humanoid, Interactable
                     new() {"HelmetRoot", "ArmorRootChest", "ArmorRootLegs"}
                 };
                 List<string> swampMelee = new List<string>() { "SledgeIron", "SwordIron", "MaceIron", "Battleaxe", };
+                List<string> swampShields = new() { "ShieldIronBuckler", "ShieldBanded", "ShieldIronTower" };
                 itemNames.Add(swampMelee[Random.Range(0, swampMelee.Count)]);
-                itemNames.Add("FineWoodBow");
+                itemNames.Add("BowHuntsman");
                 itemNames.Add("CapeTrollHide");
-                itemNames.Add("ShieldIronBuckler");
+                itemNames.Add(swampShields[Random.Range(0, swampShields.Count)]);
                 itemNames.AddRange(swampArmors[Random.Range(0, swampArmors.Count)]);
                 break;
             case Heightmap.Biome.Mountain:
@@ -182,18 +231,22 @@ public class Companion : Humanoid, Interactable
                     new() { "HelmetDrake", "ArmorWolfChest", "ArmorWolfLegs" },
                     new() { "HelmetFenring", "ArmorFenringChest", "ArmorFenringLegs" }
                 };
-                List<string> mountMelee = new List<string>() { "SwordSilver", "ShieldSilver", "MaceSilver", "FistFenrirClaw", "BattleaxeCrystal" };
+                List<string> mountMelee = new List<string>() { "SwordSilver", "MaceSilver", "FistFenrirClaw", "BattleaxeCrystal" };
+                List<string> mountShields = new() { "ShieldSilver", "ShieldSerpentscale" };
                 itemNames.AddRange(mountArmors[Random.Range(0, mountArmors.Count)]);
                 itemNames.Add("CapeWolf");
                 itemNames.Add("BowDraugrFang");
                 itemNames.Add(mountMelee[Random.Range(0, mountMelee.Count)]);
+                itemNames.Add(mountShields[Random.Range(0, mountShields.Count)]);
                 break;
             case Heightmap.Biome.Plains:
                 List<string> plainArmor = new() { "HelmetPadded", "ArmorPaddedCuirass", "ArmorPaddedGreaves" };
                 List<string> plainCapes = new() { "CapeLox", "CapeLinen" };
-                List<string> plainMelee = new List<string>() { "SwordBlackmetal", "ShieldBlackmetal", "KnifeBlackmetal", "AtgeirBlackmetal", "AxeBlackMetal" };
+                List<string> plainMelee = new List<string>() { "SwordBlackmetal", "KnifeBlackmetal", "AtgeirBlackmetal", "AxeBlackMetal", "MaceNeedle" };
+                List<string> plainShields = new() { "ShieldBlackmetal", "ShieldBlackmetalTower" };
                 itemNames.Add(plainMelee[Random.Range(0, plainMelee.Count)]);
                 itemNames.Add("BowDraugrFang");
+                itemNames.Add(plainShields[Random.Range(0, plainShields.Count)]);
                 itemNames.Add(plainCapes[Random.Range(0, plainCapes.Count)]);
                 itemNames.AddRange(plainArmor);
                 break;
@@ -203,13 +256,14 @@ public class Companion : Humanoid, Interactable
                     new() { "HelmetCarapace", "ArmorCarapaceChest", "ArmorCarapaceLegs" },
                     new() { "HelmetMage", "ArmorMageChest", "ArmorMageLegs" }
                 };
-                List<string> mistMelee = new List<string>() { "SwordMistwalker", "AtgeirHimminAfl", "SledgeDemolisher", "KnifeSkillAndHati", "THSwordKrom" };
+                List<string> mistMelee = new List<string>() { "SwordMistwalker", "AtgeirHimminAfl", "SledgeDemolisher", "KnifeSkollAndHati", "THSwordKrom" };
                 List<string> mistRanged = new List<string>() { "BowSpineSnap", "StaffFireball", "CrossbowArbalest", "StaffShield" };
+                List<string> mistShields = new() { "ShieldCarapaceBuckler", "ShieldCarapace" };
                 itemNames.Add(mistRanged[Random.Range(0, mistRanged.Count)]);
                 itemNames.Add(mistMelee[Random.Range(0, mistMelee.Count)]);
                 itemNames.AddRange(mistArmors[Random.Range(0, mistArmors.Count)]);
                 itemNames.Add("CapeFeather");
-                itemNames.Add("ShieldCarapaceBuckler");
+                itemNames.Add(mistShields[Random.Range(0, mistShields.Count)]);
                 itemNames.Add("Demister");
                 break;
             case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
@@ -217,22 +271,25 @@ public class Companion : Humanoid, Interactable
                 {
                     new() { "HelmetFlametal", "ArmorFlametalChest", "ArmorFlametalLegs" },
                     new() { "HelmetMage_Ashlands", "ArmorMageChest_Ashlands", "ArmorMageLegs_Ashlands" },
-                    new() { "HelmetAshlandsHood", "ArmorAshlandsMediumChest", "ArmorAshlandsMediumlegs" }
+                    new() { "HelmetAshlandsMediumHood", "ArmorAshlandsMediumChest", "ArmorAshlandsMediumlegs" }
                 };
                 List<string> endCapes = new() { "CapeAsh", "CapeAskvin" };
                 List<string> endMelee = new List<string>() { "AxeBerzerkr", "THSwordSlayer", };
                 List<string> endRanged = new List<string>() { "StaffClusterbomb", "StaffLightning", "StaffGreenRoots", "BowAshlands" };
+                List<string> endShields = new() { "ShieldFlametal", "ShieldFlametalTower" };
                 itemNames.Add(endRanged[Random.Range(0, endRanged.Count)]);
                 itemNames.Add(endMelee[Random.Range(0, endMelee.Count)]);
                 itemNames.AddRange(endArmors[Random.Range(0, endArmors.Count)]);
                 itemNames.Add(endCapes[Random.Range(0, endCapes.Count)]);
-                itemNames.Add("ShieldCarapaceBuckler");
+                itemNames.Add(endShields[Random.Range(0, endShields.Count)]);
                 break;
             default:
-                List<string> startArmors = new() {"HelmetLeather", "ArmorLeatherChest", "ArmorLeatherLegs", "CapeDeerHide", "ShieldWood"};
+                List<string> startArmors = new() {"HelmetLeather", "ArmorLeatherChest", "ArmorLeatherLegs", "CapeDeerHide"};
                 List<string> startMelee = new List<string>() { "KnifeFlint", "SpearFlint", "AxeFlint" };
+                List<string> startShields = new() { "ShieldWoodTower", "ShieldWood" };
                 itemNames.AddRange(startArmors);
                 itemNames.Add(startMelee[Random.Range(0, startMelee.Count)]);
+                itemNames.Add(startShields[Random.Range(0, startShields.Count)]);
                 itemNames.Add("Bow");
                 break;
         }
@@ -288,21 +345,43 @@ public class Companion : Humanoid, Interactable
     {
         if (m_companionAI == null) return;
         Vector3 location = player.GetLookDir() * 5f + player.transform.position;
-        ZoneSystem.instance.GetSolidHeight(location, out float height, 1000);
-        if (height >= 0.0 && Mathf.Abs(height - location.y) <= 2f && Vector3.Distance(location, player.transform.position) >= 2f)
+        if (!m_nview.IsOwner())
         {
-            location.y = height;
+            m_nview.InvokeRPC(nameof(RPC_Warp), player.transform.position, location);
+        }
+        else
+        {
+            ZoneSystem.instance.GetSolidHeight(location, out float height, 1000);
+            if (height >= 0.0 && Mathf.Abs(height - location.y) <= 2f && Vector3.Distance(location, player.transform.position) >= 2f)
+            {
+                location.y = height;
+            }
+        
+            if (!IsOwner()) m_nview.ClaimOwnership();
+            m_companionAI.StopMoving();
+            Transform transform1 = transform;
+            transform1.position = location;
+            transform1.rotation = Quaternion.identity;
+            m_body.velocity = Vector3.zero;
+            m_warpEffect.Create(transform1.position, Quaternion.identity);
+        }
+    }
+    public void RPC_Warp(long sender, Vector3 playerPos, Vector3 pos)
+    {
+        ZoneSystem.instance.GetSolidHeight(pos, out float height, 1000);
+        if (height >= 0.0 && Mathf.Abs(height - pos.y) <= 2f && Vector3.Distance(pos, playerPos) >= 2f)
+        {
+            pos.y = height;
         }
 
         if (!IsOwner()) m_nview.ClaimOwnership();
-        m_companionAI.StopMoving();
+        if (m_companionAI != null) m_companionAI.StopMoving();
         Transform transform1 = transform;
-        transform1.position = location;
+        transform1.position = pos;
         transform1.rotation = Quaternion.identity;
         m_body.velocity = Vector3.zero;
         m_warpEffect.Create(transform1.position, Quaternion.identity);
     }
-
     public bool IsInventoryFull() => GetInventory().NrOfItems() >= m_inventory.m_width * m_inventory.m_height;
     public void AutoPickup(float dt)
     {
@@ -357,6 +436,11 @@ public class Companion : Humanoid, Interactable
             if (TryGetComponent(out CharacterDrop characterDrop))
             {
                 characterDrop.SetDropsEnabled(false);
+                if (IsRaider())
+                {
+                    characterDrop.m_drops.Clear();
+                    characterDrop.m_drops = GetBiomeDrops();
+                }
                 component.Setup(velocity, 0.0f, 0.0f, 0.0f, characterDrop);
             }
             else
@@ -365,28 +449,92 @@ public class Companion : Humanoid, Interactable
             }
             OnRagdollCreated(component);
         }
-        
-        if (IsRaider())
-        {
-            List<GameObject> items = m_defaultItems.ToList();
-            int count = 0;
-            while (count < 5)
-            {
-                GameObject item = items[Random.Range(0, items.Count)];
-                if (Random.value < SettlersPlugin._raiderDropChance.Value)
-                {
-                    Object.Instantiate(item, transform.position, Quaternion.identity);
-                    items.Remove(item);
-                }
-                ++count;
-            }
-        }
-        else
-        {
-            CreateTombStone();
-        }
+        if (!IsRaider()) CreateTombStone();
+        else DropDefaultItems();
         ZNetScene.instance.Destroy(gameObject);
+        RemovePins();
         Gogan.LogEvent("Game", "Killed", m_name, 0L);
+    }
+
+    private void DropDefaultItems()
+    {
+        foreach (GameObject item in m_defaultItems)
+        {
+            if (!item.TryGetComponent(out ItemDrop itemDrop)) continue;
+            if (Random.value > SettlersPlugin._raiderDropChance.Value) continue;
+            ItemDrop.ItemData data = itemDrop.m_itemData.Clone();
+            data.m_quality = m_level;
+            ItemDrop drop = ItemDrop.DropItem(data, 1, transform.position, Quaternion.identity);
+            m_dropEffects.Create(drop.transform.position, Quaternion.identity);
+        }
+    }
+    private List<CharacterDrop.Drop> GetBiomeDrops()
+    {
+        List<CharacterDrop.Drop> result = new();
+        List<string> specialDrops;
+        List<string> drops;
+        switch (m_currentBiome)
+        {
+            case Heightmap.Biome.BlackForest:
+                specialDrops = new() { "SurtlingCore", "TinOre", "CopperOre", "DeerStew", "BoarJerky", "CarrotSoup", "QueensJam", "MinceMeatSauce", "CookedEgg" };
+                drops = new() { "CoreWood", "BoneFragments", "Thistle", "Coal" };
+                break;
+            case Heightmap.Biome.Swamp:
+                specialDrops = new() { "IronScrap", "Guck", "Root", "ShocklateSmoothie", "TurnipStew", "Sausages", "FishCooked", "BlackSoup" };
+                drops = new() { "ElderBark", "Entrails" };
+                break;
+            case Heightmap.Biome.Mountain:
+                specialDrops = new() { "SilverOre", "WolfClaw", "WolfHairBundle", "SerpentMeatCooked", "OnionSoup", "Wolfjerky", "WolfMeatSkewer", "Eyescream" };
+                drops = new() { "WolfPelt", "Crystal", "Obsidian" };
+                break;
+            case Heightmap.Biome.Plains:
+                specialDrops = new() { "BlackMetalScrap", "GoblinTotem", "CookedLoxMeat", "FishWraps", "LoxPie", "BloodPudding", "Bread" };
+                drops = new() { "Barley", "Flax", "Needle" };
+                break;
+            case Heightmap.Biome.Mistlands:
+                specialDrops = new()
+                {
+                    "SoftTissue", "ChickenEgg", "CookedBugMeat", "CookedHareMeat", "Meatplatter", "HoneyGlazedChicken", "Mistharesupreme", "Salad", "MushroomOmelette",
+                    "MagicallyStuffedShroom", "YggdrasilPorridge", "SeekerAspic", "BlackCore"
+                };
+                drops = new() { "Carapace", "BugMeat", "BlackMarble" };
+                break;
+            case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
+                specialDrops = new()
+                {
+                    "FlametalOreNew", "CookedAsksvinMeat", "CookedVoltureMeat", "CookedVoltureMeat", "MashedMeat", "PiquantPie", "SpicyMarmalade",
+                    "ScorchingMedley", "SparklingShroomshake", "MarinatedGreens"
+                };
+                drops = new() { "CharredBone", "blackwood", "SulfurStone" };
+                break;
+            default:
+                specialDrops = new() { "CookedMeat", "CookedDeerMeat", "Flint", "DeerHide", "NeckTailGrilled" };
+                drops = new() { "LeatherScraps", "Wood", "Stone", "Resin" };
+                break;
+        }
+        result.AddRange(GetDropList(drops, 1f, 1, 2, true));
+        result.AddRange(GetDropList(specialDrops, 0.25f, 1, 1, false));
+        return result;
+    }
+
+    private List<CharacterDrop.Drop> GetDropList(List<string> list, float chance, int min, int max, bool multiply)
+    {
+        return (from item in list
+            select ZNetScene.instance.GetPrefab(item)
+            into prefab
+            where prefab
+            select new CharacterDrop.Drop()
+            {
+                m_prefab = prefab,
+                m_chance = chance,
+                m_amountMin = min,
+                m_amountMax = max,
+                m_levelMultiplier = multiply
+            }).ToList();
+    }
+    private void RemovePins()
+    {
+        foreach (Minimap.PinData? pin in m_pins) Minimap.instance.RemovePin(pin);
     }
 
     public override bool HaveEitr(float amount = 0)
@@ -422,7 +570,15 @@ public class Companion : Humanoid, Interactable
             SetWeaponLoaded(null);
         }
 
-        currentWeapon.m_durability -= 1.5f;
+        if (currentWeapon.m_shared.m_attack.m_bowDraw)
+        {
+            currentWeapon.m_shared.m_attack.m_attackDrawPercentage = 0.0f;
+        }
+
+        if (currentWeapon.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Torch)
+        {
+            currentWeapon.m_durability -= 1.5f;
+        }
         
         ClearActionQueue();
         StartAttackGroundCheck();
@@ -461,7 +617,7 @@ public class Companion : Humanoid, Interactable
         }
         else
         {
-            var action = m_actionQueue[0];
+            MinorActionData? action = m_actionQueue[0];
             if (!m_actionAnimation.IsNullOrWhiteSpace() && m_actionAnimation != action.m_animation)
             {
                 m_animator.SetBool(m_actionAnimation, false);
@@ -493,7 +649,7 @@ public class Companion : Humanoid, Interactable
             {
                 m_animator.SetTrigger(action.m_doneAnimation);
             }
-
+            
             switch (action.m_type)
             {
                 case MinorActionData.ActionType.Equip:
@@ -599,7 +755,6 @@ public class Companion : Humanoid, Interactable
         if (m_weaponLoaded == weapon || !weapon.m_shared.m_attack.m_requiresReload || IsReloadActionQueued()) return;
         QueueReloadAction();
     }
-
     public override bool IsWeaponLoaded() => m_nview.GetZDO().GetBool(ZDOVars.s_weaponLoaded);
     private void SetWeaponLoaded(ItemDrop.ItemData? weapon)
     {
@@ -609,7 +764,7 @@ public class Companion : Humanoid, Interactable
     }
 
     public bool IsQueueActive() => m_actionQueue.Count > 0;
-
+    
     private void QueueReloadAction()
     {
         if (IsReloadActionQueued()) return;
@@ -642,38 +797,18 @@ public class Companion : Humanoid, Interactable
         if (item == null) return;
         foreach (MinorActionData action in m_actionQueue)
         {
-            if (action.m_item == item)
-            {
-                m_actionQueue.Remove(action);
-                break;
-            }
+            if (action.m_item != item) continue;
+            m_actionQueue.Remove(action);
+            break;
         }
     }
 
     private bool IsEquipActionQueued(ItemDrop.ItemData? item)
     {
-        if (item == null) return false;
-        foreach (MinorActionData? action in m_actionQueue)
-        {
-            if (action.m_type is MinorActionData.ActionType.Equip or MinorActionData.ActionType.Unequip && action.m_item == item)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return item != null && m_actionQueue.Any(action => action.m_type is MinorActionData.ActionType.Equip or MinorActionData.ActionType.Unequip && action.m_item == item);
     }
 
-    private bool IsReloadActionQueued()
-    {
-        foreach (var action in m_actionQueue)
-        {
-            if (action.m_type is MinorActionData.ActionType.Reload) return true;
-        }
-
-        return false;
-    }
-
+    private bool IsReloadActionQueued() => m_actionQueue.Any(action => action.m_type is MinorActionData.ActionType.Reload);
     private void StopCurrentAttack()
     {
         if (m_currentAttack == null) return;
@@ -934,6 +1069,7 @@ public class Companion : Humanoid, Interactable
             if (item.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Consumable) continue;
             if (item.m_shared.m_consumeStatusEffect)
             {
+                if (m_seman.HaveStatusEffect(item.m_shared.m_consumeStatusEffect.NameHash())) continue;
                 m_seman.AddStatusEffect(item.m_shared.m_consumeStatusEffect);
             }
             if (EatFood(item))
@@ -1105,14 +1241,11 @@ public class Companion : Humanoid, Interactable
     {
         if (!m_nview.IsValid()) return;
         float num = GetRemainingTamingTime() - time;
-        if (num < 0.0)
-        {
-            num = 0.0f;
-        }
+        if (num < 0.0) num = 0.0f;
         m_nview.GetZDO().Set(ZDOVars.s_tameTimeLeft, num);
     }
 
-    private float GetRemainingTamingTime() => !m_nview.IsValid() ? 0.0f : m_nview.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, m_tamingTime);
+    private float GetRemainingTamingTime() => !m_nview.IsValid() ? 0.0f : m_nview.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, SettlersPlugin._settlerTamingTime.Value);
 
     private string GetStatus()
     {
@@ -1199,10 +1332,12 @@ public class Companion : Humanoid, Interactable
             stringBuilder.AppendFormat("\n[<color=yellow><b>{0}</b></color>] {1}", 
                 "$KEY_Use", 
                 m_companionAI != null && m_companionAI.GetFollowTarget() == null ? "$hud_follow" : "$hud_stay");
-            string ownerName = GetOwnerName();
-            if (m_nview.GetZDO().GetLong(m_ownerKey) == 0L || m_nview.GetZDO().GetLong(m_ownerKey) == Player.m_localPlayer.GetPlayerID())
-                stringBuilder.Append("\n[<color=yellow><b>L.Shift + $KEY_Use</b></color>] $hud_interact");
-            if (!string.IsNullOrWhiteSpace(ownerName)) stringBuilder.AppendFormat("\n$hud_owner: {0}", ownerName);
+            stringBuilder.Append("\n[<color=yellow><b>L.Shift + $KEY_Use</b></color>] $hud_interact");
+            if (SettlersPlugin._ownerLock.Value is SettlersPlugin.Toggle.On)
+            {
+                string ownerName = GetOwnerName();
+                if (!string.IsNullOrWhiteSpace(ownerName)) stringBuilder.AppendFormat("\n$hud_owner: {0}", ownerName);
+            }
             stringBuilder.AppendFormat("\n$se_health: {0}/{1}", (int)GetHealth(), (int)GetMaxHealth());
             stringBuilder.AppendFormat("\n$item_armor: {0}", (int)GetBodyArmor());
             if (GetMaxEitr() > 0) stringBuilder.AppendFormat("\n$se_eitr: <color=#E6E6FA>{0}</color>/<color=#B19CD9>{1}</color>", (int)GetEitr(), (int)GetMaxEitr());
@@ -1223,11 +1358,15 @@ public class Companion : Humanoid, Interactable
         return Localization.instance.Localize(stringBuilder.ToString());
     }
 
-    private int GetTameness() => (int)((1.0 - Mathf.Clamp01(GetRemainingTamingTime() / m_tamingTime)) * 100.0);
+    private int GetTameness() => (int)((1.0 - Mathf.Clamp01(GetRemainingTamingTime() / SettlersPlugin._settlerTamingTime.Value)) * 100.0);
 
     public override string GetHoverName() => m_name;
-    
-    public void Command(Humanoid user, bool message = true) => m_nview.InvokeRPC(nameof(RPC_Command), user.GetZDOID(), message);
+
+    public void Command(Humanoid user, bool message = true)
+    {
+        RemovePins();
+        m_nview.InvokeRPC(nameof(RPC_Command), user.GetZDOID(), message);
+    }
 
     public void RPC_Command(long sender, ZDOID characterID, bool message)
     {
@@ -1251,7 +1390,33 @@ public class Companion : Humanoid, Interactable
             m_nview.GetZDO().Set(ZDOVars.s_follow, player.GetPlayerName());
             m_followTargetName = player.GetHoverName();
             if (message) player.Message(MessageHud.MessageType.Center, $"{m_name} $hud_tamefollow");
+            AddPin();
         }
+    }
+
+    private void AddPin()
+    {
+        if (SettlersPlugin._addMinimapPin.Value is SettlersPlugin.Toggle.Off) return;
+        var pin = new Minimap.PinData()
+        {
+            m_type = Minimap.PinType.Player,
+            m_name = GetHoverName(),
+            m_pos = transform.position,
+            m_icon = SettlersPlugin.m_settlerPin,
+            m_save = false,
+            m_checked = false,
+            m_ownerID = Player.m_localPlayer.GetPlayerID(),
+            m_author = Player.m_localPlayer.GetPlayerName()
+        };
+        pin.m_NamePinData = new Minimap.PinNameData(pin);
+        Minimap.instance.m_pins.Add(pin);
+        if (pin.m_type < (Minimap.PinType)Minimap.instance.m_visibleIconTypes.Length && !Minimap.instance.m_visibleIconTypes[(int)pin.m_type])
+        {
+            Minimap.instance.ToggleIconFilter(pin.m_type);
+        }
+
+        Minimap.instance.m_pinUpdateRequired = true;
+        m_pins.Add(pin);
     }
 
     public void RPC_RequestOpen(long uid, long playerID)
@@ -1324,6 +1489,7 @@ public class Companion : Humanoid, Interactable
 
     private bool CheckAccess(long playerID)
     {
+        if (SettlersPlugin._ownerLock.Value is SettlersPlugin.Toggle.Off) return true;
         var owner = m_nview.GetZDO().GetLong(m_ownerKey);
         if (owner == 0L) return true;
         return playerID == owner;
@@ -1606,8 +1772,7 @@ public class Companion : Humanoid, Interactable
     [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.OnSelectedItem))]
     private static class InventoryGUI_OnSelectedItem_Patch
     {
-        private static bool Prefix(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData item, Vector2i pos,
-            InventoryGrid.Modifier mod)
+        private static bool Prefix(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData item, Vector2i pos, InventoryGrid.Modifier mod)
         {
             if (m_currentCompanion == null) return true;
             if (mod is InventoryGrid.Modifier.Drop or InventoryGrid.Modifier.Select
@@ -1758,7 +1923,7 @@ public class Companion : Humanoid, Interactable
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
                         item.m_shared.m_aiAttackRange = 30f;
-                        item.m_shared.m_aiAttackRangeMin = 1f;
+                        item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = 12f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;
                         item.m_shared.m_aiWhenFlying = true;
@@ -1767,7 +1932,7 @@ public class Companion : Humanoid, Interactable
                         break;
                     case Skills.SkillType.ElementalMagic:
                         item.m_shared.m_aiAttackRange = 20f;
-                        item.m_shared.m_aiAttackRangeMin = 1f;
+                        item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = item.m_shared.m_name == "$item_stafficeshards" ? 30f : 12f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;
                         item.m_shared.m_aiWhenFlying = true;
@@ -1776,7 +1941,7 @@ public class Companion : Humanoid, Interactable
                         break;
                     case Skills.SkillType.BloodMagic:
                         item.m_shared.m_aiAttackRange = 20f;
-                        item.m_shared.m_aiAttackRangeMin = 1f;
+                        item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = 30f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;
                         item.m_shared.m_aiWhenFlying = true;
@@ -1792,7 +1957,7 @@ public class Companion : Humanoid, Interactable
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
                         item.m_shared.m_aiAttackRange = 30f;
-                        item.m_shared.m_aiAttackRangeMin = 1f;
+                        item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = 12f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;
                         item.m_shared.m_aiWhenFlying = true;
@@ -1811,7 +1976,7 @@ public class Companion : Humanoid, Interactable
                             item.m_shared.m_attack.m_launchAngle = 0f;
                             item.m_shared.m_attack.m_projectiles = 1;
                             item.m_shared.m_aiAttackRange = 30f;
-                            item.m_shared.m_aiAttackRangeMin = 1f;
+                            item.m_shared.m_aiAttackRangeMin = 5f;
                             item.m_shared.m_aiAttackInterval = 12f;
                             item.m_shared.m_aiAttackMaxAngle = 15f;
                             item.m_shared.m_aiWhenFlying = true;
@@ -1910,11 +2075,13 @@ public class Companion : Humanoid, Interactable
         private static void Postfix(Player __instance)
         {
             if (__instance.m_guardianSE == null) return;
+            int count = 0;
             foreach (Companion companion in m_instances)
             {
                 if (!companion.IsTamed()) continue;
                 if (Vector3.Distance(__instance.transform.position, companion.transform.position) > 10f) continue;
                 companion.GetSEMan().AddStatusEffect(__instance.m_guardianSE.NameHash(), true);
+                ++count;
             }
         }
     }
@@ -1931,12 +2098,11 @@ public class Companion : Humanoid, Interactable
         public float m_staminaDrain;
         public float m_eitrDrain;
         public EffectList? m_startEffect;
-
         public enum ActionType
         {
             Equip,
             Unequip,
-            Reload
+            Reload,
         }
     }
 }

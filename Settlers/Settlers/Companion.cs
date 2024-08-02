@@ -89,6 +89,28 @@ public class Companion : Humanoid, Interactable
 
         SetMaxHealth(m_baseHealth * m_level);
     }
+
+    public override bool TeleportTo(Vector3 pos, Quaternion rot, bool distantTeleport)
+    {
+        if (!m_nview.IsOwner())
+        {
+            m_nview.InvokeRPC(nameof(RPC_TeleportTo), pos, rot, distantTeleport);
+            return false;
+        }
+        Teleport(pos, rot, distantTeleport);
+        return true;
+    }
+
+    public void Teleport(Vector3 pos, Quaternion rot, bool distantTeleport)
+    {
+        Vector3 random = Random.insideUnitSphere * 10f;
+        Vector3 location = pos + new Vector3(random.x, 0f, random.z);
+        location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
+        transform.position = location;
+        transform.rotation = rot;
+        m_body.velocity = Vector3.zero;
+    }
+
     public override void Start()
     {
         if (IsRaider())
@@ -134,7 +156,7 @@ public class Companion : Humanoid, Interactable
             UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
             UpdateStats(fixedDeltaTime);
             UpdatePins(fixedDeltaTime);
-            UpdateEnvStatusEffects(fixedDeltaTime);
+            // UpdateEnvStatusEffects(fixedDeltaTime);
         }
     }
 
@@ -215,7 +237,7 @@ public class Companion : Humanoid, Interactable
                 List<List<string>> swampArmors = new()
                 {
                     new() { "HelmetIron", "ArmorIronChest", "ArmorIronLegs" },
-                    new() {"HelmetRoot", "ArmorRootChest", "ArmorRootLegs"}
+                    new() { "HelmetRoot", "ArmorRootChest", "ArmorRootLegs" }
                 };
                 List<string> swampMelee = new List<string>() { "SledgeIron", "SwordIron", "MaceIron", "Battleaxe", };
                 List<string> swampShields = new() { "ShieldIronBuckler", "ShieldBanded", "ShieldIronTower" };
@@ -476,11 +498,11 @@ public class Companion : Humanoid, Interactable
         switch (m_currentBiome)
         {
             case Heightmap.Biome.BlackForest:
-                specialDrops = new() { "SurtlingCore", "TinOre", "CopperOre", "DeerStew", "BoarJerky", "CarrotSoup", "QueensJam", "MinceMeatSauce", "CookedEgg" };
+                specialDrops = new() { "SurtlingCore", "TinOre", "CopperOre", "DeerStew", "BoarJerky", "CarrotSoup", "QueensJam", "MinceMeatSauce", "CookedEgg", "MeadHealthMinor", "MeadStaminaMinor" };
                 drops = new() { "CoreWood", "BoneFragments", "Thistle", "Coal" };
                 break;
             case Heightmap.Biome.Swamp:
-                specialDrops = new() { "IronScrap", "Guck", "Root", "ShocklateSmoothie", "TurnipStew", "Sausages", "FishCooked", "BlackSoup" };
+                specialDrops = new() { "IronScrap", "Guck", "Root", "ShocklateSmoothie", "TurnipStew", "Sausages", "FishCooked", "BlackSoup", "MeadPoisonResist" };
                 drops = new() { "ElderBark", "Entrails" };
                 break;
             case Heightmap.Biome.Mountain:
@@ -512,8 +534,8 @@ public class Companion : Humanoid, Interactable
                 drops = new() { "LeatherScraps", "Wood", "Stone", "Resin" };
                 break;
         }
-        result.AddRange(GetDropList(drops, 1f, 1, 2, true));
-        result.AddRange(GetDropList(specialDrops, 0.25f, 1, 1, false));
+        result.AddRange(GetDropList(drops, 1f, 2, 3, true));
+        result.AddRange(GetDropList(specialDrops, 0.25f, 1, 2, false));
         return result;
     }
 
@@ -1323,9 +1345,9 @@ public class Companion : Humanoid, Interactable
     public override string GetHoverText()
     {
         if (!m_nview.IsValid()) return "";
+        if (IsRaider()) return "";
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.Append(m_name);
-        if (IsRaider()) return Localization.instance.Localize(stringBuilder.ToString());
         if (IsTamed())
         {
             stringBuilder.AppendFormat(" ( {0} )", GetStatus());
@@ -1639,7 +1661,7 @@ public class Companion : Humanoid, Interactable
             }
 
             if (m_currentCompanion == null) return true;
-            if (m_currentCompanion != null && m_currentCompanion.IsOwner())
+            if (m_currentCompanion.IsOwner())
             {
                 m_currentCompanion.m_inUse = true;
                 __instance.m_container.gameObject.SetActive(true);
@@ -2013,14 +2035,15 @@ public class Companion : Humanoid, Interactable
 
             foreach (Companion companion in companions)
             {
-                Vector3 random = Random.insideUnitSphere * 10f;
-                Vector3 location = pos + new Vector3(random.x, 0f, random.z);
-                if (!companion.m_nview.IsOwner()) companion.m_nview.ClaimOwnership();
-                Transform transform = companion.transform;
-                location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
-                transform.position = location;
-                transform.rotation = rot;
-                companion.m_body.velocity = Vector3.zero;
+                companion.TeleportTo(pos, rot, true);
+                // Vector3 random = Random.insideUnitSphere * 10f;
+                // Vector3 location = pos + new Vector3(random.x, 0f, random.z);
+                // if (!companion.m_nview.IsOwner()) companion.m_nview.ClaimOwnership();
+                // Transform transform = companion.transform;
+                // location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
+                // transform.position = location;
+                // transform.rotation = rot;
+                // companion.m_body.velocity = Vector3.zero;
             }
         }
     }

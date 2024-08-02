@@ -10,6 +10,7 @@ public class CompanionAI : MonsterAI
 {
     public static readonly Dictionary<Chair, Companion> m_occupiedChairs = new();
     private Companion m_companion = null!;
+    private CompanionTalk m_companionTalk = null!;
     private ItemDrop.ItemData? m_axe;
     private ItemDrop.ItemData? m_pickaxe;
     private readonly float m_searchRange = 10f;
@@ -31,6 +32,7 @@ public class CompanionAI : MonsterAI
     {
         base.Awake();
         m_companion = GetComponent<Companion>();
+        m_companionTalk = GetComponent<CompanionTalk>();
         m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "");
     }
     public override bool UpdateAI(float dt)
@@ -65,10 +67,15 @@ public class CompanionAI : MonsterAI
             ResetActions();
             return base.UpdateAI(dt);
         }
+
+        if (m_companionTalk.InPlayerBase()) return base.UpdateAI(dt);
         if (m_companion.InAttack()) return base.UpdateAI(dt);
         if (m_companion.IsInventoryFull()) return base.UpdateAI(dt);
-        if (m_companion.IsHungry()) 
+        if (m_companion.IsHungry())
+        {
             if (UpdateConsumeItem(m_character as Humanoid, dt)) return true;
+            return base.UpdateAI(dt);
+        }
         UpdateTarget(dt);
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
@@ -127,7 +134,7 @@ public class CompanionAI : MonsterAI
         ItemDrop.ItemData? hammer = GetHammer();
         if (hammer == null) return false;
         m_repairTimer += dt;
-        if (m_repairTimer < 5) return false;
+        if (m_repairTimer < 5f) return false;
         m_repairTimer = 0.0f;
         m_repairPiece = FindRepairPiece();
         if (m_repairPiece == null) return false;
@@ -418,7 +425,7 @@ public class CompanionAI : MonsterAI
     {
         if (!m_companion.IsTamed()) return false;
         m_searchAttachTimer += dt;
-        if (m_searchAttachTimer < 1f) return false;
+        if (m_searchAttachTimer < 5f) return false;
         m_searchAttachTimer = 0.0f;
         var follow = GetFollowTarget();
         if (!m_companion.m_attached && follow != null)
@@ -451,8 +458,7 @@ public class CompanionAI : MonsterAI
         Chair? closestChair = null;
 
         float num1 = m_searchAttachRange;
-        foreach (var collider in Physics.OverlapSphere(transform.position, m_searchAttachRange,
-                     LayerMask.GetMask("piece", "piece_nonsolid")))
+        foreach (Collider? collider in Physics.OverlapSphere(transform.position, m_searchAttachRange, LayerMask.GetMask("piece", "piece_nonsolid")))
         {
             Chair chair = collider.GetComponentInParent<Chair>();
             if (!chair) continue;

@@ -12,6 +12,7 @@ public static class ReplaceSpawns
         {
             if (SettlersPlugin._spawnRaiders.Value is SettlersPlugin.Toggle.Off) return true;
             // if (__instance.m_creaturePrefab.name is not "Skeleton" or "Goblin" or "GoblinArcher" or "Ghost" or "Fenring" or "Dverger" or "Hatchling") return true;
+            if (__instance.m_creaturePrefab.name == "VikingSettler") return true;
             Vector3 position = __instance.transform.position;
             if (ZoneSystem.instance.FindFloor(position, out var height))
             {

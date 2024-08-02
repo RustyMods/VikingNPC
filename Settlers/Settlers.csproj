@@ -81,6 +81,9 @@
         <Reference Include="ServerSync">
             <HintPath>Libs\ServerSync.dll</HintPath>
         </Reference>
+        <Reference Include="SoftReferenceableAssets">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\SoftReferenceableAssets_publicized.dll</HintPath>
+        </Reference>
         <Reference Include="System" />
         <Reference Include="System.Core" />
         <Reference Include="System.Data" />
@@ -117,7 +120,11 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+        <Compile Include="Behaviors\BluePrinter.cs" />
+        <Compile Include="Managers\AssetLoaderManager.cs" />
+        <Compile Include="Managers\BlueprintManager.cs" />
         <Compile Include="Managers\LocalizationManager.cs" />
+        <Compile Include="Managers\LocationManager.cs" />
         <Compile Include="Plugin.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Settlers\BaseHuman.cs" />
@@ -132,7 +139,19 @@
         <EmbeddedResource Include="..\..\..\bundles_2024\settlerbundle">
           <Link>assets\settlerbundle</Link>
         </EmbeddedResource>
+        <EmbeddedResource Include="..\..\..\bundles_2024\blueprintlocationbundle">
+          <Link>assets\blueprintlocationbundle</Link>
+        </EmbeddedResource>
         <Content Include=".gitignore" />
+        <EmbeddedResource Include="blueprints\RuinedTower.blueprint" />
+        <EmbeddedResource Include="blueprints\swamptown1.blueprint" />
+        <EmbeddedResource Include="blueprints\MeadowRaiderTown1.blueprint" />
+        <EmbeddedResource Include="blueprints\MeadowSettlerTown1.blueprint" />
+        <EmbeddedResource Include="blueprints\BlackForestRaiderTown1.blueprint" />
+        <EmbeddedResource Include="blueprints\PlainsRaiderTown1.blueprint" />
+        <EmbeddedResource Include="blueprints\MistlandRaiderTown1.blueprint" />
+        <EmbeddedResource Include="blueprints\MountainRaiderTown1.blueprint" />
+        <EmbeddedResource Include="blueprints\MeadowSettlerTown2.blueprint" />
         <Content Include="environment.props" />
         <Content Include="ILRepack.targets" />
         <Content Include="Libs\ServerSync.dll">

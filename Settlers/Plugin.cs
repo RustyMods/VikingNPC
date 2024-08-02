@@ -6,6 +6,7 @@ using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using BlueprintLocations.Managers;
 using HarmonyLib;
 using JetBrains.Annotations;
 using ServerSync;
@@ -29,10 +30,16 @@ namespace Settlers
         public static readonly ManualLogSource SettlersLogger = BepInEx.Logging.Logger.CreateLogSource(ModName);
         private static readonly ConfigSync ConfigSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
         
+        private static readonly AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
+        private static readonly AssetBundle _locationBundle = GetAssetBundle("blueprintlocationbundle");
         public static SettlersPlugin _Plugin = null!;
         public static GameObject _Root = null!;
-        public static AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
         public static Sprite m_settlerPin = null!;
+        public static AssetLoaderManager m_assetLoaderManager = null!;
+
+        public static ConfigEntry<Toggle> _locationEnabled = null!;
+        private static ConfigEntry<int> _quantity = null!;
+        private static ConfigEntry<Heightmap.Biome> _biomes = null!;
         public enum Toggle { On = 1, Off = 0 }
         
         private static ConfigEntry<Toggle> _serverConfigLocked = null!;
@@ -44,7 +51,7 @@ namespace Settlers
         public static ConfigEntry<string> _firstNames = null!;
         public static ConfigEntry<string> _lastNames = null!;
         public static ConfigEntry<float> _baseMaxCarryWeight = null!;
-        public static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
+        private static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
         private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
         public static ConfigEntry<Toggle> _spawnRaiders = null!;
         public static ConfigEntry<float> _raiderDropChance = null!;
@@ -53,6 +60,7 @@ namespace Settlers
         public static ConfigEntry<Toggle> _addMinimapPin = null!;
         public static ConfigEntry<float> _settlerTamingTime = null!;
         public static ConfigEntry<Toggle> _ownerLock = null!;
+        
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On,
@@ -77,7 +85,7 @@ namespace Settlers
                 "Set the key that will make all tamed settlers follow you, if they aren't following");
             _makeAllUnfollowKey = config("2 - Settings", "Make All Unfollow Key", KeyCode.None,
                 "Set the key that will make all tamed settlers unfollow, if they are following");
-            _spawnRaiders = config("2 - Settings", "Raiders", Toggle.Off, "If on, raiders have taken over the world");
+            _spawnRaiders = config("2 - Settings", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
             _raiderDropChance = config("2 - Settings", "Raider Item Drop Chance", 0.2f,
                 new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
             _raiderFaction = config("2 - Settings", "Raider Faction", Character.Faction.SeaMonsters,
@@ -88,7 +96,12 @@ namespace Settlers
                 "If on, when settler is following a pin will be added on the minimap to track them");
             _ownerLock = config("2 - Settings", "Inventory Locked", Toggle.On,
                 "If on, only owner can access settler inventory");
-            var m_firstNames = new List<string>()
+            
+            _locationEnabled = config("2 - Settings", "Locations Enabled", Toggle.On, "If on, blueprint locations will generate");
+            _quantity = config("2 - Settings", "Quantity", 300, "Set amount of blueprint locations to generate");
+            _biomes = config("2 - Settings", "Biomes", Heightmap.Biome.All, "Set biomes settler locations can generate");
+            
+            List<string> m_firstNames = new List<string>()
             {
                 "Bjorn", "Harald", "Bo", "Frode", 
                 "Birger", "Arne", "Erik", "Kare", 
@@ -99,7 +112,7 @@ namespace Settlers
                 "Hilda", "Ingrid", "Freya", "Astrid", 
                 "Sigrid", "Thora", "Runa", "Ylva"
             };
-            var m_lastNames = new List<string>()
+            List<string> m_lastNames = new List<string>()
             {
                 "Ironside", "Fairhair", "Thunderfist", "Bloodaxe",
                 "Longsword", "Ravenheart", "Dragonslayer", "Stormborn",
@@ -116,12 +129,15 @@ namespace Settlers
 
         public void Awake()
         {
+            InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;
+            m_assetLoaderManager = new AssetLoaderManager(_Plugin.Info.Metadata, SettlersLogger);
             _Root = new GameObject("root");
             DontDestroyOnLoad(_Root);
             _Root.SetActive(false);
-            InitConfigs();
+            LoadMockLocation();
+            BlueprintManager.LoadBlueprints();
             Localizer.Load();
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
@@ -140,6 +156,19 @@ namespace Settlers
             {
                 Companion.MakeAllFollow(Player.m_localPlayer, 30f, false);
             }
+        }
+        
+        private void LoadMockLocation()
+        {
+            LocationManager.LocationData location = new LocationManager.LocationData("BlueprintLocation", _locationBundle)
+            {
+                m_data =
+                {
+                    m_quantity = _quantity.Value,
+                    m_clearArea = true,
+                    m_biome = _biomes.Value,
+                }
+            };
         }
 
         private void OnDestroy()

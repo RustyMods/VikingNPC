@@ -56,7 +56,7 @@ public class CompanionTalk : MonoBehaviour
     private bool ShouldUpdate()
     {
         return m_companionAI.m_treeTarget == null && m_companionAI.m_rockTarget == null &&
-               m_companionAI.m_fishTarget == null && !m_companion.m_attached;
+               m_companionAI.m_fishTarget == null && !m_companion.m_attached && m_companionAI.m_repairPiece == null;
     }
 
     public void Update()
@@ -91,8 +91,7 @@ public class CompanionTalk : MonoBehaviour
 
     public void UpdateTarget()
     {
-        if (Time.time - m_lastTargetUpdate <= 1.0)
-            return;
+        if (Time.time - m_lastTargetUpdate <= 1.0) return;
         m_lastTargetUpdate = Time.time;
         m_targetPlayer = null;
         Player closestPlayer = Player.GetClosestPlayer(transform.position, m_maxRange);
@@ -141,7 +140,7 @@ public class CompanionTalk : MonoBehaviour
         m_animator.SetTrigger(trigger);
     }
 
-    private bool InPlayerBase()
+    public bool InPlayerBase()
     {
         return EffectArea.IsPointInsideArea(transform.position, EffectArea.Type.PlayerBase, 30f);
     }

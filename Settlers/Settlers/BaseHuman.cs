@@ -3,6 +3,7 @@ using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
+using Settlers.Managers;
 using UnityEngine;
 
 namespace Settlers.Settlers;
@@ -11,14 +12,36 @@ public static class BaseHuman
 {
     private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
 
+    [HarmonyPriority(Priority.First)]
     [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
     private static class ZNetScene_Awake_Patch
     {
-        private static void Postfix()
+        private static void Postfix(ZNetScene __instance)
         {
             CreateBaseHuman();
             Raids.AddRaidEvent(RandEventSystem.m_instance, CreateBaseRaider());
+            CreateSpawners();
+            BlueprintManager.CreateBaseTerrainObject(__instance);
         }
+    }
+    
+    private static void CreateSpawners()
+    {
+        GameObject? prefab = ZNetScene.instance.GetPrefab("Spawner_Draugr");
+        if (!prefab) return;
+        CreateSpawner(prefab, "VikingRaider");
+        CreateSpawner(prefab, "VikingSettler");
+    }
+
+    private static void CreateSpawner(GameObject original, string creature)
+    {
+        GameObject prefab = ZNetScene.instance.GetPrefab(creature);
+        if (!prefab) return;
+        GameObject? clone = Object.Instantiate(original, SettlersPlugin._Root.transform, false);
+        clone.name = $"Spawner_{creature}";
+        if (!clone.TryGetComponent(out CreatureSpawner spawnArea)) return;
+        spawnArea.m_creaturePrefab = prefab;
+        RegisterToZNetScene(clone);
     }
     
     [HarmonyPatch(typeof(SpawnSystem), nameof(SpawnSystem.Awake))]

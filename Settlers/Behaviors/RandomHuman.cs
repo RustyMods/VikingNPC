@@ -3,22 +3,30 @@ using System.Linq;
 using BepInEx;
 using UnityEngine;
 
-namespace Settlers.Settlers;
+namespace Settlers.Behaviors;
 
 public class RandomHuman : MonoBehaviour
 {
-    public List<string> m_firstNames = new()
+    public List<string> m_maleFirstNames = new()
     {
         "Bjorn", "Harald", "Bo", "Frode", 
         "Birger", "Arne", "Erik", "Kare", 
         "Loki", "Thor", "Odin", "Ragnar", 
         "Sigurd", "Ivar", "Gunnar", "Sven",
         "Hakon", "Leif", "Magnus", "Rolf", 
-        "Ulf", "Vidar", "Ingvar", "Gudrun",
-        "Hilda", "Ingrid", "Freya", "Astrid", 
-        "Sigrid", "Thora", "Runa", "Ylva"
+        "Ulf", "Vidar", "Ingvar"
     };
 
+    public List<string> m_femaleFirstNames = new()
+    {
+        "Gudrun", "Hilda", "Ingrid", "Freya", 
+        "Astrid", "Sigrid", "Thora", "Runa", 
+        "Ylva", "Sif", "Helga", "Eira", 
+        "Brynja", "Ragnhild", "Solveig", "Bodil", 
+        "Signy", "Frida", "Alva", "Liv", 
+        "Estrid", "Jorunn", "Aslaug", "Torunn"
+    };
+    
     public List<string> m_lastNames = new()
     {
         "Ironside", "Fairhair", "Thunderfist", "Bloodaxe", 
@@ -37,40 +45,47 @@ public class RandomHuman : MonoBehaviour
     {
         m_nview = GetComponent<ZNetView>();
         if (!TryGetComponent(out Companion component)) return;
-        if (!SettlersPlugin._firstNames.Value.IsNullOrWhiteSpace())
+        if (!TryGetComponent(out VisEquipment visEquipment)) return;
+
+        if (!SettlersPlugin._maleNames.Value.IsNullOrWhiteSpace())
         {
-            m_firstNames = SettlersPlugin._firstNames.Value.Split(':').ToList();
+            m_maleFirstNames = SettlersPlugin._maleNames.Value.Split(':').ToList();
+        }
+
+        if (!SettlersPlugin._femaleNames.Value.IsNullOrWhiteSpace())
+        {
+            m_femaleFirstNames = SettlersPlugin._femaleNames.Value.Split(':').ToList();
         }
 
         if (!SettlersPlugin._lastNames.Value.IsNullOrWhiteSpace())
         {
             m_lastNames = SettlersPlugin._lastNames.Value.Split(':').ToList();
         }
-        RandomHairStyles(component);
-        RandomName(component);
+        Randomize(component, visEquipment, out bool female);
+        RandomName(component, female);
         m_nview.GetZDO().Set("RandomHuman", true);
     }
 
-    public void RandomName(Companion component)
+    public void RandomName(Companion component, bool isFemale)
     {
         if (!m_nview.IsValid()) return;
         string? vikingName = m_nview.GetZDO().GetString("RandomName".GetStableHashCode());
         if (vikingName.IsNullOrWhiteSpace())
         {
-            component.m_name = $"{m_firstNames[Random.Range(0, m_firstNames.Count)]} {m_lastNames[Random.Range(0, m_lastNames.Count)]}";
+            var firstName = isFemale
+                ? m_femaleFirstNames[Random.Range(0, m_femaleFirstNames.Count)]
+                : m_maleFirstNames[Random.Range(0, m_femaleFirstNames.Count)];
+            component.m_name = $"{firstName} {m_lastNames[Random.Range(0, m_lastNames.Count)]}";
             m_nview.GetZDO().Set("RandomName".GetStableHashCode(), component.m_name);
         }
         else
         {
             component.m_name = vikingName;
         }
-        
     }
 
-    public void RandomHairStyles(Companion humanoid)
+    public void Randomize(Companion humanoid, VisEquipment visEquipment, out bool female)
     {
-        if (!TryGetComponent(out VisEquipment visEquipment)) return;
-
         int modelIndex = Random.Range(0, 2);
         int random = Random.Range(0, 20);
         Vector3 color = new Vector3(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
@@ -115,5 +130,6 @@ public class RandomHuman : MonoBehaviour
         m_hairColor = color;
         visEquipment.SetHairColor(color);
         visEquipment.SetModel(modelIndex);
+        female = modelIndex == 1;
     }
 }

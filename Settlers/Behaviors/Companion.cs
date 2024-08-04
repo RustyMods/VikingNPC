@@ -4,10 +4,11 @@ using System.Linq;
 using System.Text;
 using BepInEx;
 using HarmonyLib;
+using Settlers.Settlers;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
-namespace Settlers.Settlers;
+namespace Settlers.Behaviors;
 
 public class Companion : Humanoid, Interactable
 {
@@ -19,7 +20,8 @@ public class Companion : Humanoid, Interactable
     private static readonly int Consume = Animator.StringToHash("consume");
     private static readonly int m_raider = "VikingRaider".GetStableHashCode();
     
-    public CompanionAI? m_companionAI;
+    public CompanionAI m_companionAI = null!;
+    public CompanionTalk m_companionTalk = null!;
     public bool m_inUse;
     private uint m_lastRevision;
     private string m_lastDataString = "";
@@ -35,15 +37,13 @@ public class Companion : Humanoid, Interactable
     public EffectList m_sootheEffect = new EffectList();
     public EffectList m_petEffect = new EffectList();
     public EffectList m_warpEffect = new EffectList();
-    public EffectList m_drownEffects = new EffectList();
     public EffectList m_equipStartEffects = new();
-    public EffectList m_dodgeEffects = new();
+    public EffectList m_killedEffects = new();
     public float m_lastPetTime;
     public GameObject? m_tombstone;
     public readonly List<Player.Food> m_foods = new();
     private float m_foodUpdateTimer;
     private Heightmap.Biome m_currentBiome = Heightmap.Biome.None;
-    private float m_biomeTimer;
     private readonly List<MinorActionData> m_actionQueue = new();
     private float m_actionQueuePause;
     public string m_actionAnimation = "";
@@ -69,6 +69,7 @@ public class Companion : Humanoid, Interactable
         if (m_startAsRaider) SetRaider(true);
         m_autoPickupMask = LayerMask.GetMask("item");
         m_companionAI = GetComponent<CompanionAI>();
+        m_companionTalk = GetComponent<CompanionTalk>();
         m_companionAI.m_onConsumedItem += OnConsumedItem;
         m_nview.Register<long>(nameof(RPC_RequestOpen), RPC_RequestOpen);
         m_nview.Register<bool>(nameof(RPC_OpenResponse), RPC_OpenResponse);
@@ -88,29 +89,9 @@ public class Companion : Humanoid, Interactable
         }
 
         SetMaxHealth(m_baseHealth * m_level);
+        GetSEMan().AddStatusEffect(nameof(RaiderSE).GetStableHashCode());
     }
-
-    public override bool TeleportTo(Vector3 pos, Quaternion rot, bool distantTeleport)
-    {
-        if (!m_nview.IsOwner())
-        {
-            m_nview.InvokeRPC(nameof(RPC_TeleportTo), pos, rot, distantTeleport);
-            return false;
-        }
-        Teleport(pos, rot, distantTeleport);
-        return true;
-    }
-
-    public void Teleport(Vector3 pos, Quaternion rot, bool distantTeleport)
-    {
-        Vector3 random = Random.insideUnitSphere * 10f;
-        Vector3 location = pos + new Vector3(random.x, 0f, random.z);
-        location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
-        transform.position = location;
-        transform.rotation = rot;
-        m_body.velocity = Vector3.zero;
-    }
-
+    
     public override void Start()
     {
         if (IsRaider())
@@ -152,12 +133,33 @@ public class Companion : Humanoid, Interactable
             AutoPickup(fixedDeltaTime);
             UpdateWarp(fixedDeltaTime);
             UpdateFood(fixedDeltaTime, false);
-            UpdateBiome(fixedDeltaTime);
+            // UpdateBiome(fixedDeltaTime);
             UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
             UpdateStats(fixedDeltaTime);
             UpdatePins(fixedDeltaTime);
             // UpdateEnvStatusEffects(fixedDeltaTime);
         }
+    }
+    
+    public override bool TeleportTo(Vector3 pos, Quaternion rot, bool distantTeleport)
+    {
+        if (!m_nview.IsOwner())
+        {
+            m_nview.InvokeRPC(nameof(RPC_TeleportTo), pos, rot, distantTeleport);
+            return false;
+        }
+        Teleport(pos, rot, distantTeleport);
+        return true;
+    }
+
+    public void Teleport(Vector3 pos, Quaternion rot, bool distantTeleport)
+    {
+        Vector3 random = Random.insideUnitSphere * 10f;
+        Vector3 location = pos + new Vector3(random.x, 0f, random.z);
+        location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
+        transform.position = location;
+        transform.rotation = rot;
+        m_body.velocity = Vector3.zero;
     }
 
     private void UpdateEnvStatusEffects(float dt)
@@ -203,126 +205,136 @@ public class Companion : Humanoid, Interactable
             pin.m_pos = transform.position;
         }
     }
-    public bool IsRaider() => m_nview.GetZDO().GetBool(m_raider);
+
+    public bool IsRaider()
+    {
+        return m_nview.IsValid() && m_nview.GetZDO().GetBool(m_raider);
+    }
     public void SetRaider(bool enable)
     {
         m_nview.GetZDO().Set(m_raider, enable);
-        if (enable)
-        {
-            m_defeatSetGlobalKey = "defeated_vikingraider";
-        }
+        if (enable) m_defeatSetGlobalKey = "defeated_vikingraider";
     }
     private void GetRaiderEquipment()
     {
         m_currentBiome = Heightmap.FindBiome(transform.position);
-        List<GameObject> items = new();
-        List<string> itemNames = new();
-        switch (m_currentBiome)
+        var raiderItems = RaiderArmor.GetRaiderEquipment(m_currentBiome);
+        if (raiderItems != null)
         {
-            case Heightmap.Biome.BlackForest:
-                List<List<string>> BFArmors = new()
-                {
-                    new() { "HelmetBronze", "ArmorBronzeChest", "ArmorBronzeLegs" },
-                    new() { "HelmetTrollLeather", "ArmorTrollLeatherChest", "ArmorTrollLeatherLegs" }
-                };
-                List<string> BFMelee = new List<string>() { "AtgeirBronze", "SwordBronze", "KnifeCopper", "MaceBronze" };
-                List<string> BFShields = new() { "ShieldBronzeBuckler", "ShieldBoneTower" };
-                itemNames.Add(BFMelee[Random.Range(0, BFMelee.Count)]);
-                itemNames.Add("FineWoodBow");
-                itemNames.Add("CapeTrollHide");
-                itemNames.AddRange(BFArmors[Random.Range(0, BFArmors.Count)]);
-                itemNames.Add(BFShields[Random.Range(0, BFShields.Count)]);
-                break;
-            case Heightmap.Biome.Swamp:
-                List<List<string>> swampArmors = new()
-                {
-                    new() { "HelmetIron", "ArmorIronChest", "ArmorIronLegs" },
-                    new() { "HelmetRoot", "ArmorRootChest", "ArmorRootLegs" }
-                };
-                List<string> swampMelee = new List<string>() { "SledgeIron", "SwordIron", "MaceIron", "Battleaxe", };
-                List<string> swampShields = new() { "ShieldIronBuckler", "ShieldBanded", "ShieldIronTower" };
-                itemNames.Add(swampMelee[Random.Range(0, swampMelee.Count)]);
-                itemNames.Add("BowHuntsman");
-                itemNames.Add("CapeTrollHide");
-                itemNames.Add(swampShields[Random.Range(0, swampShields.Count)]);
-                itemNames.AddRange(swampArmors[Random.Range(0, swampArmors.Count)]);
-                break;
-            case Heightmap.Biome.Mountain:
-                List<List<string>> mountArmors = new()
-                {
-                    new() { "HelmetDrake", "ArmorWolfChest", "ArmorWolfLegs" },
-                    new() { "HelmetFenring", "ArmorFenringChest", "ArmorFenringLegs" }
-                };
-                List<string> mountMelee = new List<string>() { "SwordSilver", "MaceSilver", "FistFenrirClaw", "BattleaxeCrystal" };
-                List<string> mountShields = new() { "ShieldSilver", "ShieldSerpentscale" };
-                itemNames.AddRange(mountArmors[Random.Range(0, mountArmors.Count)]);
-                itemNames.Add("CapeWolf");
-                itemNames.Add("BowDraugrFang");
-                itemNames.Add(mountMelee[Random.Range(0, mountMelee.Count)]);
-                itemNames.Add(mountShields[Random.Range(0, mountShields.Count)]);
-                break;
-            case Heightmap.Biome.Plains:
-                List<string> plainArmor = new() { "HelmetPadded", "ArmorPaddedCuirass", "ArmorPaddedGreaves" };
-                List<string> plainCapes = new() { "CapeLox", "CapeLinen" };
-                List<string> plainMelee = new List<string>() { "SwordBlackmetal", "KnifeBlackmetal", "AtgeirBlackmetal", "AxeBlackMetal", "MaceNeedle" };
-                List<string> plainShields = new() { "ShieldBlackmetal", "ShieldBlackmetalTower" };
-                itemNames.Add(plainMelee[Random.Range(0, plainMelee.Count)]);
-                itemNames.Add("BowDraugrFang");
-                itemNames.Add(plainShields[Random.Range(0, plainShields.Count)]);
-                itemNames.Add(plainCapes[Random.Range(0, plainCapes.Count)]);
-                itemNames.AddRange(plainArmor);
-                break;
-            case Heightmap.Biome.Mistlands:
-                List<List<string>> mistArmors = new()
-                {
-                    new() { "HelmetCarapace", "ArmorCarapaceChest", "ArmorCarapaceLegs" },
-                    new() { "HelmetMage", "ArmorMageChest", "ArmorMageLegs" }
-                };
-                List<string> mistMelee = new List<string>() { "SwordMistwalker", "AtgeirHimminAfl", "SledgeDemolisher", "KnifeSkollAndHati", "THSwordKrom" };
-                List<string> mistRanged = new List<string>() { "BowSpineSnap", "StaffFireball", "CrossbowArbalest", "StaffShield" };
-                List<string> mistShields = new() { "ShieldCarapaceBuckler", "ShieldCarapace" };
-                itemNames.Add(mistRanged[Random.Range(0, mistRanged.Count)]);
-                itemNames.Add(mistMelee[Random.Range(0, mistMelee.Count)]);
-                itemNames.AddRange(mistArmors[Random.Range(0, mistArmors.Count)]);
-                itemNames.Add("CapeFeather");
-                itemNames.Add(mistShields[Random.Range(0, mistShields.Count)]);
-                itemNames.Add("Demister");
-                break;
-            case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
-                List<List<string>> endArmors = new()
-                {
-                    new() { "HelmetFlametal", "ArmorFlametalChest", "ArmorFlametalLegs" },
-                    new() { "HelmetMage_Ashlands", "ArmorMageChest_Ashlands", "ArmorMageLegs_Ashlands" },
-                    new() { "HelmetAshlandsMediumHood", "ArmorAshlandsMediumChest", "ArmorAshlandsMediumlegs" }
-                };
-                List<string> endCapes = new() { "CapeAsh", "CapeAskvin" };
-                List<string> endMelee = new List<string>() { "AxeBerzerkr", "THSwordSlayer", };
-                List<string> endRanged = new List<string>() { "StaffClusterbomb", "StaffLightning", "StaffGreenRoots", "BowAshlands" };
-                List<string> endShields = new() { "ShieldFlametal", "ShieldFlametalTower" };
-                itemNames.Add(endRanged[Random.Range(0, endRanged.Count)]);
-                itemNames.Add(endMelee[Random.Range(0, endMelee.Count)]);
-                itemNames.AddRange(endArmors[Random.Range(0, endArmors.Count)]);
-                itemNames.Add(endCapes[Random.Range(0, endCapes.Count)]);
-                itemNames.Add(endShields[Random.Range(0, endShields.Count)]);
-                break;
-            default:
-                List<string> startArmors = new() {"HelmetLeather", "ArmorLeatherChest", "ArmorLeatherLegs", "CapeDeerHide"};
-                List<string> startMelee = new List<string>() { "KnifeFlint", "SpearFlint", "AxeFlint" };
-                List<string> startShields = new() { "ShieldWoodTower", "ShieldWood" };
-                itemNames.AddRange(startArmors);
-                itemNames.Add(startMelee[Random.Range(0, startMelee.Count)]);
-                itemNames.Add(startShields[Random.Range(0, startShields.Count)]);
-                itemNames.Add("Bow");
-                break;
+            m_defaultItems = raiderItems;
         }
-
-        foreach (string itemName in itemNames)
+        else
         {
-            GameObject prefab = ZNetScene.instance.GetPrefab(itemName);
-            if (prefab == null) continue;
-            items.Add(prefab);
+            List<GameObject> items = new();
+            List<string> itemNames = new();
+            switch (m_currentBiome)
+            {
+                case Heightmap.Biome.BlackForest:
+                    List<List<string>> BFArmors = new()
+                    {
+                        new() { "HelmetBronze", "ArmorBronzeChest", "ArmorBronzeLegs" },
+                        new() { "HelmetTrollLeather", "ArmorTrollLeatherChest", "ArmorTrollLeatherLegs" }
+                    };
+                    List<string> BFMelee = new List<string>() { "AtgeirBronze", "SwordBronze", "KnifeCopper", "MaceBronze" };
+                    List<string> BFShields = new() { "ShieldBronzeBuckler", "ShieldBoneTower" };
+                    itemNames.Add(BFMelee[Random.Range(0, BFMelee.Count)]);
+                    itemNames.Add("FineWoodBow");
+                    itemNames.Add("CapeTrollHide");
+                    itemNames.AddRange(BFArmors[Random.Range(0, BFArmors.Count)]);
+                    itemNames.Add(BFShields[Random.Range(0, BFShields.Count)]);
+                    break;
+                case Heightmap.Biome.Swamp:
+                    List<List<string>> swampArmors = new()
+                    {
+                        new() { "HelmetIron", "ArmorIronChest", "ArmorIronLegs" },
+                        new() { "HelmetRoot", "ArmorRootChest", "ArmorRootLegs" }
+                    };
+                    List<string> swampMelee = new List<string>() { "SledgeIron", "SwordIron", "MaceIron", "Battleaxe", };
+                    List<string> swampShields = new() { "ShieldIronBuckler", "ShieldBanded", "ShieldIronTower" };
+                    itemNames.Add(swampMelee[Random.Range(0, swampMelee.Count)]);
+                    itemNames.Add("BowHuntsman");
+                    itemNames.Add("CapeTrollHide");
+                    itemNames.Add(swampShields[Random.Range(0, swampShields.Count)]);
+                    itemNames.AddRange(swampArmors[Random.Range(0, swampArmors.Count)]);
+                    break;
+                case Heightmap.Biome.Mountain:
+                    List<List<string>> mountArmors = new()
+                    {
+                        new() { "HelmetDrake", "ArmorWolfChest", "ArmorWolfLegs" },
+                        new() { "HelmetFenring", "ArmorFenringChest", "ArmorFenringLegs" }
+                    };
+                    List<string> mountMelee = new List<string>() { "SwordSilver", "MaceSilver", "FistFenrirClaw", "BattleaxeCrystal" };
+                    List<string> mountShields = new() { "ShieldSilver", "ShieldSerpentscale" };
+                    itemNames.AddRange(mountArmors[Random.Range(0, mountArmors.Count)]);
+                    itemNames.Add("CapeWolf");
+                    itemNames.Add("BowDraugrFang");
+                    itemNames.Add(mountMelee[Random.Range(0, mountMelee.Count)]);
+                    itemNames.Add(mountShields[Random.Range(0, mountShields.Count)]);
+                    break;
+                case Heightmap.Biome.Plains:
+                    List<string> plainArmor = new() { "HelmetPadded", "ArmorPaddedCuirass", "ArmorPaddedGreaves" };
+                    List<string> plainCapes = new() { "CapeLox", "CapeLinen" };
+                    List<string> plainMelee = new List<string>() { "SwordBlackmetal", "KnifeBlackmetal", "AtgeirBlackmetal", "AxeBlackMetal", "MaceNeedle" };
+                    List<string> plainShields = new() { "ShieldBlackmetal", "ShieldBlackmetalTower" };
+                    itemNames.Add(plainMelee[Random.Range(0, plainMelee.Count)]);
+                    itemNames.Add("BowDraugrFang");
+                    itemNames.Add(plainShields[Random.Range(0, plainShields.Count)]);
+                    itemNames.Add(plainCapes[Random.Range(0, plainCapes.Count)]);
+                    itemNames.AddRange(plainArmor);
+                    break;
+                case Heightmap.Biome.Mistlands:
+                    List<List<string>> mistArmors = new()
+                    {
+                        new() { "HelmetCarapace", "ArmorCarapaceChest", "ArmorCarapaceLegs" },
+                        new() { "HelmetMage", "ArmorMageChest", "ArmorMageLegs" }
+                    };
+                    List<string> mistMelee = new List<string>() { "SwordMistwalker", "AtgeirHimminAfl", "SledgeDemolisher", "KnifeSkollAndHati", "THSwordKrom" };
+                    List<string> mistRanged = new List<string>() { "BowSpineSnap", "StaffFireball", "CrossbowArbalest", "StaffShield" };
+                    List<string> mistShields = new() { "ShieldCarapaceBuckler", "ShieldCarapace" };
+                    itemNames.Add(mistRanged[Random.Range(0, mistRanged.Count)]);
+                    itemNames.Add(mistMelee[Random.Range(0, mistMelee.Count)]);
+                    itemNames.AddRange(mistArmors[Random.Range(0, mistArmors.Count)]);
+                    itemNames.Add("CapeFeather");
+                    itemNames.Add(mistShields[Random.Range(0, mistShields.Count)]);
+                    itemNames.Add("Demister");
+                    break;
+                case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
+                    List<List<string>> endArmors = new()
+                    {
+                        new() { "HelmetFlametal", "ArmorFlametalChest", "ArmorFlametalLegs" },
+                        new() { "HelmetMage_Ashlands", "ArmorMageChest_Ashlands", "ArmorMageLegs_Ashlands" },
+                        new() { "HelmetAshlandsMediumHood", "ArmorAshlandsMediumChest", "ArmorAshlandsMediumlegs" }
+                    };
+                    List<string> endCapes = new() { "CapeAsh", "CapeAskvin" };
+                    List<string> endMelee = new List<string>() { "AxeBerzerkr", "THSwordSlayer", };
+                    List<string> endRanged = new List<string>() { "StaffClusterbomb", "StaffLightning", "StaffGreenRoots", "BowAshlands" };
+                    List<string> endShields = new() { "ShieldFlametal", "ShieldFlametalTower" };
+                    itemNames.Add(endRanged[Random.Range(0, endRanged.Count)]);
+                    itemNames.Add(endMelee[Random.Range(0, endMelee.Count)]);
+                    itemNames.AddRange(endArmors[Random.Range(0, endArmors.Count)]);
+                    itemNames.Add(endCapes[Random.Range(0, endCapes.Count)]);
+                    itemNames.Add(endShields[Random.Range(0, endShields.Count)]);
+                    break;
+                default:
+                    List<string> startArmors = new() {"HelmetLeather", "ArmorLeatherChest", "ArmorLeatherLegs", "CapeDeerHide"};
+                    List<string> startMelee = new List<string>() { "KnifeFlint", "SpearFlint", "AxeFlint" };
+                    List<string> startShields = new() { "ShieldWoodTower", "ShieldWood" };
+                    itemNames.AddRange(startArmors);
+                    itemNames.Add(startMelee[Random.Range(0, startMelee.Count)]);
+                    itemNames.Add(startShields[Random.Range(0, startShields.Count)]);
+                    itemNames.Add("Bow");
+                    break;
+            }
+            
+            foreach (string itemName in itemNames)
+            {
+                GameObject prefab = ZNetScene.instance.GetPrefab(itemName);
+                if (prefab == null) continue;
+                items.Add(prefab);
+            }
+            m_defaultItems = items.ToArray();
         }
-        m_defaultItems = items.ToArray();
+            
     }
     private void UpdateEncumbered()
     {
@@ -339,24 +351,17 @@ public class Companion : Humanoid, Interactable
         if (!m_companionAI.GetFollowTarget().TryGetComponent(out Player player)) return;
         m_followTargetName = player.GetHoverName();
     }
-
-    private void UpdateBiome(float dt)
+    public Heightmap.Biome GetCurrentBiome()
     {
-        m_biomeTimer += dt;
-        if (m_biomeTimer < 1f) return;
-        m_biomeTimer = 0.0f;
-
         m_currentBiome = Heightmap.FindBiome(transform.position);
+        return m_currentBiome;
     }
-    public Heightmap.Biome GetCurrentBiome() => m_currentBiome;
     public void UpdateWarp(float dt)
     {
         if (IsEncumbered()) return;
         m_checkDistanceTimer += dt;
         if (m_checkDistanceTimer < 5f) return;
         m_checkDistanceTimer = 0.0f;
-        
-        if (m_companionAI == null) return;
         if (m_companionAI.GetFollowTarget() == null) return;
         if (!m_companionAI.GetFollowTarget().TryGetComponent(out Player component)) return;
         if (Vector3.Distance(transform.position, component.transform.position) < m_playerMaxDistance) return;
@@ -408,7 +413,7 @@ public class Companion : Humanoid, Interactable
     public void AutoPickup(float dt)
     {
         if (SettlersPlugin._autoPickup.Value is SettlersPlugin.Toggle.Off) return;
-        if (IsInventoryFull() || IsEncumbered()) return;
+        if (IsDead() || IsInventoryFull() || IsEncumbered() || m_companionTalk.InPlayerBase()) return;
         Vector3 vector3_1 = transform.position + Vector3.up;
         foreach (Collider collider in Physics.OverlapSphere(vector3_1, m_autoPickupRange, m_autoPickupMask))
         {
@@ -416,7 +421,7 @@ public class Companion : Humanoid, Interactable
             ItemDrop component = collider.attachedRigidbody.GetComponent<ItemDrop>();
             FloatingTerrainDummy? floatingTerrainDummy = collider.attachedRigidbody.gameObject.GetComponent<FloatingTerrainDummy>();
             if (component == null && floatingTerrainDummy != null) component = floatingTerrainDummy.m_parent.gameObject.GetComponent<ItemDrop>();
-            if (component == null || !component.m_autoPickup || !component.GetComponent<ZNetView>().IsValid()) continue;
+            if (component == null || !component.m_autoPickup || !component.m_nview.IsValid()) continue;
             if (component.m_itemData.GetWeight() + GetWeight() > GetMaxCarryWeight()) continue;
             if (!component.CanPickup()) component.RequestOwn();
             else if (!component.InTar())
@@ -440,42 +445,26 @@ public class Companion : Humanoid, Interactable
 
     public override void OnDeath()
     {
-        PlayerProfile playerProfile = Game.instance.GetPlayerProfile();
-        bool flag = m_lastHit != null && m_lastHit.GetAttacker() == Player.m_localPlayer;
-        if(m_localPlayerHasHit) playerProfile.IncrementStat(PlayerStatType.EnemyKills);
-        if (flag) playerProfile.IncrementStat(PlayerStatType.EnemyKillsLastHits);
-        playerProfile.m_enemyStats.IncrementOrSet<string>("VikingSettler");
-        if (!string.IsNullOrEmpty(m_defeatSetGlobalKey)) Player.m_addUniqueKeyQueue.Add(m_defeatSetGlobalKey);
-        if (m_nview && !m_nview.IsOwner()) return;
-        foreach (GameObject prefab in m_deathEffects.Create(transform.position, transform.rotation, transform))
+        Transform transform1 = transform;
+        m_killedEffects.Create(transform1.position, transform1.rotation, transform1);
+        if (IsRaider())
         {
-            if (!prefab.TryGetComponent(out Ragdoll component)) continue;
-            Vector3 velocity = m_body.velocity;
-            if (m_pushForce.magnitude * 0.5 > velocity.magnitude)
-            {
-                velocity = m_pushForce * 0.5f;
-            }
+            ZoneSystem.instance.SetGlobalKey("defeated_vikingraider");
+            DropDefaultItems();
             if (TryGetComponent(out CharacterDrop characterDrop))
             {
-                characterDrop.SetDropsEnabled(false);
-                if (IsRaider())
-                {
-                    characterDrop.m_drops.Clear();
-                    characterDrop.m_drops = GetBiomeDrops();
-                }
-                component.Setup(velocity, 0.0f, 0.0f, 0.0f, characterDrop);
+                characterDrop.m_drops.Clear();
+                // characterDrop.m_drops = GetBiomeDrops();
+                characterDrop.m_drops = RaiderDrops.GetRaiderDrops(m_currentBiome);
             }
-            else
-            {
-                component.Setup(velocity, 0.0f, 0.0f, 0.0f, null);
-            }
-            OnRagdollCreated(component);
         }
-        if (!IsRaider()) CreateTombStone();
-        else DropDefaultItems();
-        ZNetScene.instance.Destroy(gameObject);
+        else
+        {
+            CreateTombStone();
+        }
         RemovePins();
-        Gogan.LogEvent("Game", "Killed", m_name, 0L);
+
+        base.OnDeath();
     }
 
     private void DropDefaultItems()
@@ -485,6 +474,7 @@ public class Companion : Humanoid, Interactable
             if (!item.TryGetComponent(out ItemDrop itemDrop)) continue;
             if (Random.value > SettlersPlugin._raiderDropChance.Value) continue;
             ItemDrop.ItemData data = itemDrop.m_itemData.Clone();
+            if (data.m_dropPrefab == null) continue;
             data.m_quality = m_level;
             ItemDrop drop = ItemDrop.DropItem(data, 1, transform.position, Quaternion.identity);
             m_dropEffects.Create(drop.transform.position, Quaternion.identity);
@@ -499,19 +489,19 @@ public class Companion : Humanoid, Interactable
         {
             case Heightmap.Biome.BlackForest:
                 specialDrops = new() { "SurtlingCore", "TinOre", "CopperOre", "DeerStew", "BoarJerky", "CarrotSoup", "QueensJam", "MinceMeatSauce", "CookedEgg", "MeadHealthMinor", "MeadStaminaMinor" };
-                drops = new() { "CoreWood", "BoneFragments", "Thistle", "Coal" };
+                drops = new() { "CoreWood", "BoneFragments", "Thistle", "Coal", "ArrowFlint" };
                 break;
             case Heightmap.Biome.Swamp:
                 specialDrops = new() { "IronScrap", "Guck", "Root", "ShocklateSmoothie", "TurnipStew", "Sausages", "FishCooked", "BlackSoup", "MeadPoisonResist" };
-                drops = new() { "ElderBark", "Entrails" };
+                drops = new() { "ElderBark", "Entrails", "ArrowIron" };
                 break;
             case Heightmap.Biome.Mountain:
                 specialDrops = new() { "SilverOre", "WolfClaw", "WolfHairBundle", "SerpentMeatCooked", "OnionSoup", "Wolfjerky", "WolfMeatSkewer", "Eyescream" };
-                drops = new() { "WolfPelt", "Crystal", "Obsidian" };
+                drops = new() { "WolfPelt", "Crystal", "Obsidian", "ArrowObsidian" };
                 break;
             case Heightmap.Biome.Plains:
                 specialDrops = new() { "BlackMetalScrap", "GoblinTotem", "CookedLoxMeat", "FishWraps", "LoxPie", "BloodPudding", "Bread" };
-                drops = new() { "Barley", "Flax", "Needle" };
+                drops = new() { "Barley", "Flax", "Needle", "ArrowNeedle" };
                 break;
             case Heightmap.Biome.Mistlands:
                 specialDrops = new()
@@ -519,19 +509,19 @@ public class Companion : Humanoid, Interactable
                     "SoftTissue", "ChickenEgg", "CookedBugMeat", "CookedHareMeat", "Meatplatter", "HoneyGlazedChicken", "Mistharesupreme", "Salad", "MushroomOmelette",
                     "MagicallyStuffedShroom", "YggdrasilPorridge", "SeekerAspic", "BlackCore"
                 };
-                drops = new() { "Carapace", "BugMeat", "BlackMarble" };
+                drops = new() { "Carapace", "BugMeat", "BlackMarble", "ArrowCarapace" };
                 break;
             case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
                 specialDrops = new()
                 {
-                    "FlametalOreNew", "CookedAsksvinMeat", "CookedVoltureMeat", "CookedVoltureMeat", "MashedMeat", "PiquantPie", "SpicyMarmalade",
+                    "FlametalOreNew", "CookedAsksvinMeat", "CookedVoltureMeat", "MashedMeat", "PiquantPie", "SpicyMarmalade",
                     "ScorchingMedley", "SparklingShroomshake", "MarinatedGreens"
                 };
-                drops = new() { "CharredBone", "blackwood", "SulfurStone" };
+                drops = new() { "CharredBone", "blackwood", "SulfurStone", "ArrowCharred" };
                 break;
             default:
                 specialDrops = new() { "CookedMeat", "CookedDeerMeat", "Flint", "DeerHide", "NeckTailGrilled" };
-                drops = new() { "LeatherScraps", "Wood", "Stone", "Resin" };
+                drops = new() { "LeatherScraps", "Wood", "ArrowWood" };
                 break;
         }
         result.AddRange(GetDropList(drops, 1f, 2, 3, true));
@@ -973,8 +963,9 @@ public class Companion : Humanoid, Interactable
     }
     public override void OnDestroy()
     {
-        base.OnDestroy();
+        RemovePins();
         m_instances.Remove(this);
+        base.OnDestroy();
     }
 
     public void TamingUpdate()
@@ -1388,6 +1379,7 @@ public class Companion : Humanoid, Interactable
     {
         RemovePins();
         m_nview.InvokeRPC(nameof(RPC_Command), user.GetZDOID(), message);
+        if (!m_followTargetName.IsNullOrWhiteSpace()) AddPin();
     }
 
     public void RPC_Command(long sender, ZDOID characterID, bool message)
@@ -1412,7 +1404,6 @@ public class Companion : Humanoid, Interactable
             m_nview.GetZDO().Set(ZDOVars.s_follow, player.GetPlayerName());
             m_followTargetName = player.GetHoverName();
             if (message) player.Message(MessageHud.MessageType.Center, $"{m_name} $hud_tamefollow");
-            AddPin();
         }
     }
 
@@ -1978,7 +1969,7 @@ public class Companion : Humanoid, Interactable
                         item.m_shared.m_attack.m_useCharacterFacingYAim = true;
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
-                        item.m_shared.m_aiAttackRange = 30f;
+                        item.m_shared.m_aiAttackRange = 40f;
                         item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = 12f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;

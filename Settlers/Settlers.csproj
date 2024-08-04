@@ -121,6 +121,10 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Behaviors\BluePrinter.cs" />
+        <Compile Include="Behaviors\Companion.cs" />
+        <Compile Include="Behaviors\CompanionAI.cs" />
+        <Compile Include="Behaviors\CompanionTalk.cs" />
+        <Compile Include="Behaviors\RandomHuman.cs" />
         <Compile Include="Managers\AssetLoaderManager.cs" />
         <Compile Include="Managers\BlueprintManager.cs" />
         <Compile Include="Managers\LocalizationManager.cs" />
@@ -128,11 +132,12 @@
         <Compile Include="Plugin.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Settlers\BaseHuman.cs" />
-        <Compile Include="Settlers\Companion.cs" />
-        <Compile Include="Settlers\CompanionAI.cs" />
-        <Compile Include="Settlers\CompanionTalk.cs" />
+        <Compile Include="Settlers\Commands.cs" />
+        <Compile Include="Settlers\GlobalSpawn.cs" />
+        <Compile Include="Settlers\RaiderArmor.cs" />
+        <Compile Include="Settlers\RaiderDrops.cs" />
+        <Compile Include="Settlers\RaiderSE.cs" />
         <Compile Include="Settlers\Raids.cs" />
-        <Compile Include="Settlers\RandomHuman.cs" />
         <Compile Include="Settlers\ReplaceSpawns.cs" />
     </ItemGroup>
     <ItemGroup>
@@ -152,6 +157,7 @@
         <EmbeddedResource Include="blueprints\MistlandRaiderTown1.blueprint" />
         <EmbeddedResource Include="blueprints\MountainRaiderTown1.blueprint" />
         <EmbeddedResource Include="blueprints\MeadowSettlerTown2.blueprint" />
+        <EmbeddedResource Include="blueprints\PlainsRaiderTower1.blueprint" />
         <Content Include="environment.props" />
         <Content Include="ILRepack.targets" />
         <Content Include="Libs\ServerSync.dll">

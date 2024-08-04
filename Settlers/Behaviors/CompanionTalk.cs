@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 
-namespace Settlers.Settlers;
+namespace Settlers.Behaviors;
 
 public class CompanionTalk : MonoBehaviour
 {
@@ -67,7 +67,9 @@ public class CompanionTalk : MonoBehaviour
         if (m_targetPlayer != null)
         {
             if (m_nview.IsOwner() && m_companion.GetVelocity().magnitude < 0.5)
+            {
                 m_companion.SetLookDir((m_targetPlayer.GetEyePoint() - m_companion.GetEyePoint()).normalized);
+            }
             if (m_seeTarget)
             {
                 float num = Vector3.Distance(m_targetPlayer.transform.position, transform.position);

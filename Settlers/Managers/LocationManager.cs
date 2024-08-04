@@ -23,26 +23,15 @@ public class LocationManager
     {
         string name = __instance.name.Replace("(Clone)", string.Empty);
         if (name is not ("BlueprintTerrain" or "BlueprintTerrainPersist")) return;
+        if (name != "BlueprintTerrain") return;
         Heightmap.Biome biome = Heightmap.FindBiome(__instance.transform.position);
         List<BlueprintManager.BlueprintData> list = BlueprintManager.GetBiomeBlueprints(biome);
         if (list.Count == 0) return;
         BlueprintManager.BlueprintData data = list[Random.Range(0, list.Count)];
-        // __instance.m_useTerrainCompiler = data.m_useTerrainComp;
-        // __instance.m_level = data.m_level;
-        // __instance.m_levelRadius = data.m_levelRadius;
-        // __instance.m_smooth = data.m_smooth;
-        // __instance.m_smoothRadius = data.m_smoothRadius;
-        // __instance.m_smoothPower = data.m_smoothPower;
-        // __instance.m_paintCleared = data.m_paintCleared;
-        // __instance.m_paintHeightCheck = data.m_paintHeightCheck;
-        // __instance.m_paintType = data.m_paintType;
-        // __instance.m_paintRadius = data.m_paintRadius;
-        if (name != "BlueprintTerrain") return;
-        if (!__instance.TryGetComponent(out BluePrinter printer))
-        {
-            printer = __instance.gameObject.AddComponent<BluePrinter>();
-        }
-        printer.GenerateLocation(data);
+        Transform transform = __instance.transform;
+        GameObject mock = Object.Instantiate(BlueprintManager.m_blueprintObject, transform.position, transform.rotation);
+        if (!mock.TryGetComponent(out BluePrinter component)) return;
+        component.GenerateLocation(data);
     }
     private static void SetupLocations_Prefix(ZoneSystem __instance)
     {
@@ -61,7 +50,7 @@ public class LocationManager
             }
         }
         __instance.m_locations.AddRange(locations);
-        ZLog.Log($"Added {locations.Count} blueprint locations");
+        ZLog.Log($"Added {locations.Count} settler locations");
     }
 
     public class LocationData

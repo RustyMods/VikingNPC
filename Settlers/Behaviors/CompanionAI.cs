@@ -2,9 +2,10 @@
 using System.Linq;
 using BepInEx;
 using HarmonyLib;
+using Settlers.Settlers;
 using UnityEngine;
 
-namespace Settlers.Settlers;
+namespace Settlers.Behaviors;
 
 public class CompanionAI : MonsterAI
 {
@@ -20,8 +21,6 @@ public class CompanionAI : MonsterAI
     public GameObject? m_fishTarget;
     private float m_searchAttachTimer;
     private readonly float m_searchAttachRange = 50f;
-    public int m_targetCount;
-    private float m_cooldownTimer;
     public bool m_resting;
     public string m_action = "";
     public float m_lastFishTime;
@@ -53,12 +52,6 @@ public class CompanionAI : MonsterAI
         if (GetFollowTarget() != null)
         {
             ResetActions();
-            base.UpdateAI(dt);
-        }
-
-        if (!UpdateTargetCount(dt))
-        {
-            ResetActions();
             return base.UpdateAI(dt);
         }
 
@@ -68,14 +61,29 @@ public class CompanionAI : MonsterAI
             return base.UpdateAI(dt);
         }
 
-        if (m_companionTalk.InPlayerBase()) return base.UpdateAI(dt);
-        if (m_companion.InAttack()) return base.UpdateAI(dt);
-        if (m_companion.IsInventoryFull()) return base.UpdateAI(dt);
+        if (m_companionTalk.InPlayerBase())
+        {
+            ResetActions();
+            return base.UpdateAI(dt);
+        }
+
+        if (m_companion.InAttack())
+        {
+            return base.UpdateAI(dt);
+        }
+
+        if (m_companion.IsInventoryFull())
+        {
+            ResetActions();
+            return base.UpdateAI(dt);
+        }
         if (m_companion.IsHungry())
         {
+            ResetActions();
             if (UpdateConsumeItem(m_character as Humanoid, dt)) return true;
             return base.UpdateAI(dt);
         }
+
         UpdateTarget(dt);
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
@@ -213,32 +221,7 @@ public class CompanionAI : MonsterAI
     }
 
     public string GetCurrentAction() => m_action;
-
-    private bool UpdateTargetCount(float dt)
-    {
-        if (m_targetCount > SettlersPlugin._strikesUntilTired.Value)
-        {
-            m_resting = true;
-        }
-
-        if (m_resting)
-        {
-            m_cooldownTimer += dt;
-            if (m_cooldownTimer > 50f) return false;
-            m_cooldownTimer = 0.0f;
-            --m_targetCount;
-            if (m_targetCount <= 0)
-            {
-                m_targetCount = 0;
-                m_resting = false;
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-
+    
     private void UpdateTarget(float dt)
     {
         m_searchTargetTimer += dt;
@@ -247,22 +230,27 @@ public class CompanionAI : MonsterAI
         if (m_treeTarget == null) m_treeTarget = FindClosestTree(m_searchRange);
         if (m_rockTarget == null) m_rockTarget = FindClosestRock(m_searchRange);
         if (m_fishTarget == null) m_fishTarget = GetNearestFish(100f);
-        if (m_treeTarget == null || m_rockTarget == null) return;
-        Vector3 position = transform.position;
-        float num1 = Vector3.Distance(position, m_treeTarget.transform.position);
-        float num2 = Vector3.Distance(position, m_rockTarget.transform.position);
-        if (num1 > num2)
+        if (m_treeTarget != null && m_rockTarget != null)
         {
-            m_rockTarget = null;
-            m_fishTarget = null;
-        }
-        else
-        {
-            m_treeTarget = null;
-            m_fishTarget = null;
+            Vector3 position = transform.position;
+            float num1 = Vector3.Distance(position, m_treeTarget.transform.position);
+            float num2 = Vector3.Distance(position, m_rockTarget.transform.position);
+            if (num1 > num2)
+            {
+                m_rockTarget = null;
+                m_fishTarget = null;
+            }
+            else
+            {
+                m_treeTarget = null;
+                m_fishTarget = null;
+            }
         }
 
-        if (m_treeTarget == null && m_rockTarget == null && m_fishTarget == null) m_action = "";
+        if (m_treeTarget == null && m_rockTarget == null && m_fishTarget == null)
+        {
+            m_action = "";
+        }
     }
 
     private bool UpdateFishing(float dt)
@@ -348,7 +336,6 @@ public class CompanionAI : MonsterAI
         if (m_companion.m_rightItem == null) return false;
         if (!m_companion.StartAttack(null, false)) return false;
         m_timeSinceAttacking = 0.0f;
-        ++m_targetCount;
         m_treeTarget = null;
         m_rockTarget = null;
         return true;
@@ -361,7 +348,6 @@ public class CompanionAI : MonsterAI
         m_companion.m_rightItem.m_shared.m_attack.m_hitTerrain = false;
         if (!m_companion.StartAttack(null, false)) return false;
         m_timeSinceAttacking = 0.0f;
-        ++m_targetCount;
         m_rockTarget = null;
         m_treeTarget = null;
         return true;
@@ -420,7 +406,6 @@ public class CompanionAI : MonsterAI
         return bestPickaxe != null;
     }
     
-    
     private bool UpdateAttach(float dt)
     {
         if (!m_companion.IsTamed()) return false;
@@ -444,13 +429,15 @@ public class CompanionAI : MonsterAI
                 if (Vector3.Distance(follow.transform.position, transform.position) < 25f) return true;
                 m_companion.AttachStop();
                 m_companion.Warp(player);
-                return false;
             }
-            m_companion.AttachStop();
-            return false;
+            else
+            {
+                m_companion.AttachStop();
+            }
+            return true;
         }
 
-        return true;
+        return false;
     }
 
     private Chair? FindNearestChair()

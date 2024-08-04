@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
-using HarmonyLib;
+using Settlers.Behaviors;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -12,6 +12,7 @@ namespace Settlers.Managers;
 public static class BlueprintManager
 {
     public static GameObject m_terrainObject = null!;
+    public static GameObject m_blueprintObject = null!;
     private static readonly List<BlueprintData> m_data = new();
     
     public static List<BlueprintData> GetBiomeBlueprints(Heightmap.Biome biome)
@@ -24,6 +25,20 @@ public static class BlueprintManager
         return m_data.FirstOrDefault(data => data.m_blueprint.m_name == key);
     }
 
+    public static void CreateBlueprintObject(ZNetScene __instance)
+    {
+        m_blueprintObject = Object.Instantiate(new GameObject("blueprint_mock"), SettlersPlugin._Root.transform, false);
+        ZNetView znv = m_blueprintObject.AddComponent<ZNetView>();
+        znv.m_persistent = true;
+        znv.m_type = ZDO.ObjectType.Default;
+        m_blueprintObject.AddComponent<BluePrinter>();
+        if (!__instance.m_prefabs.Contains(m_blueprintObject))
+        {
+            __instance.m_prefabs.Add(m_blueprintObject);
+        }
+
+        __instance.m_namedPrefabs[m_blueprintObject.name.GetStableHashCode()] = m_blueprintObject;
+    }
     public static void CreateBaseTerrainObject(ZNetScene __instance)
     {
         m_terrainObject = Object.Instantiate(new GameObject("blueprint_terrain"), SettlersPlugin._Root.transform, false);
@@ -55,7 +70,6 @@ public static class BlueprintManager
         RuinedTower.AddChestItem("Blueberries", 10, 15);
         RuinedTower.AddChestItem("TinOre", 5, 10, 0.5f);
         RuinedTower.SetRandomDamage(true);
-        RuinedTower.m_level = false;
         RuinedTower.m_creature.m_addCreatureSpawners = false;
 
         BlueprintData MeadowTown1 = new BlueprintData("MeadowSettlerTown1.blueprint", Heightmap.Biome.Meadows);
@@ -67,15 +81,7 @@ public static class BlueprintManager
         MeadowTown1.AddChestItem("Raspberry", 5, 10);
         MeadowTown1.AddChestItem("LeatherScrap", 10, 15);
         MeadowTown1.SetChestData(4, 8, true);
-        MeadowTown1.SetRadius(50f);
         MeadowTown1.SetAdjustment(new Vector3(0f, -5.5f, 0f));
-        MeadowTown1.m_level = false;
-        MeadowTown1.m_smoothRadius = 50f;
-        MeadowTown1.m_smoothPower = 10f;
-        MeadowTown1.m_paintCleared = true;
-        MeadowTown1.m_paintHeightCheck = true;
-        MeadowTown1.m_paintType = TerrainModifier.PaintType.Dirt;
-        MeadowTown1.m_paintRadius = 30f;
         MeadowTown1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingSettler";
         
         BlueprintData MeadowTown3 = new BlueprintData("MeadowSettlerTown2.blueprint", Heightmap.Biome.Meadows);
@@ -87,15 +93,7 @@ public static class BlueprintManager
         MeadowTown3.AddChestItem("Raspberry", 5, 10);
         MeadowTown3.AddChestItem("LeatherScrap", 1, 5);
         MeadowTown3.SetChestData(1, 2, false);
-        MeadowTown3.SetRadius(50f);
-        MeadowTown3.SetAdjustment(new Vector3(0f, -5.5f, 0f));
-        MeadowTown3.m_level = false;
-        MeadowTown3.m_smoothRadius = 50f;
-        MeadowTown3.m_smoothPower = 10f;
-        MeadowTown3.m_paintCleared = true;
-        MeadowTown3.m_paintHeightCheck = true;
-        MeadowTown3.m_paintType = TerrainModifier.PaintType.Dirt;
-        MeadowTown3.m_paintRadius = 30f;
+        MeadowTown3.SetAdjustment(new Vector3(0f, -1f, 0f));
         MeadowTown3.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingSettler";
 
         BlueprintData MeadowTown2 = new BlueprintData("MeadowRaiderTown1.blueprint", Heightmap.Biome.Meadows);
@@ -107,15 +105,7 @@ public static class BlueprintManager
         MeadowTown2.AddChestItem("Raspberry", 5, 10);
         MeadowTown2.AddChestItem("LeatherScrap", 10, 15);
         MeadowTown2.SetChestData(3, 8, true);
-        MeadowTown2.SetRadius(50f);
         MeadowTown2.SetAdjustment(new Vector3(0f, -28f, 0f));
-        MeadowTown2.m_level = false;
-        MeadowTown2.m_smoothRadius = 50f;
-        MeadowTown2.m_smoothPower = 10f;
-        MeadowTown2.m_paintCleared = true;
-        MeadowTown2.m_paintHeightCheck = true;
-        MeadowTown2.m_paintType = TerrainModifier.PaintType.Dirt;
-        MeadowTown2.m_paintRadius = 30f;
         MeadowTown2.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
         
         BlueprintData BlackForest1 = new BlueprintData("BlackForestRaiderTown1.blueprint", Heightmap.Biome.BlackForest);
@@ -128,16 +118,8 @@ public static class BlueprintManager
         BlackForest1.AddChestItem("Bronze", 1, 5, 0.5f);
         BlackForest1.AddChestItem("BoneFragments", 5, 10, 0.5f);
         BlackForest1.AddChestItem("Wood", 30, 50);
-        BlackForest1.SetRadius(50f);
         BlackForest1.SetAdjustment(new Vector3(0f, -1.2f, 0f));
         BlackForest1.SetChestData(4, 8, true);
-        BlackForest1.m_level = false;
-        BlackForest1.m_smoothRadius = 50f;
-        BlackForest1.m_smoothPower = 10f;
-        BlackForest1.m_paintCleared = true;
-        BlackForest1.m_paintHeightCheck = true;
-        BlackForest1.m_paintType = TerrainModifier.PaintType.Dirt;
-        BlackForest1.m_paintRadius = 30f;
         BlackForest1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
         BlueprintData SwampTown1 = new BlueprintData("swamptown1.blueprint", Heightmap.Biome.Swamp);
         SwampTown1.SetCritter("VikingRaider");
@@ -149,10 +131,7 @@ public static class BlueprintManager
         SwampTown1.AddChestItem("TurnipStew", 5, 10, 0.5f);
         SwampTown1.AddChestItem("MeadPoisonResist", 1, 3, 0.5f);
         SwampTown1.SetChestData(1, 4, true);
-        SwampTown1.SetRadius(50f);
-        SwampTown1.SetAdjustment(new Vector3(0f, -2f, 0f));
-        SwampTown1.m_level = false;
-        SwampTown1.m_smooth = false;
+        SwampTown1.SetAdjustment(new Vector3(0f, -2.3f, 0f));
         SwampTown1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
         BlueprintData MountTown1 = new BlueprintData("MountainRaiderTown1.blueprint", Heightmap.Biome.Mountain);
         MountTown1.SetCritter("VikingRaider");
@@ -164,10 +143,7 @@ public static class BlueprintManager
         MountTown1.AddChestItem("TurnipStew", 5, 10, 0.5f);
         MountTown1.AddChestItem("MeadStaminaMinor", 1, 3, 0.5f);
         MountTown1.SetChestData(1, 4, true);
-        MountTown1.SetRadius(50f);
         MountTown1.SetAdjustment(new Vector3(0f, -8f, 0f));
-        MountTown1.m_level = false;
-        MountTown1.m_smooth = false;
         MountTown1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
         BlueprintData PlainsTown1 = new BlueprintData("PlainsRaiderTown1.blueprint", Heightmap.Biome.Plains);
         PlainsTown1.SetCritter("VikingRaider");
@@ -180,11 +156,21 @@ public static class BlueprintManager
         PlainsTown1.AddChestItem("Bread", 3, 5, 0.5f);
         PlainsTown1.AddChestItem("LoxMeatPie", 1, 3, 0.5f);
         PlainsTown1.SetChestData(3, 8, true);
-        PlainsTown1.SetRadius(50f);
         PlainsTown1.SetAdjustment(new Vector3(0f, -5f, 0f));
-        PlainsTown1.m_level = false;
-        PlainsTown1.m_smooth = true;
         PlainsTown1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
+        BlueprintData PlainsRaiderTower1 = new BlueprintData("PlainsRaiderTower1.blueprint", Heightmap.Biome.Plains);
+        PlainsRaiderTower1.SetCritter("VikingRaider");
+        PlainsRaiderTower1.AddChestItem("Wood", 30, 50);
+        PlainsRaiderTower1.AddChestItem("CookedLoxMeat", 3, 5);
+        PlainsRaiderTower1.AddChestItem("Flax", 10, 15);
+        PlainsRaiderTower1.AddChestItem("MeadHealthMinor", 3, 5, 0.5f);
+        PlainsRaiderTower1.AddChestItem("BlackMetalScrap", 5, 10, 0.5f);
+        PlainsRaiderTower1.AddChestItem("Barley", 10, 15);
+        PlainsRaiderTower1.AddChestItem("Bread", 3, 5, 0.5f);
+        PlainsRaiderTower1.AddChestItem("LoxMeatPie", 1, 3, 0.5f);
+        PlainsRaiderTower1.SetChestData(3, 8, true);
+        PlainsRaiderTower1.SetAdjustment(new Vector3(0f, -1f, 0f));
+        PlainsRaiderTower1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
         BlueprintData MistTown1 = new BlueprintData("MistlandRaiderTown1.blueprint", Heightmap.Biome.Mistlands);
         MistTown1.SetCritter("VikingRaider");
         MistTown1.AddChestItem("Sausages", 3, 5);
@@ -194,10 +180,7 @@ public static class BlueprintManager
         MistTown1.AddChestItem("Bronze", 10, 20, 0.5f);
         MistTown1.AddChestItem("Bread", 10, 20, 0.5f);
         MistTown1.SetChestData(3, 8, true);
-        MistTown1.SetRadius(50f);
         MistTown1.SetAdjustment(new Vector3(0f, -2.5f, 0f));
-        MistTown1.m_level = false;
-        MistTown1.m_smooth = true;
         MistTown1.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
     }
 
@@ -209,29 +192,11 @@ public static class BlueprintManager
         public CreatureData m_creature = new();
         public bool m_randomDamage;
         public Vector3 m_adjustments = Vector3.zero;
-        public bool m_level = true;
-        public float m_levelRadius = 10f;
-        public bool m_smooth = true;
-        public float m_smoothRadius = 10f;
-        public float m_smoothPower = 3f;
-        public bool m_paintCleared;
-        public float m_paintRadius = 10f;
-        public bool m_paintHeightCheck;
-        public bool m_useTerrainComp;
-        public TerrainModifier.PaintType m_paintType = TerrainModifier.PaintType.Reset;
-        
-
         public BlueprintData(string fileName, Heightmap.Biome biome)
         {
             m_blueprint = RegisterBlueprint(fileName);
             m_biome = biome;
             m_data.Add(this);
-        }
-
-        public void SetRadius(float radius)
-        {
-            m_levelRadius = radius;
-            m_smoothRadius = radius;
         }
         public void SetAdjustment(Vector3 vector) => m_adjustments = vector;
 

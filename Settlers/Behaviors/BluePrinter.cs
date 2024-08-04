@@ -1,26 +1,63 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BepInEx;
 using Settlers.Managers;
 using UnityEngine;
+using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace Settlers.Behaviors;
 public class BluePrinter : MonoBehaviour
 {
+    private ZNetView m_nview = null!;
+    private static bool m_generated;
+
+    public void Awake()
+    {
+        m_nview = GetComponent<ZNetView>();
+    }
+
+    public void SetGenerated(bool generated) => m_nview.GetZDO().Set("BlueprintGenerated".GetStableHashCode(), generated);
+
     public void GenerateLocation(BlueprintManager.BlueprintData data)
     {
-        BuildTerrain(data.m_blueprint.m_terrain, data);
-        BuildObjects(data);
-        CreateSpawnArea(transform.position, data);
+        if (!ZoneSystem.instance) return;
+        m_generated = m_nview.GetZDO().GetBool("BlueprintGenerated".GetStableHashCode());
+        if (m_generated) return;
+        if (!ZoneSystem.instance.m_zones.ContainsKey(ZoneSystem.instance.GetZone(transform.position)))
+        {
+            SettlersPlugin._Plugin.StartCoroutine(TryGenerate(this, data));
+        }
+        else
+        {
+            BuildTerrain(data.m_blueprint.m_terrain, data, transform);
+            BuildObjects(data, transform);
+            CreateSpawnArea(data, transform);
+            m_generated = true;
+            SetGenerated(true);
+        }
     }
-    
-    private void BuildTerrain(List<BlueprintManager.TerrainPiece> terrainPieces, BlueprintManager.BlueprintData data)
+
+    private static IEnumerator TryGenerate(BluePrinter printer, BlueprintManager.BlueprintData data)
+    {
+        while (!m_generated)
+        {
+            if (!ZoneSystem.instance.m_zones.ContainsKey(ZoneSystem.instance.GetZone(printer.transform.position))) yield return new WaitForSeconds(1f);
+            BuildTerrain(data.m_blueprint.m_terrain, data, printer.transform);
+            BuildObjects(data, printer.transform);
+            CreateSpawnArea(data, printer.transform);
+            m_generated = true;
+            printer.SetGenerated(true);
+        }
+    }
+
+    private static void BuildTerrain(List<BlueprintManager.TerrainPiece> terrainPieces, BlueprintManager.BlueprintData data, Transform parent)
     {
         foreach (BlueprintManager.TerrainPiece? terrain in terrainPieces)
         {
-            GameObject ghost = Instantiate(new GameObject("ghostterrain"), transform);
+            GameObject ghost = Instantiate(new GameObject("ghostterrain"), parent);
             ghost.transform.localPosition = new Vector3(terrain.m_position.x, 0f, terrain.m_position.z);
             
             GameObject mod = Instantiate(BlueprintManager.m_terrainObject, ghost.transform.position, Quaternion.identity);
@@ -39,13 +76,14 @@ public class BluePrinter : MonoBehaviour
         }
     }
     
-    private void BuildObjects(BlueprintManager.BlueprintData data)
+    private static void BuildObjects(BlueprintManager.BlueprintData data, Transform parent)
     {
+        if (!ZNetScene.instance) return;
         foreach (BlueprintManager.PlanPiece piece in data.m_blueprint.m_objects.OrderBy(x => x.m_position.y))
         {
             GameObject prefab = ZNetScene.instance.GetPrefab(piece.m_prefab);
             if (!prefab) continue;
-            GameObject ghost = Instantiate(new GameObject(), transform);
+            GameObject ghost = Instantiate(new GameObject(), parent);
             ghost.transform.localPosition = piece.m_position + data.m_adjustments;
             ghost.transform.localRotation = piece.m_rotation;
             ghost.transform.localScale = piece.m_scale;
@@ -57,7 +95,7 @@ public class BluePrinter : MonoBehaviour
         }
     }
 
-    private void SetProperties(GameObject prefab, BlueprintManager.PlanPiece piece, BlueprintManager.BlueprintData data)
+    private static void SetProperties(GameObject prefab, BlueprintManager.PlanPiece piece, BlueprintManager.BlueprintData data)
     {
         SetWearNTear(prefab, data);
         SetBed(prefab, data);
@@ -67,14 +105,14 @@ public class BluePrinter : MonoBehaviour
         SetItemStand(prefab, piece);
     }
     
-    private void SetWearNTear(GameObject prefab, BlueprintManager.BlueprintData data)
+    private static void SetWearNTear(GameObject prefab, BlueprintManager.BlueprintData data)
     {
         if (!data.m_randomDamage) return;
         if (!prefab.TryGetComponent(out WearNTear component)) return;
         component.m_nview.GetZDO().Set(ZDOVars.s_health, Random.Range(component.m_health * 0.1f, component.m_health * 0.6f));
     }
 
-    private void SetItemStand(GameObject prefab, BlueprintManager.PlanPiece piece)
+    private static void SetItemStand(GameObject prefab, BlueprintManager.PlanPiece piece)
     {
         if (!prefab.TryGetComponent(out ItemStand component)) return;
         if (piece.m_data.IsNullOrWhiteSpace()) return;
@@ -95,13 +133,14 @@ public class BluePrinter : MonoBehaviour
         component.UpdateVisual();
     }
 
-    private void SetBed(GameObject prefab, BlueprintManager.BlueprintData data)
+    private static void SetBed(GameObject prefab, BlueprintManager.BlueprintData data)
     {
-        if (!prefab.TryGetComponent(out Bed bedComponent) || data.m_creature.m_creatureName.IsNullOrWhiteSpace()) return;
+        if (!prefab.TryGetComponent(out Bed bed) || data.m_creature.m_creatureName.IsNullOrWhiteSpace()) return;
         GameObject? creature = ZNetScene.instance.GetPrefab(data.m_creature.m_creatureName);
-        if (!creature) return;
-        Destroy(bedComponent);
-        CreatureSpawner creatureSpawner = prefab.AddComponent<CreatureSpawner>();
+        GameObject? spawnPrefab = ZNetScene.instance.GetPrefab(data.m_creature.m_creatureSpawnerPrefab);
+        if (!creature || !spawnPrefab) return;
+        var spawner = Object.Instantiate(spawnPrefab, prefab.transform.position, Quaternion.identity);
+        if (!spawner.TryGetComponent(out CreatureSpawner creatureSpawner)) return;
         creatureSpawner.m_creaturePrefab = creature;
         creatureSpawner.m_minLevel = data.m_creature.m_minLevel;
         creatureSpawner.m_maxLevel = data.m_creature.m_maxLevel;
@@ -118,33 +157,32 @@ public class BluePrinter : MonoBehaviour
         creatureSpawner.m_setPatrolSpawnPoint = data.m_creature.m_setPatrolPoint;
         creatureSpawner.m_spawnInPlayerBase = data.m_creature.m_spawnInPlayerBase;
     }
-    private void SetChair(GameObject prefab, BlueprintManager.BlueprintData data)
+    private static void SetChair(GameObject prefab, BlueprintManager.BlueprintData data)
     {
-        if (!prefab.TryGetComponent(out Chair chairComponent)) return;
+        if (!prefab.TryGetComponent(out Chair chair)) return;
         GameObject? creature = ZNetScene.instance.GetPrefab(data.m_creature.m_creatureName);
-        if (creature)
-        {
-            Destroy(chairComponent);
-            CreatureSpawner creatureSpawner = prefab.AddComponent<CreatureSpawner>();
-            creatureSpawner.m_creaturePrefab = creature;
-            creatureSpawner.m_minLevel = data.m_creature.m_minLevel;
-            creatureSpawner.m_maxLevel = data.m_creature.m_maxLevel;
-            creatureSpawner.m_levelupChance = data.m_creature.m_levelUpChance;
-            creatureSpawner.m_respawnTimeMinuts = data.m_creature.m_respawnTimeMinutes;
-            creatureSpawner.m_triggerDistance =data.m_creature.m_triggerDistance;
-            creatureSpawner.m_spawnAtNight = data.m_creature.m_spawnAtNight;
-            creatureSpawner.m_spawnAtDay = data.m_creature.m_spawnAtDay;
-            creatureSpawner.m_spawnInterval = data.m_creature.m_spawnInterval;
-            creatureSpawner.m_maxGroupSpawned = data.m_creature.m_maxGroupSpawned;
-            creatureSpawner.m_wakeUpAnimation = data.m_creature.m_wakeupAnimation;
-            creatureSpawner.m_spawnGroupRadius = data.m_creature.m_spawnGroupRadius;
-            creatureSpawner.m_spawnerWeight = data.m_creature.m_spawnerWeight;
-            creatureSpawner.m_setPatrolSpawnPoint = data.m_creature.m_setPatrolPoint;
-            creatureSpawner.m_spawnInPlayerBase = data.m_creature.m_spawnInPlayerBase;
-        }
+        GameObject? spawnPrefab = ZNetScene.instance.GetPrefab(data.m_creature.m_creatureSpawnerPrefab);
+        if (!creature || !spawnPrefab) return;
+        var spawner = Object.Instantiate(spawnPrefab, prefab.transform.position, Quaternion.identity);
+        if (!spawner.TryGetComponent(out CreatureSpawner creatureSpawner)) return;
+        creatureSpawner.m_creaturePrefab = creature;
+        creatureSpawner.m_minLevel = data.m_creature.m_minLevel;
+        creatureSpawner.m_maxLevel = data.m_creature.m_maxLevel;
+        creatureSpawner.m_levelupChance = data.m_creature.m_levelUpChance;
+        creatureSpawner.m_respawnTimeMinuts = data.m_creature.m_respawnTimeMinutes;
+        creatureSpawner.m_triggerDistance =data.m_creature.m_triggerDistance;
+        creatureSpawner.m_spawnAtNight = data.m_creature.m_spawnAtNight;
+        creatureSpawner.m_spawnAtDay = data.m_creature.m_spawnAtDay;
+        creatureSpawner.m_spawnInterval = data.m_creature.m_spawnInterval;
+        creatureSpawner.m_maxGroupSpawned = data.m_creature.m_maxGroupSpawned;
+        creatureSpawner.m_wakeUpAnimation = data.m_creature.m_wakeupAnimation;
+        creatureSpawner.m_spawnGroupRadius = data.m_creature.m_spawnGroupRadius;
+        creatureSpawner.m_spawnerWeight = data.m_creature.m_spawnerWeight;
+        creatureSpawner.m_setPatrolSpawnPoint = data.m_creature.m_setPatrolPoint;
+        creatureSpawner.m_spawnInPlayerBase = data.m_creature.m_spawnInPlayerBase;
     }
 
-    private void SetContainer(GameObject prefab, BlueprintManager.BlueprintData data)
+    private static void SetContainer(GameObject prefab, BlueprintManager.BlueprintData data)
     {
         if (!prefab.TryGetComponent(out Container containerComponent)) return;
         containerComponent.m_defaultItems = GetDropTable(data);
@@ -152,8 +190,9 @@ public class BluePrinter : MonoBehaviour
         containerComponent.AddDefaultItems();
     }
 
-    private void CreateSpawnArea(Vector3 position, BlueprintManager.BlueprintData data)
+    private static void CreateSpawnArea(BlueprintManager.BlueprintData data, Transform parent)
     {
+        if (!ZNetScene.instance) return;
         if (!data.m_creature.m_addCreatureSpawners) return;
         if (data.m_creature.m_creatureSpawnerPrefab.IsNullOrWhiteSpace()) return;
         GameObject spawner = ZNetScene.instance.GetPrefab(data.m_creature.m_creatureSpawnerPrefab);
@@ -162,14 +201,14 @@ public class BluePrinter : MonoBehaviour
         int max = data.m_creature.m_creatureSpawnerAmount;
         while (count < max)
         {
-            Vector2 point = Random.insideUnitCircle * 5f;
-            Vector3 pos = position + new Vector3(point.x, 0f, point.y);
+            Vector2 point = Random.insideUnitCircle * 15f;
+            Vector3 pos = parent.transform.position + new Vector3(point.x, 0f, point.y);
             Instantiate(spawner, pos, Quaternion.identity);
             ++count;
         }
     }
 
-    private void SetFireplace(GameObject prefab)
+    private static void SetFireplace(GameObject prefab)
     {
         if (prefab.TryGetComponent(out Fireplace fireplaceComponent))
         {
@@ -177,7 +216,7 @@ public class BluePrinter : MonoBehaviour
         }
     }
 
-    private DropTable GetDropTable(BlueprintManager.BlueprintData data)
+    private static DropTable GetDropTable(BlueprintManager.BlueprintData data)
     {
         DropTable table = new DropTable
         {

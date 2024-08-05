@@ -74,8 +74,9 @@ public class RandomHuman : MonoBehaviour
         {
             var firstName = isFemale
                 ? m_femaleFirstNames[Random.Range(0, m_femaleFirstNames.Count)]
-                : m_maleFirstNames[Random.Range(0, m_femaleFirstNames.Count)];
-            component.m_name = $"{firstName} {m_lastNames[Random.Range(0, m_lastNames.Count)]}";
+                : m_maleFirstNames[Random.Range(0, m_maleFirstNames.Count)];
+            var lastName = m_lastNames[Random.Range(0, m_lastNames.Count)];
+            component.m_name = $"{firstName} {lastName}";
             m_nview.GetZDO().Set("RandomName".GetStableHashCode(), component.m_name);
         }
         else

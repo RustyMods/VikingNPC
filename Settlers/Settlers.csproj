@@ -97,6 +97,12 @@
         <Reference Include="UnityEngine.AssetBundleModule">
             <HintPath>$(CorlibPath)\UnityEngine.AssetBundleModule.dll</HintPath>
         </Reference>
+        <Reference Include="UnityEngine.AudioModule">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.AudioModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.ClothModule">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.ClothModule.dll</HintPath>
+        </Reference>
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>$(CorlibPath)\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
@@ -124,6 +130,7 @@
         <Compile Include="Behaviors\Companion.cs" />
         <Compile Include="Behaviors\CompanionAI.cs" />
         <Compile Include="Behaviors\CompanionTalk.cs" />
+        <Compile Include="Behaviors\RaiderShipAI.cs" />
         <Compile Include="Behaviors\RandomHuman.cs" />
         <Compile Include="Managers\AssetLoaderManager.cs" />
         <Compile Include="Managers\BlueprintManager.cs" />
@@ -137,8 +144,10 @@
         <Compile Include="Settlers\RaiderArmor.cs" />
         <Compile Include="Settlers\RaiderDrops.cs" />
         <Compile Include="Settlers\RaiderSE.cs" />
+        <Compile Include="Settlers\RaiderShip.cs" />
         <Compile Include="Settlers\Raids.cs" />
         <Compile Include="Settlers\ReplaceSpawns.cs" />
+        <Compile Include="Settlers\StorePatches.cs" />
     </ItemGroup>
     <ItemGroup>
         <EmbeddedResource Include="..\..\..\bundles_2024\settlerbundle">

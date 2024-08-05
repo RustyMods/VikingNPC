@@ -60,7 +60,8 @@ public class Companion : Humanoid, Interactable
     private string m_attachAnimation = "";
     private Collider[]? m_attachColliders;
     public bool m_startAsRaider;
-    private readonly List<Minimap.PinData> m_pins = new();
+    private Minimap.PinData? m_pin;
+    // private readonly List<Minimap.PinData> m_pins = new();
     private float m_pinTimer;
     private float m_envStatusTimer;
     public override void Awake()
@@ -195,15 +196,19 @@ public class Companion : Humanoid, Interactable
 
     public void UpdatePins(float dt)
     {
-        if (m_pins.Count == 0) return;
+        if (m_pin == null) return;
+        
+        // if (m_pins.Count == 0) return;
         m_pinTimer += dt;
         if (m_pinTimer < 1f) return;
         m_pinTimer = 0.0f;
 
-        foreach (Minimap.PinData pin in m_pins)
-        {
-            pin.m_pos = transform.position;
-        }
+        m_pin.m_pos = transform.position;
+
+        // foreach (Minimap.PinData pin in m_pins)
+        // {
+        //     pin.m_pos = transform.position;
+        // }
     }
 
     public bool IsRaider()
@@ -338,11 +343,8 @@ public class Companion : Humanoid, Interactable
     }
     private void UpdateEncumbered()
     {
-        if (GetWeight() < GetMaxCarryWeight()) m_seman.AddStatusEffect(SEMan.s_statusEffectEncumbered);
-        else
-        {
-            m_seman.RemoveStatusEffect(SEMan.s_statusEffectEncumbered);
-        }
+        if (IsEncumbered()) m_seman.AddStatusEffect(SEMan.s_statusEffectEncumbered);
+        else m_seman.RemoveStatusEffect(SEMan.s_statusEffectEncumbered);
     }
     private void GetFollowTargetName()
     {
@@ -454,7 +456,6 @@ public class Companion : Humanoid, Interactable
             if (TryGetComponent(out CharacterDrop characterDrop))
             {
                 characterDrop.m_drops.Clear();
-                // characterDrop.m_drops = GetBiomeDrops();
                 characterDrop.m_drops = RaiderDrops.GetRaiderDrops(m_currentBiome);
             }
         }
@@ -469,6 +470,7 @@ public class Companion : Humanoid, Interactable
 
     private void DropDefaultItems()
     {
+        if (SettlersPlugin._raiderDropChance.Value == 0f) return;
         foreach (GameObject item in m_defaultItems)
         {
             if (!item.TryGetComponent(out ItemDrop itemDrop)) continue;
@@ -480,73 +482,12 @@ public class Companion : Humanoid, Interactable
             m_dropEffects.Create(drop.transform.position, Quaternion.identity);
         }
     }
-    private List<CharacterDrop.Drop> GetBiomeDrops()
-    {
-        List<CharacterDrop.Drop> result = new();
-        List<string> specialDrops;
-        List<string> drops;
-        switch (m_currentBiome)
-        {
-            case Heightmap.Biome.BlackForest:
-                specialDrops = new() { "SurtlingCore", "TinOre", "CopperOre", "DeerStew", "BoarJerky", "CarrotSoup", "QueensJam", "MinceMeatSauce", "CookedEgg", "MeadHealthMinor", "MeadStaminaMinor" };
-                drops = new() { "CoreWood", "BoneFragments", "Thistle", "Coal", "ArrowFlint" };
-                break;
-            case Heightmap.Biome.Swamp:
-                specialDrops = new() { "IronScrap", "Guck", "Root", "ShocklateSmoothie", "TurnipStew", "Sausages", "FishCooked", "BlackSoup", "MeadPoisonResist" };
-                drops = new() { "ElderBark", "Entrails", "ArrowIron" };
-                break;
-            case Heightmap.Biome.Mountain:
-                specialDrops = new() { "SilverOre", "WolfClaw", "WolfHairBundle", "SerpentMeatCooked", "OnionSoup", "Wolfjerky", "WolfMeatSkewer", "Eyescream" };
-                drops = new() { "WolfPelt", "Crystal", "Obsidian", "ArrowObsidian" };
-                break;
-            case Heightmap.Biome.Plains:
-                specialDrops = new() { "BlackMetalScrap", "GoblinTotem", "CookedLoxMeat", "FishWraps", "LoxPie", "BloodPudding", "Bread" };
-                drops = new() { "Barley", "Flax", "Needle", "ArrowNeedle" };
-                break;
-            case Heightmap.Biome.Mistlands:
-                specialDrops = new()
-                {
-                    "SoftTissue", "ChickenEgg", "CookedBugMeat", "CookedHareMeat", "Meatplatter", "HoneyGlazedChicken", "Mistharesupreme", "Salad", "MushroomOmelette",
-                    "MagicallyStuffedShroom", "YggdrasilPorridge", "SeekerAspic", "BlackCore"
-                };
-                drops = new() { "Carapace", "BugMeat", "BlackMarble", "ArrowCarapace" };
-                break;
-            case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
-                specialDrops = new()
-                {
-                    "FlametalOreNew", "CookedAsksvinMeat", "CookedVoltureMeat", "MashedMeat", "PiquantPie", "SpicyMarmalade",
-                    "ScorchingMedley", "SparklingShroomshake", "MarinatedGreens"
-                };
-                drops = new() { "CharredBone", "blackwood", "SulfurStone", "ArrowCharred" };
-                break;
-            default:
-                specialDrops = new() { "CookedMeat", "CookedDeerMeat", "Flint", "DeerHide", "NeckTailGrilled" };
-                drops = new() { "LeatherScraps", "Wood", "ArrowWood" };
-                break;
-        }
-        result.AddRange(GetDropList(drops, 1f, 2, 3, true));
-        result.AddRange(GetDropList(specialDrops, 0.25f, 1, 2, false));
-        return result;
-    }
-
-    private List<CharacterDrop.Drop> GetDropList(List<string> list, float chance, int min, int max, bool multiply)
-    {
-        return (from item in list
-            select ZNetScene.instance.GetPrefab(item)
-            into prefab
-            where prefab
-            select new CharacterDrop.Drop()
-            {
-                m_prefab = prefab,
-                m_chance = chance,
-                m_amountMin = min,
-                m_amountMax = max,
-                m_levelMultiplier = multiply
-            }).ToList();
-    }
+    
     private void RemovePins()
     {
-        foreach (Minimap.PinData? pin in m_pins) Minimap.instance.RemovePin(pin);
+        if (m_pin == null) return;
+        Minimap.instance.RemovePin(m_pin);
+        // foreach (Minimap.PinData? pin in m_pins) Minimap.instance.RemovePin(pin);
     }
 
     public override bool HaveEitr(float amount = 0)
@@ -1419,7 +1360,7 @@ public class Companion : Humanoid, Interactable
             m_save = false,
             m_checked = false,
             m_ownerID = Player.m_localPlayer.GetPlayerID(),
-            m_author = Player.m_localPlayer.GetPlayerName()
+            m_author = "SettlerPlugin"
         };
         pin.m_NamePinData = new Minimap.PinNameData(pin);
         Minimap.instance.m_pins.Add(pin);
@@ -1429,7 +1370,8 @@ public class Companion : Humanoid, Interactable
         }
 
         Minimap.instance.m_pinUpdateRequired = true;
-        m_pins.Add(pin);
+        m_pin = pin;
+        // m_pins.Add(pin);
     }
 
     public void RPC_RequestOpen(long uid, long playerID)

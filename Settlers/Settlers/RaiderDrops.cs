@@ -69,19 +69,27 @@ public static class RaiderDrops
         }
         else
         {
-            var deserializer = new DeserializerBuilder().Build();
-            var data = deserializer.Deserialize<Dictionary<Heightmap.Biome, List<Data>>>(File.ReadAllText(m_filePath));
-            if (data.Count < m_raiderDrops.Count)
+            try
             {
-                foreach (var kvp in m_raiderDrops)
+                IDeserializer deserializer = new DeserializerBuilder().Build();
+                Dictionary<Heightmap.Biome, List<Data>> data = deserializer.Deserialize<Dictionary<Heightmap.Biome, List<Data>>>(File.ReadAllText(m_filePath));
+                if (data.Count < m_raiderDrops.Count)
                 {
-                    if (data.ContainsKey(kvp.Key)) continue;
-                    data[kvp.Key] = kvp.Value;
+                    foreach (var kvp in m_raiderDrops)
+                    {
+                        if (data.ContainsKey(kvp.Key)) continue;
+                        data[kvp.Key] = kvp.Value;
+                    }
+
+                    File.WriteAllText(m_filePath, serializer.Serialize(data));
                 }
-                File.WriteAllText(m_filePath, serializer.Serialize(data));
+
+                m_raiderDrops = data;
             }
-            
-            m_raiderDrops = data;
+            catch
+            {
+                SettlersPlugin.SettlersLogger.LogDebug("Failed to parse file: " + Path.GetFileName(m_filePath));
+            }
         }
     }
 
@@ -90,9 +98,17 @@ public static class RaiderDrops
         ServerRaiderDrops.ValueChanged += () =>
         {
             if (ServerRaiderDrops.Value.IsNullOrWhiteSpace()) return;
-            var deserializer = new DeserializerBuilder().Build();
-            m_raiderDrops = deserializer.Deserialize<Dictionary<Heightmap.Biome, List<Data>>>(ServerRaiderDrops.Value);
-            m_cachedDrops.Clear();
+            try
+            {
+                var deserializer = new DeserializerBuilder().Build();
+                m_raiderDrops =
+                    deserializer.Deserialize<Dictionary<Heightmap.Biome, List<Data>>>(ServerRaiderDrops.Value);
+                m_cachedDrops.Clear();
+            }
+            catch
+            {
+                SettlersPlugin.SettlersLogger.LogDebug("Failed to parse server raider drop data");
+            }
         };
     }
 

@@ -2,6 +2,7 @@
 using System.Linq;
 using HarmonyLib;
 using ServerSync;
+using Settlers.Behaviors;
 using UnityEngine;
 
 namespace Settlers.Settlers;
@@ -118,6 +119,22 @@ public static class Commands
                                 break;
                             case "find":
                                 RevealLocations(args);
+                                break;
+                            case "remove_pins":
+                                if (!Minimap.instance) return false;
+                                List<Minimap.PinData> pinsToRemove = new();
+                                foreach (var pin in Minimap.instance.m_pins)
+                                {
+                                    if (pin.m_author == "SettlerPlugin")
+                                    {
+                                        pinsToRemove.Add(pin);
+                                    }
+                                }
+
+                                foreach (var pin in pinsToRemove)
+                                {
+                                    Minimap.instance.RemovePin(pin);
+                                }
                                 break;
                         }
                         return true;

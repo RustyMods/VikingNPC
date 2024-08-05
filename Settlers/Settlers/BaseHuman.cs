@@ -36,6 +36,7 @@ public static class BaseHuman
             {
                 __instance.m_StatusEffects.Add(status);
             }
+            RegisterSettlerPurchase();
         }
     }
     
@@ -72,7 +73,7 @@ public static class BaseHuman
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);
-        AddRandomIdleAnimation(human);
+        // AddRandomIdleAnimation(human);
         SetTameSettings(ref companion, "Boar");
         human.AddComponent<RandomHuman>();
         AddRandomTalk(human);
@@ -94,7 +95,7 @@ public static class BaseHuman
         AddDeathEffects(ref raider);
         AddDefaultItems(ref raider);
         AddAI(raiderHuman, true, true);
-        AddRandomIdleAnimation(raiderHuman);
+        // AddRandomIdleAnimation(raiderHuman);
         SetTameSettings(ref raider, "Boar");
         raiderHuman.AddComponent<RandomHuman>();
         AddRandomTalk(raiderHuman);
@@ -124,7 +125,7 @@ public static class BaseHuman
     {
         companion.m_startAsRaider = startAsRaider;
         companion.name = prefab.name;
-        companion.m_name = "Human";
+        companion.m_name = "Viking";
         companion.m_group = "Humans";
         companion.m_faction = startAsRaider ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
         companion.m_crouchSpeed = player.m_crouchSpeed;
@@ -409,6 +410,28 @@ public static class BaseHuman
                 }
             }
         };
+    }
+    
+    private static void RegisterSettlerPurchase()
+    {
+        var haldor = ZNetScene.instance.GetPrefab("Haldor");
+        if (!haldor.TryGetComponent(out Trader component)) return;
+        var sword = ObjectDB.instance.GetItemPrefab("SwordBronze");
+        if (!sword) return;
+        var clone = Object.Instantiate(sword, SettlersPlugin._Root.transform, false);
+        clone.name = "SettlerSword";
+        if (!clone.TryGetComponent(out ItemDrop itemDrop)) return;
+        itemDrop.m_itemData.m_shared.m_name = "Viking Settler";
+        RegisterToZNetScene(clone);
+        RegisterToDatabase(clone);
+        var tradeItem = new Trader.TradeItem()
+        {
+            m_price = 999,
+            m_stack = 1,
+            m_prefab = itemDrop,
+            m_requiredGlobalKey = "defeated_vikingraider"
+        };
+        if (!component.m_items.Contains(tradeItem)) component.m_items.Add(tradeItem);
     }
 
     private static void RegisterToDatabase(GameObject prefab)

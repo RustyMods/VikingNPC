@@ -39,7 +39,7 @@ public static class RaiderArmor
 
     private static void UpdateServerRaiderEquipment()
     {
-        var serializer = new SerializerBuilder().Build();
+        ISerializer serializer = new SerializerBuilder().Build();
         ServerRaiderEquipment.Value = serializer.Serialize(m_equipment);
     }
 
@@ -48,8 +48,16 @@ public static class RaiderArmor
         ServerRaiderEquipment.ValueChanged += () =>
         {
             if (ServerRaiderEquipment.Value.IsNullOrWhiteSpace()) return;
-            var deserializer = new DeserializerBuilder().Build();
-            m_equipment = deserializer.Deserialize<Dictionary<Heightmap.Biome, RaiderEquipment>>(ServerRaiderEquipment.Value);
+            try
+            {
+                var deserializer = new DeserializerBuilder().Build();
+                m_equipment =
+                    deserializer.Deserialize<Dictionary<Heightmap.Biome, RaiderEquipment>>(ServerRaiderEquipment.Value);
+            }
+            catch
+            {
+                SettlersPlugin.SettlersLogger.LogDebug("Failed to parse server raider equipment data");
+            }
         };
     }
 
@@ -57,7 +65,7 @@ public static class RaiderArmor
     {
         if (!ZNetScene.instance) return null;
         List<GameObject> result = new();
-        var data = GetEquipment(biome);
+        RaiderEquipment data = GetEquipment(biome);
         if (data.Armors.Count > 0)
         {
             var armor = data.Armors[Random.Range(0, data.Armors.Count)];
@@ -128,7 +136,7 @@ public static class RaiderArmor
         };
     }
 
-    public static void LoadRaiderArmors()
+    private static void LoadRaiderArmors()
     {
         if (!Directory.Exists(m_folderPath)) Directory.CreateDirectory(m_folderPath);
         if (!File.Exists(m_filePath))

@@ -33,6 +33,8 @@ namespace Settlers
         
         private static readonly AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
         private static readonly AssetBundle _locationBundle = GetAssetBundle("blueprintlocationbundle");
+        // public static readonly AssetBundle _raiderShipBundle = GetAssetBundle("raidershipbundle");
+        
         public static SettlersPlugin _Plugin = null!;
         public static GameObject _Root = null!;
         public static Sprite m_settlerPin = null!;
@@ -90,7 +92,7 @@ namespace Settlers
             _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
             _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
             _spawnRaiders = config("4 - Raiders", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
-            _raiderDropChance = config("4 - Raiders", "Raider Item Drop Chance", 0.2f, new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
+            _raiderDropChance = config("4 - Raiders", "Raider Gear Drop Chance", 0.2f, new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
             
             
             List<string> m_maleFirstNames = new()

@@ -61,7 +61,7 @@ public static class RaiderArmor
         };
     }
 
-    public static GameObject[]? GetRaiderEquipment(Heightmap.Biome biome)
+    public static GameObject[]? GetRaiderEquipment(Heightmap.Biome biome, bool isElf)
     {
         if (!ZNetScene.instance) return null;
         List<GameObject> result = new();
@@ -113,6 +113,12 @@ public static class RaiderArmor
                 if (!prefab) continue;
                 result.Add(prefab);
             }
+        }
+
+        if (isElf)
+        {
+            var elfEars = ZNetScene.instance.GetPrefab("ElvenEars");
+            result.Add(elfEars);
         }
         return result.ToArray();
     }

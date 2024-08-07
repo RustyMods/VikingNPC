@@ -679,6 +679,16 @@ public class CompanionAI : MonsterAI
                 {
                     __result = true;
                 }
+
+                if (companionA.IsElf() && !companionB.IsElf())
+                {
+                    __result = true;
+                }
+
+                if (companionB.IsElf() && !companionA.IsElf())
+                {
+                    __result = true;
+                }
             }
         }
     }

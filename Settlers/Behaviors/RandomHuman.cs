@@ -41,12 +41,22 @@ public class RandomHuman : MonoBehaviour
     
     public ZNetView m_nview = null!;
     public Vector3 m_hairColor = Vector3.one;
+    public Vector3 m_skinColor = Vector3.one;
+    public bool m_isElf;
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
         if (!TryGetComponent(out Companion component)) return;
         if (!TryGetComponent(out VisEquipment visEquipment)) return;
+        if (m_isElf) m_skinColor = new Vector3(0.4f, 0.6f, 0.57f);
+        GetConfigNames();
+        Randomize(component, visEquipment, out bool female);
+        RandomName(component, female);
+        m_nview.GetZDO().Set("RandomHuman", true);
+    }
 
+    private void GetConfigNames()
+    {
         if (!SettlersPlugin._maleNames.Value.IsNullOrWhiteSpace())
         {
             m_maleFirstNames = SettlersPlugin._maleNames.Value.Split(':').ToList();
@@ -61,9 +71,6 @@ public class RandomHuman : MonoBehaviour
         {
             m_lastNames = SettlersPlugin._lastNames.Value.Split(':').ToList();
         }
-        Randomize(component, visEquipment, out bool female);
-        RandomName(component, female);
-        m_nview.GetZDO().Set("RandomHuman", true);
     }
 
     public void RandomName(Companion component, bool isFemale)
@@ -87,32 +94,36 @@ public class RandomHuman : MonoBehaviour
 
     public void Randomize(Companion humanoid, VisEquipment visEquipment, out bool female)
     {
-        int modelIndex = Random.Range(0, 2);
-        int random = Random.Range(0, 20);
-        Vector3 color = new Vector3(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
-        if (m_nview.GetZDO().GetBool("RandomHuman"))
+        bool hasData = m_nview.GetZDO().GetBool("RandomHuman");
+        int modelIndex;
+        int random;
+        Vector3 color;
+
+        if (hasData)
         {
             modelIndex = m_nview.GetZDO().GetInt("ModelIndex");
             random = m_nview.GetZDO().GetInt("HairNumber");
-            m_nview.GetZDO().GetVec3("HairColor", color);
+            color = m_nview.GetZDO().GetVec3("HairColor", Vector3.zero);
         }
         else
         {
+            modelIndex = Random.Range(0, 2);
+            random = Random.Range(0, 20);
+            color = new Vector3(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
             m_nview.GetZDO().Set("ModelIndex", modelIndex);
             m_nview.GetZDO().Set("HairNumber", random);
             m_nview.GetZDO().Set("HairColor", color);
         }
         
-        if (humanoid.m_beardItem.IsNullOrWhiteSpace())
+        female = modelIndex == 1;
+
+        if (!female)
         {
-            if (modelIndex == 0)
+            if (humanoid.m_beardItem.IsNullOrWhiteSpace())
             {
                 visEquipment.SetBeardItem("Beard" + random);
             }
-        }
-        else
-        {
-            if (modelIndex == 0)
+            else
             {
                 visEquipment.SetBeardItem(humanoid.m_beardItem);
             }
@@ -131,6 +142,6 @@ public class RandomHuman : MonoBehaviour
         m_hairColor = color;
         visEquipment.SetHairColor(color);
         visEquipment.SetModel(modelIndex);
-        female = modelIndex == 1;
+        if (m_isElf) visEquipment.SetSkinColor(m_skinColor);
     }
 }

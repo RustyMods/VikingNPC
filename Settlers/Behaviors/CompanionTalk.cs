@@ -55,11 +55,19 @@ public class CompanionTalk : MonoBehaviour
 
     private bool ShouldUpdate()
     {
-        if (m_companion.IsRaider()) return true;
+        if (m_companion.IsRaider() || m_companion.IsElf()) return true;
         return m_companionAI.m_treeTarget == null && m_companionAI.m_rockTarget == null &&
                m_companionAI.m_fishTarget == null && !m_companion.m_attached && m_companionAI.m_repairPiece == null;
     }
 
+    public void LookTowardsTarget()
+    {
+        if (m_targetPlayer == null) return;
+        if (m_nview.IsOwner() && m_companion.GetVelocity().magnitude < 0.5 && !m_companion.InAttack())
+        {
+            m_companion.SetLookDir((m_targetPlayer.GetEyePoint() - m_companion.GetEyePoint()).normalized);
+        }
+    }
     public void Update()
     {
         if (m_companionAI.IsAlerted() || m_companionAI.GetTargetCreature() != null || m_companionAI.GetStaticTarget() != null ||
@@ -67,10 +75,6 @@ public class CompanionTalk : MonoBehaviour
         UpdateTarget();
         if (m_targetPlayer != null)
         {
-            // if (m_nview.IsOwner() && m_companion.GetVelocity().magnitude < 0.5)
-            // {
-            //     m_companion.SetLookDir((m_targetPlayer.GetEyePoint() - m_companion.GetEyePoint()).normalized);
-            // }
             if (m_seeTarget)
             {
                 float num = Vector3.Distance(m_targetPlayer.transform.position, transform.position);

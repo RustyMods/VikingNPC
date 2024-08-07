@@ -33,7 +33,7 @@ namespace Settlers
         
         private static readonly AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
         private static readonly AssetBundle _locationBundle = GetAssetBundle("blueprintlocationbundle");
-        // public static readonly AssetBundle _raiderShipBundle = GetAssetBundle("raidershipbundle");
+        public static readonly AssetBundle _elfBundle = GetAssetBundle("elfassets");
         
         public static SettlersPlugin _Plugin = null!;
         public static GameObject _Root = null!;
@@ -142,6 +142,7 @@ namespace Settlers
             DontDestroyOnLoad(_Root);
             _Root.SetActive(false);
             LoadMockLocation();
+            AssetMan.RegisterElfEars();
             Commands.LoadServerLocationChange();
             BlueprintManager.LoadBlueprints();
             Localizer.Load();
@@ -173,6 +174,7 @@ namespace Settlers
                     m_quantity = _quantity.Value,
                     m_clearArea = true,
                     m_biome = _biomes.Value,
+                    m_centerFirst = true,
                 }
             };
         }

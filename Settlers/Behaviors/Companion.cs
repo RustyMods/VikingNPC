@@ -19,6 +19,7 @@ public class Companion : Humanoid, Interactable
     public static readonly List<Companion> m_instances = new();
     private static readonly int Consume = Animator.StringToHash("consume");
     private static readonly int m_raider = "VikingRaider".GetStableHashCode();
+    private static readonly int m_elf = "VikingElf".GetStableHashCode();
     
     public CompanionAI m_companionAI = null!;
     public CompanionTalk m_companionTalk = null!;
@@ -61,13 +62,14 @@ public class Companion : Humanoid, Interactable
     private Collider[]? m_attachColliders;
     public bool m_startAsRaider;
     private Minimap.PinData? m_pin;
-    // private readonly List<Minimap.PinData> m_pins = new();
     private float m_pinTimer;
     private float m_envStatusTimer;
+    public bool m_startAsElf;
     public override void Awake()
     {
         base.Awake();
         if (m_startAsRaider) SetRaider(true);
+        if (m_startAsElf) SetElf(true);
         m_autoPickupMask = LayerMask.GetMask("item");
         m_companionAI = GetComponent<CompanionAI>();
         m_companionTalk = GetComponent<CompanionTalk>();
@@ -95,11 +97,12 @@ public class Companion : Humanoid, Interactable
     
     public override void Start()
     {
-        if (IsRaider())
+        if (IsRaider() || IsElf())
         {
             GetRaiderEquipment();
+            SetGearQuality(m_level);
             SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
-            m_faction = SettlersPlugin._raiderFaction.Value;
+            if (IsRaider()) m_faction = SettlersPlugin._raiderFaction.Value;
             GiveDefaultItems();
         }
         else
@@ -120,7 +123,7 @@ public class Companion : Humanoid, Interactable
         if (m_nview.GetZDO() == null) return;
         if (!m_nview.IsOwner()) return;
         if (IsDead()) return;
-        if (IsRaider())
+        if (IsRaider() || IsElf())
         {
             AutoPickup(fixedDeltaTime);
             UpdateActionQueue(fixedDeltaTime);
@@ -139,6 +142,15 @@ public class Companion : Humanoid, Interactable
             UpdateStats(fixedDeltaTime);
             UpdatePins(fixedDeltaTime);
             // UpdateEnvStatusEffects(fixedDeltaTime);
+        }
+    }
+
+    public void SetGearQuality(int quality)
+    {
+        foreach (ItemDrop.ItemData? item in GetInventory().GetAllItems())
+        {
+            if (!item.IsEquipable()) continue;
+            item.m_quality = quality;
         }
     }
     
@@ -197,33 +209,32 @@ public class Companion : Humanoid, Interactable
     public void UpdatePins(float dt)
     {
         if (m_pin == null) return;
-        
-        // if (m_pins.Count == 0) return;
         m_pinTimer += dt;
         if (m_pinTimer < 1f) return;
         m_pinTimer = 0.0f;
 
         m_pin.m_pos = transform.position;
-
-        // foreach (Minimap.PinData pin in m_pins)
-        // {
-        //     pin.m_pos = transform.position;
-        // }
     }
 
-    public bool IsRaider()
-    {
-        return m_nview.IsValid() && m_nview.GetZDO().GetBool(m_raider);
-    }
+    public bool IsRaider() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_raider);
+    
     public void SetRaider(bool enable)
     {
         m_nview.GetZDO().Set(m_raider, enable);
         if (enable) m_defeatSetGlobalKey = "defeated_vikingraider";
     }
+
+    public bool IsElf() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_elf);
+
+    public void SetElf(bool enable)
+    {
+        m_nview.GetZDO().Set(m_elf, enable);
+        if (enable) m_defeatSetGlobalKey = "defeated_vikingelf";
+    }
     private void GetRaiderEquipment()
     {
         m_currentBiome = Heightmap.FindBiome(transform.position);
-        var raiderItems = RaiderArmor.GetRaiderEquipment(m_currentBiome);
+        GameObject[]? raiderItems = RaiderArmor.GetRaiderEquipment(m_currentBiome, IsElf());
         if (raiderItems != null)
         {
             m_defaultItems = raiderItems;
@@ -449,9 +460,9 @@ public class Companion : Humanoid, Interactable
     {
         Transform transform1 = transform;
         m_killedEffects.Create(transform1.position, transform1.rotation, transform1);
-        if (IsRaider())
+        if (IsRaider() || IsElf())
         {
-            ZoneSystem.instance.SetGlobalKey("defeated_vikingraider");
+            ZoneSystem.instance.SetGlobalKey(IsRaider() ? "defeated_vikingraider" : "defeated_vikingelf");
             DropDefaultItems();
             if (TryGetComponent(out CharacterDrop characterDrop))
             {
@@ -473,6 +484,7 @@ public class Companion : Humanoid, Interactable
         if (SettlersPlugin._raiderDropChance.Value == 0f) return;
         foreach (GameObject item in m_defaultItems)
         {
+            if (item.name == "ElvenEars") continue;
             if (!item.TryGetComponent(out ItemDrop itemDrop)) continue;
             if (Random.value > SettlersPlugin._raiderDropChance.Value) continue;
             ItemDrop.ItemData data = itemDrop.m_itemData.Clone();
@@ -487,12 +499,11 @@ public class Companion : Humanoid, Interactable
     {
         if (m_pin == null) return;
         Minimap.instance.RemovePin(m_pin);
-        // foreach (Minimap.PinData? pin in m_pins) Minimap.instance.RemovePin(pin);
     }
 
     public override bool HaveEitr(float amount = 0)
     {
-        if (IsRaider()) return true;
+        if (IsRaider() || IsElf()) return true;
         return amount < m_eitr;
     }
 
@@ -620,28 +631,28 @@ public class Companion : Humanoid, Interactable
         }
     }
 
-    public override void DamageArmorDurability(HitData hit)
-    {
-        if (IsRaider()) return;
-        try
-        {
-            List<ItemDrop.ItemData> itemDataList = new();
-            if (m_chestItem != null) itemDataList.Add(m_chestItem);
-            if (m_legItem != null) itemDataList.Add(m_leftItem);
-            if (m_helmetItem != null) itemDataList.Add(m_helmetItem);
-            if (m_shoulderItem != null) itemDataList.Add(m_shoulderItem);
-            if (itemDataList.Count == 0) return;
-            float num = hit.GetTotalPhysicalDamage() + hit.GetTotalElementalDamage();
-            if (num <= 0.0) return;
-            int index = Random.Range(0, itemDataList.Count);
-            var itemData = itemDataList[index];
-            itemData.m_durability = Mathf.Max(0.0f, itemData.m_durability - num);
-        }
-        catch
-        {
-            //
-        }
-    }
+    // public override void DamageArmorDurability(HitData hit)
+    // {
+    //     if (IsRaider() || IsElf()) return;
+    //     try
+    //     {
+    //         List<ItemDrop.ItemData> itemDataList = new();
+    //         if (m_chestItem != null) itemDataList.Add(m_chestItem);
+    //         if (m_legItem != null) itemDataList.Add(m_leftItem);
+    //         if (m_helmetItem != null) itemDataList.Add(m_helmetItem);
+    //         if (m_shoulderItem != null) itemDataList.Add(m_shoulderItem);
+    //         if (itemDataList.Count == 0) return;
+    //         float num = hit.GetTotalPhysicalDamage() + hit.GetTotalElementalDamage();
+    //         if (num <= 0.0) return;
+    //         int index = Random.Range(0, itemDataList.Count);
+    //         var itemData = itemDataList[index];
+    //         itemData.m_durability = Mathf.Max(0.0f, itemData.m_durability - num);
+    //     }
+    //     catch
+    //     {
+    //         //
+    //     }
+    // }
 
     public override bool ToggleEquipped(ItemDrop.ItemData item)
     {
@@ -804,6 +815,7 @@ public class Companion : Humanoid, Interactable
         if (TryGetComponent(out RandomHuman randomHuman))
         {
             visEq.SetHairColor(randomHuman.m_hairColor);
+            if (IsElf()) visEq.SetSkinColor(randomHuman.m_skinColor);
         }
     }
 
@@ -1132,7 +1144,7 @@ public class Companion : Humanoid, Interactable
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || IsTamed()) return;
         if (m_companionAI == null) return;
-        if (IsRaider()) return;
+        if (IsRaider() || IsElf()) return;
         m_companionAI.MakeTame();
         Transform transform1 = transform;
         Vector3 position = transform1.position;
@@ -1264,11 +1276,11 @@ public class Companion : Humanoid, Interactable
     private float GetEitr() => m_eitr;
     public override float GetMaxEitr()
     {
-        return IsRaider() ? 9999f : m_maxEitr;
+        return IsRaider() || IsElf() ? 9999f : m_maxEitr;
     }
     public override void UseEitr(float eitr)
     {
-        if (IsRaider()) return;
+        if (IsRaider() || IsElf()) return;
         if (eitr == 0) return;
         m_eitr -= eitr;
         if (m_eitr < 0) m_eitr = 0;
@@ -1277,7 +1289,7 @@ public class Companion : Humanoid, Interactable
     public override string GetHoverText()
     {
         if (!m_nview.IsValid()) return "";
-        if (IsRaider()) return "";
+        if (IsRaider() || IsElf()) return "";
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.Append(m_name);
         if (IsTamed())
@@ -1371,7 +1383,6 @@ public class Companion : Humanoid, Interactable
 
         Minimap.instance.m_pinUpdateRequired = true;
         m_pin = pin;
-        // m_pins.Add(pin);
     }
 
     public void RPC_RequestOpen(long uid, long playerID)
@@ -1969,14 +1980,6 @@ public class Companion : Humanoid, Interactable
             foreach (Companion companion in companions)
             {
                 companion.TeleportTo(pos, rot, true);
-                // Vector3 random = Random.insideUnitSphere * 10f;
-                // Vector3 location = pos + new Vector3(random.x, 0f, random.z);
-                // if (!companion.m_nview.IsOwner()) companion.m_nview.ClaimOwnership();
-                // Transform transform = companion.transform;
-                // location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
-                // transform.position = location;
-                // transform.rotation = rot;
-                // companion.m_body.velocity = Vector3.zero;
             }
         }
     }

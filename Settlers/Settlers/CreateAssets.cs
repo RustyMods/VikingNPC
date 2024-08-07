@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using HarmonyLib;
+using ItemManager;
 using Settlers.Behaviors;
 using Settlers.Managers;
 using UnityEngine;
 
 namespace Settlers.Settlers;
 
-public static class BaseHuman
+public static class AssetMan
 {
     private static GameObject? m_ragDoll;
     
@@ -17,6 +18,7 @@ public static class BaseHuman
         {
             CreateBaseHuman();
             Raids.AddRaidEvent(RandEventSystem.m_instance, CreateBaseRaider());
+            CreateBaseElf();
             CreateSpawners();
             BlueprintManager.CreateBaseTerrainObject(__instance);
             BlueprintManager.CreateBlueprintObject(__instance);
@@ -38,6 +40,17 @@ public static class BaseHuman
             }
             RegisterSettlerPurchase();
         }
+    }
+
+    public static void RegisterElfEars()
+    {
+        Item ElvenEars = new Item(SettlersPlugin._elfBundle, "ElvenEars");
+        ElvenEars.Name.English("Elf Ears");
+        ElvenEars.Description.English("");
+        ElvenEars.Trade.Trader = ItemManager.Trader.Hildir;
+        ElvenEars.Trade.Price = 999;
+        ElvenEars.Trade.Stack = 1;
+        ElvenEars.Configurable = Configurability.Disabled;
     }
     
     private static void CreateSpawners()
@@ -80,6 +93,73 @@ public static class BaseHuman
         RegisterToZNetScene(human);
         GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings");
     }
+    
+    private static void CreateBaseElf()
+    {
+        GameObject player = ZNetScene.instance.GetPrefab("Player");
+        if (!player) return;
+        if (!player.TryGetComponent(out Player component)) return;
+        GameObject human = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
+        human.name = "VikingElf";
+        DestroyPlayerComponents(human);
+        SetZNetView(human);
+        Companion companion = human.AddComponent<Companion>();
+        companion.m_startAsElf = true;
+        SetCompanionValues(human, ref companion, component);
+        AddDeathEffects(ref companion);
+        AddDefaultItems(ref companion);
+        AddAI(human, true, false);
+        // AddRandomIdleAnimation(human);
+        SetTameSettings(ref companion, "Boar");
+        RandomHuman randomHuman = human.AddComponent<RandomHuman>();
+        randomHuman.m_isElf = true;
+        AddRandomTalk(human);
+        RegisterToZNetScene(human);
+        human.AddComponent<CharacterDrop>();
+        GlobalSpawn.AddToSpawnList(human, "Elf Spawn Settings");
+    }
+
+    // private static void CreateBaseRaiderShip()
+    // {
+    //     GameObject VikingShip = ZNetScene.instance.GetPrefab("VikingShip");
+    //     if (!VikingShip) return;
+    //     if (!VikingShip.TryGetComponent(out Ship ship)) return;
+    //     GameObject RaiderShip = Object.Instantiate(VikingShip, SettlersPlugin._Root.transform, false);
+    //     RaiderShip.name = "RaiderShip";
+    //     
+    //     Object.Destroy(RaiderShip.GetComponent<Ship>());
+    //     Object.Destroy(RaiderShip.GetComponent<Piece>());
+    //     Object.Destroy(RaiderShip.GetComponent<WearNTear>());
+    //     Object.Destroy(RaiderShip.transform.Find("ashdamageeffects").gameObject);
+    //     Object.Destroy(RaiderShip.transform.Find("ControlGui").gameObject);
+    //     Object.Destroy(RaiderShip.transform.Find("ship/visual/unused").gameObject);
+    //     Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentRight").gameObject);
+    //     Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
+    //
+    //     RaiderShip.transform.Find("ship/visual/Customize").gameObject.SetActive(true);
+    //
+    //     foreach (var chair in RaiderShip.GetComponentsInChildren<Chair>(true))
+    //     {
+    //         if (chair.TryGetComponent(out BoxCollider collider))
+    //         {
+    //             Object.Destroy(collider);
+    //         }
+    //         Object.Destroy(chair);
+    //     }
+    //
+    //     var interactive = RaiderShip.transform.Find("interactive");
+    //     Object.Destroy(interactive.Find("sit_box/box"));
+    //     Object.Destroy(interactive.Find("sit_box (1)/box"));
+    //     Object.Destroy(interactive.Find("sit_box (2)/box"));
+    //     Object.Destroy(interactive.Find("sit_box (3)/box"));
+    //     Object.Destroy(interactive.Find("sit_box (4)/box"));
+    //     Object.Destroy(interactive.Find("controlls/box"));
+    //     Object.Destroy(interactive.Find("controlls/rudder_button"));
+    //
+    //     var component = RaiderShip.AddComponent<RaiderShipAI>();
+    //     component.m_waterImpactEffect = ship.m_waterImpactEffect;
+    //     var raiderShip = RaiderShip.AddComponent<RaiderShip>();
+    // }
     
     private static GameObject? CreateBaseRaider()
     {

@@ -1484,7 +1484,7 @@ public class Companion : Humanoid, Interactable
         skills.RaiseSkill(Skills.SkillType.BloodMagic, value * 0.5f);
     }
     
-    public override void AttachStart(Transform attachPoint, GameObject colliderRoot, bool hideWeapons, bool isBed, bool onShip,
+    public override void AttachStart(Transform attachPoint, GameObject? colliderRoot, bool hideWeapons, bool isBed, bool onShip,
         string attachAnimation, Vector3 detachOffset, Transform? cameraPos = null)
     {
         if (m_attached) return;

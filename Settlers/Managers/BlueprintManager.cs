@@ -28,6 +28,7 @@ public static class BlueprintManager
     public static void CreateBlueprintObject(ZNetScene __instance)
     {
         m_blueprintObject = Object.Instantiate(new GameObject("blueprint_mock"), SettlersPlugin._Root.transform, false);
+        m_blueprintObject.name = "Blueprint_Mock";
         ZNetView znv = m_blueprintObject.AddComponent<ZNetView>();
         znv.m_persistent = true;
         znv.m_type = ZDO.ObjectType.Default;
@@ -70,7 +71,6 @@ public static class BlueprintManager
         RuinedTower.AddChestItem("Blueberries", 10, 15);
         RuinedTower.AddChestItem("TinOre", 5, 10, 0.5f);
         RuinedTower.SetRandomDamage(true);
-        RuinedTower.m_creature.m_addCreatureSpawners = false;
 
         BlueprintData MeadowTown1 = new BlueprintData("MeadowSettlerTown1.blueprint", Heightmap.Biome.Meadows);
         MeadowTown1.SetCritter("VikingSettler");

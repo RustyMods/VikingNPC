@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -8,7 +7,6 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using BlueprintLocations.Managers;
 using HarmonyLib;
-using JetBrains.Annotations;
 using ServerSync;
 using Settlers.Behaviors;
 using Settlers.Managers;
@@ -20,7 +18,7 @@ namespace Settlers
     [BepInPlugin(ModGUID, ModName, ModVersion)]
     public class SettlersPlugin : BaseUnityPlugin
     {
-        internal const string ModName = "Settlers";
+        internal const string ModName = "VikingNPC";
         internal const string ModVersion = "1.0.0";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
@@ -86,7 +84,7 @@ namespace Settlers
             _ownerLock = config("5 - Settlers", "Inventory Locked", Toggle.On, "If on, only owner can access settler inventory");
             
             _locationEnabled = config("3 - Locations", "Enabled", Toggle.On, "If on, blueprint locations will generate");
-            _quantity = config("3 - Locations", "Quantity", 300, "Set amount of blueprint locations to generate");
+            _quantity = config("3 - Locations", "Quantity", 600, "Set amount of blueprint locations to generate");
             _biomes = config("3 - Locations", "Biomes", Heightmap.Biome.All, "Set biomes settler locations can generate");
             
             _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
@@ -235,14 +233,6 @@ namespace Settlers
             bool synchronizedSetting = true)
         {
             return config(group, name, value, new ConfigDescription(description), synchronizedSetting);
-        }
-
-        private class ConfigurationManagerAttributes
-        {
-            [UsedImplicitly] public int? Order;
-            [UsedImplicitly] public bool? Browsable;
-            [UsedImplicitly] public string? Category;
-            [UsedImplicitly] public Action<ConfigEntryBase>? CustomDrawer;
         }
     }
 }

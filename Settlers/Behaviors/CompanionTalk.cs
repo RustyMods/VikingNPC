@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using BepInEx;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -42,6 +43,8 @@ public class CompanionTalk : MonoBehaviour
         "emote_blowkiss", "emote_comehere", "emote_laugh", "emote_roar", "emote_shrug"
     };
 
+    private bool m_isSitting;
+
     public void Start()
     {
         m_companion = GetComponentInChildren<Companion>();
@@ -70,8 +73,8 @@ public class CompanionTalk : MonoBehaviour
     }
     public void Update()
     {
-        if (m_companionAI.IsAlerted() || m_companionAI.GetTargetCreature() != null || m_companionAI.GetStaticTarget() != null ||
-            !ShouldUpdate() || !m_nview.IsValid()) return;
+        if (m_companionAI.IsAlerted() || m_companionAI.GetTargetCreature() != null || m_companionAI.GetStaticTarget() != null || !ShouldUpdate() || !m_nview.IsValid()) return;
+        
         UpdateTarget();
         if (m_targetPlayer != null)
         {
@@ -88,8 +91,16 @@ public class CompanionTalk : MonoBehaviour
                 {
                     m_didGoodbye = true;
                     QueueSay(m_randomGoodbye, m_greetEmotes[Random.Range(0, m_greetEmotes.Count)], m_randomGoodbyeFX);
-
                 }
+            }
+        }
+        if (m_isSitting)
+        {
+            var followTarget = m_companionAI.GetFollowTarget();
+            if (followTarget == null || Vector3.Distance(followTarget.transform.position, transform.position) > 10f)
+            {
+                m_animator.ResetTrigger("emote_sit");
+                m_isSitting = false;
             }
         }
 
@@ -130,6 +141,15 @@ public class CompanionTalk : MonoBehaviour
         });
     }
 
+    public void QueueEmote(string trigger)
+    {
+        m_queuedTexts.Enqueue(new NpcTalk.QueuedSay()
+        {
+            text = "",
+            trigger = trigger
+        });
+    }
+
     public void UpdateSayQueue()
     {
         if (m_queuedTexts.Count == 0 || Time.time - NpcTalk.m_lastTalkTime < m_minTalkInterval) return;
@@ -142,9 +162,11 @@ public class CompanionTalk : MonoBehaviour
     public void Say(string text, string trigger)
     {
         NpcTalk.m_lastTalkTime = Time.time;
-        Chat.instance.SetNpcText(gameObject, Vector3.up * m_offset, 20f, m_hideDialogDelay, "", text, false);
+        if (!text.IsNullOrWhiteSpace())
+            Chat.instance.SetNpcText(gameObject, Vector3.up * m_offset, 20f, m_hideDialogDelay, "", text, false);
         if (trigger.Length <= 0) return;
         m_animator.SetTrigger(trigger);
+        if (trigger == "emote_sit") m_isSitting = true;
     }
 
     public bool InPlayerBase()

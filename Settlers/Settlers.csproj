@@ -142,6 +142,7 @@
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Settlers\CreateAssets.cs" />
         <Compile Include="Settlers\Commands.cs" />
+        <Compile Include="Settlers\Emoting.cs" />
         <Compile Include="Settlers\GlobalSpawn.cs" />
         <Compile Include="Settlers\RaiderArmor.cs" />
         <Compile Include="Settlers\RaiderDrops.cs" />
@@ -157,7 +158,7 @@
         <EmbeddedResource Include="..\..\..\bundles_2024\blueprintlocationbundle">
           <Link>assets\blueprintlocationbundle</Link>
         </EmbeddedResource>
-        <EmbeddedResource Include="..\..\..\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\elfassets">
+        <EmbeddedResource Include="..\..\..\4_11_2024_rip\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\elfassets">
           <Link>assets\elfassets</Link>
         </EmbeddedResource>
         <Content Include=".gitignore" />

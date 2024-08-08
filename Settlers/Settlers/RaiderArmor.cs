@@ -14,7 +14,7 @@ namespace Settlers.Settlers;
 public static class RaiderArmor
 {
     private static readonly CustomSyncedValue<string> ServerRaiderEquipment = new(SettlersPlugin.ConfigSync, "ServerRaiderEquipment", "");
-    public static readonly string m_folderPath = Paths.ConfigPath + Path.DirectorySeparatorChar + "SettlerSettings";
+    public static readonly string m_folderPath = Paths.ConfigPath + Path.DirectorySeparatorChar + "VikingNPC";
     private static readonly string m_fileName = "VikingRaiderEquipment.yml";
     private static readonly string m_filePath = m_folderPath + Path.DirectorySeparatorChar + m_fileName;
 

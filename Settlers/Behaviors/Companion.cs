@@ -1979,7 +1979,7 @@ public class Companion : Humanoid, Interactable
 
             foreach (Companion companion in companions)
             {
-                companion.TeleportTo(pos, rot, true);
+                if (companion.IsTeleportable()) companion.TeleportTo(pos, rot, true);
             }
         }
     }

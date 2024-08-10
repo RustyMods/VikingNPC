@@ -130,9 +130,10 @@
         <Compile Include="Behaviors\Companion.cs" />
         <Compile Include="Behaviors\CompanionAI.cs" />
         <Compile Include="Behaviors\CompanionTalk.cs" />
-        <Compile Include="Behaviors\RaiderShip.cs" />
-        <Compile Include="Behaviors\RaiderShipAI.cs" />
+        <Compile Include="Behaviors\RaiderShipEffects.cs" />
         <Compile Include="Behaviors\RandomHuman.cs" />
+        <Compile Include="Behaviors\ShipAI.cs" />
+        <Compile Include="Behaviors\ShipMan.cs" />
         <Compile Include="Managers\AssetLoaderManager.cs" />
         <Compile Include="Managers\BlueprintManager.cs" />
         <Compile Include="Managers\ItemManager.cs" />
@@ -149,6 +150,7 @@
         <Compile Include="Settlers\RaiderSE.cs" />
         <Compile Include="Settlers\Raids.cs" />
         <Compile Include="Settlers\ReplaceSpawns.cs" />
+        <Compile Include="Settlers\SettlerGear.cs" />
         <Compile Include="Settlers\StorePatches.cs" />
     </ItemGroup>
     <ItemGroup>

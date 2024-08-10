@@ -10,7 +10,7 @@ public static class Emoting
     {
         private static void Postfix(string emote)
         {
-            foreach (var companion in Companion.m_instances)
+            foreach (Companion companion in Companion.m_instances)
             {
                 if (!companion.IsTamed()) continue;
                 companion.m_companionTalk.QueueEmote($"emote_{emote}");

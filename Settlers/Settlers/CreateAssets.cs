@@ -22,6 +22,7 @@ public static class AssetMan
             CreateSpawners();
             BlueprintManager.CreateBaseTerrainObject(__instance);
             BlueprintManager.CreateBlueprintObject(__instance);
+            CreateBaseRaiderShip();
         }
     }
 
@@ -119,47 +120,74 @@ public static class AssetMan
         GlobalSpawn.AddToSpawnList(human, "Elf Spawn Settings");
     }
 
-    // private static void CreateBaseRaiderShip()
-    // {
-    //     GameObject VikingShip = ZNetScene.instance.GetPrefab("VikingShip");
-    //     if (!VikingShip) return;
-    //     if (!VikingShip.TryGetComponent(out Ship ship)) return;
-    //     GameObject RaiderShip = Object.Instantiate(VikingShip, SettlersPlugin._Root.transform, false);
-    //     RaiderShip.name = "RaiderShip";
-    //     
-    //     Object.Destroy(RaiderShip.GetComponent<Ship>());
-    //     Object.Destroy(RaiderShip.GetComponent<Piece>());
-    //     Object.Destroy(RaiderShip.GetComponent<WearNTear>());
-    //     Object.Destroy(RaiderShip.transform.Find("ashdamageeffects").gameObject);
-    //     Object.Destroy(RaiderShip.transform.Find("ControlGui").gameObject);
-    //     Object.Destroy(RaiderShip.transform.Find("ship/visual/unused").gameObject);
-    //     Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentRight").gameObject);
-    //     Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
-    //
-    //     RaiderShip.transform.Find("ship/visual/Customize").gameObject.SetActive(true);
-    //
-    //     foreach (var chair in RaiderShip.GetComponentsInChildren<Chair>(true))
-    //     {
-    //         if (chair.TryGetComponent(out BoxCollider collider))
-    //         {
-    //             Object.Destroy(collider);
-    //         }
-    //         Object.Destroy(chair);
-    //     }
-    //
-    //     var interactive = RaiderShip.transform.Find("interactive");
-    //     Object.Destroy(interactive.Find("sit_box/box"));
-    //     Object.Destroy(interactive.Find("sit_box (1)/box"));
-    //     Object.Destroy(interactive.Find("sit_box (2)/box"));
-    //     Object.Destroy(interactive.Find("sit_box (3)/box"));
-    //     Object.Destroy(interactive.Find("sit_box (4)/box"));
-    //     Object.Destroy(interactive.Find("controlls/box"));
-    //     Object.Destroy(interactive.Find("controlls/rudder_button"));
-    //
-    //     var component = RaiderShip.AddComponent<RaiderShipAI>();
-    //     component.m_waterImpactEffect = ship.m_waterImpactEffect;
-    //     var raiderShip = RaiderShip.AddComponent<RaiderShip>();
-    // }
+    private static void CreateBaseRaiderShip()
+    {
+        GameObject VikingShip = ZNetScene.instance.GetPrefab("VikingShip");
+        if (!VikingShip) return;
+        if (!VikingShip.TryGetComponent(out Ship ship)) return;
+        GameObject RaiderShip = Object.Instantiate(VikingShip, SettlersPlugin._Root.transform, false);
+        RaiderShip.name = "RaiderShip";
+        
+        Object.Destroy(RaiderShip.GetComponent<Ship>());
+        Object.Destroy(RaiderShip.GetComponent<Piece>());
+
+        if (!RaiderShip.TryGetComponent(out WearNTear wearNTear)) return;
+        var ShipMan = RaiderShip.AddComponent<ShipMan>();
+        ShipMan.m_broken = wearNTear.m_broken;
+        ShipMan.m_new = wearNTear.m_new;
+        ShipMan.m_worn = wearNTear.m_worn;
+        ShipMan.m_destroyedEffect = wearNTear.m_destroyedEffect;
+        ShipMan.m_destroyNoise = wearNTear.m_destroyNoise;
+        ShipMan.m_hitEffect = wearNTear.m_hitEffect;
+        Object.Destroy(wearNTear);
+        Object.Destroy(RaiderShip.transform.Find("ashdamageeffects").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ControlGui").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/unused").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentRight").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
+    
+        RaiderShip.transform.Find("ship/visual/Customize").gameObject.SetActive(true);
+        var component = RaiderShip.AddComponent<ShipAI>();
+        component.m_waterImpactEffect = ship.m_waterImpactEffect;
+        
+        foreach (var chair in RaiderShip.GetComponentsInChildren<Chair>(true))
+        {
+            component.m_attachPoints.Add(chair.m_attachPoint);
+            if (chair.TryGetComponent(out BoxCollider collider))
+            {
+                Object.Destroy(collider);
+            }
+            
+            Object.Destroy(chair);
+        }
+    
+        var interactive = RaiderShip.transform.Find("interactive");
+        Object.Destroy(interactive.Find("sit_box/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (1)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (2)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (3)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (4)/box").gameObject);
+        Object.Destroy(interactive.Find("controlls/box").gameObject);
+        Object.Destroy(interactive.Find("controlls/rudder_button").gameObject);
+        
+        var shipEffects = RaiderShip.GetComponentInChildren<ShipEffects>();
+        var raiderShipEffects = shipEffects.gameObject.AddComponent<RaiderShipEffects>();
+        raiderShipEffects.m_shadow = shipEffects.m_shadow;
+        raiderShipEffects.m_offset = shipEffects.m_offset;
+        raiderShipEffects.m_minimumWakeVel = shipEffects.m_minimumWakeVel;
+        raiderShipEffects.m_speedWakeRoot = shipEffects.m_speedWakeRoot;
+        raiderShipEffects.m_wakeSoundRoot = shipEffects.m_wakeSoundRoot;
+        raiderShipEffects.m_inWaterSoundRoot = shipEffects.m_inWaterSoundRoot;
+        raiderShipEffects.m_audioFadeDuration = shipEffects.m_audioFadeDuration;
+        raiderShipEffects.m_sailSound = shipEffects.m_sailSound;
+        raiderShipEffects.m_sailFadeDuration = shipEffects.m_sailFadeDuration;
+        raiderShipEffects.m_splashEffects = shipEffects.m_splashEffects;
+        raiderShipEffects.m_wakeParticles = shipEffects.m_wakeParticles;
+        raiderShipEffects.m_sailBaseVol = shipEffects.m_sailBaseVol;
+        Object.Destroy(shipEffects);
+
+        RegisterToZNetScene(RaiderShip);
+    }
     
     private static GameObject? CreateBaseRaider()
     {

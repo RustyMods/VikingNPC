@@ -2,7 +2,6 @@
 using System.Linq;
 using BepInEx;
 using HarmonyLib;
-using Settlers.Settlers;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -668,27 +667,25 @@ public class CompanionAI : MonsterAI
     {
         private static void Postfix(Character a, Character b, ref bool __result)
         {
-            if (a is Companion companionA && b is Companion companionB)
+            if (a is not Companion companionA || b is not Companion companionB) return;
+            if (companionA.IsRaider() && !companionB.IsRaider())
             {
-                if (companionA.IsRaider() && !companionB.IsRaider())
-                {
-                    __result = true;
-                }
+                __result = true;
+            }
 
-                if (companionB.IsRaider() && !companionA.IsRaider())
-                {
-                    __result = true;
-                }
+            if (companionB.IsRaider() && !companionA.IsRaider())
+            {
+                __result = true;
+            }
 
-                if (companionA.IsElf() && !companionB.IsElf())
-                {
-                    __result = true;
-                }
+            if (companionA.IsElf() && companionB.IsRaider())
+            {
+                __result = true;
+            }
 
-                if (companionB.IsElf() && !companionA.IsElf())
-                {
-                    __result = true;
-                }
+            if (companionB.IsElf() && companionA.IsRaider())
+            {
+                __result = true;
             }
         }
     }

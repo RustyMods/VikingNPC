@@ -56,7 +56,7 @@ public class Companion : Humanoid, Interactable
     public bool m_attached;
     private bool m_attachedToShip;
     public Chair? m_attachedChair;
-    private Transform? m_attachPoint;
+    public Transform? m_attachPoint;
     private Vector3 m_detachOffset;
     private string m_attachAnimation = "";
     private Collider[]? m_attachColliders;
@@ -65,11 +65,13 @@ public class Companion : Humanoid, Interactable
     private float m_pinTimer;
     private float m_envStatusTimer;
     public bool m_startAsElf;
+    public bool m_startAsSailor;
     public override void Awake()
     {
         base.Awake();
         if (m_startAsRaider) SetRaider(true);
         if (m_startAsElf) SetElf(true);
+        if (m_startAsSailor) SetSailor(true);
         m_autoPickupMask = LayerMask.GetMask("item");
         m_companionAI = GetComponent<CompanionAI>();
         m_companionTalk = GetComponent<CompanionTalk>();
@@ -83,7 +85,7 @@ public class Companion : Humanoid, Interactable
         m_name = m_nview.GetZDO().GetString(ZDOVars.s_tamedName);
         m_instances.Add(this);
         m_visEquipment.m_isPlayer = true;
-        if (!IsTamed() && !IsRaider()) InvokeRepeating(nameof(TamingUpdate), 3f, 3f);
+        if (!IsTamed() && !IsRaider() && !IsElf() && !IsSailor()) InvokeRepeating(nameof(TamingUpdate), 3f, 3f);
         GetFollowTargetName();
         if (IsTamed())
         {
@@ -97,12 +99,15 @@ public class Companion : Humanoid, Interactable
     
     public override void Start()
     {
-        if (IsRaider() || IsElf())
+        bool isRaider = IsRaider();
+        bool isElf = IsElf();
+        bool isSailor = IsSailor();
+        if (isRaider || isElf || isSailor)
         {
             GetRaiderEquipment();
             SetGearQuality(m_level);
             SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
-            if (IsRaider()) m_faction = SettlersPlugin._raiderFaction.Value;
+            if (isRaider || isSailor) m_faction = SettlersPlugin._raiderFaction.Value;
             GiveDefaultItems();
         }
         else
@@ -110,7 +115,9 @@ public class Companion : Humanoid, Interactable
             LoadInventory();
             if (m_inventory.GetAllItems().Count == 0)
             {
+                m_defaultItems = SettlerGear.GetSettlerGear();
                 GiveDefaultItems();
+                SetGearQuality(m_level);
             }
             m_inventory.m_onChanged += SaveInventory;
         }
@@ -129,6 +136,12 @@ public class Companion : Humanoid, Interactable
             UpdateActionQueue(fixedDeltaTime);
             UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
         }
+        else if (IsSailor())
+        {
+            UpdateActionQueue(fixedDeltaTime);
+            UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
+            UpdateAttach();
+        }
         else
         {
             if (!IsTamed()) return;
@@ -137,11 +150,9 @@ public class Companion : Humanoid, Interactable
             AutoPickup(fixedDeltaTime);
             UpdateWarp(fixedDeltaTime);
             UpdateFood(fixedDeltaTime, false);
-            // UpdateBiome(fixedDeltaTime);
             UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
             UpdateStats(fixedDeltaTime);
             UpdatePins(fixedDeltaTime);
-            // UpdateEnvStatusEffects(fixedDeltaTime);
         }
     }
 
@@ -175,37 +186,6 @@ public class Companion : Humanoid, Interactable
         m_body.velocity = Vector3.zero;
     }
 
-    private void UpdateEnvStatusEffects(float dt)
-    {
-        m_envStatusTimer += dt;
-        if (m_envStatusTimer < 1f) return;
-        m_envStatusTimer = 0.0f;
-        HitData.DamageModifiers damageModifiers = GetDamageModifiers();
-        if (EnvMan.IsFreezing())
-        {
-            if (m_shoulderItem != null &&
-                damageModifiers.GetModifier(HitData.DamageType.Frost) is HitData.DamageModifier.Resistant
-                    or HitData.DamageModifier.VeryResistant)
-            {
-                m_seman.RemoveStatusEffect(SEMan.s_statusEffectFreezing);
-            }
-            else
-            {
-                m_seman.AddStatusEffect(SEMan.s_statusEffectFreezing);
-            }
-
-            return;
-        }
-        if (EnvMan.IsWet())
-        {
-            m_seman.AddStatusEffect(SEMan.s_statusEffectWet, true);
-        }
-        else
-        {
-            m_seman.RemoveStatusEffect(SEMan.s_statusEffectWet);
-        }
-    }
-
     public void UpdatePins(float dt)
     {
         if (m_pin == null) return;
@@ -222,6 +202,16 @@ public class Companion : Humanoid, Interactable
     {
         m_nview.GetZDO().Set(m_raider, enable);
         if (enable) m_defeatSetGlobalKey = "defeated_vikingraider";
+    }
+
+    private readonly int m_sailor = "VikingSailor".GetStableHashCode();
+
+    public bool IsSailor() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_sailor);
+
+    public void SetSailor(bool enable)
+    {
+        m_nview.GetZDO().Set(m_sailor, enable);
+        if (enable) m_defeatSetGlobalKey = "defeated_vikingsailor";
     }
 
     public bool IsElf() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_elf);
@@ -243,7 +233,12 @@ public class Companion : Humanoid, Interactable
         {
             List<GameObject> items = new();
             List<string> itemNames = new();
-            switch (m_currentBiome)
+            var biome = m_currentBiome;
+            if (IsSailor())
+            {
+                biome = Heightmap.Biome.BlackForest;
+            }
+            switch (biome)
             {
                 case Heightmap.Biome.BlackForest:
                     List<List<string>> BFArmors = new()
@@ -791,11 +786,8 @@ public class Companion : Humanoid, Interactable
         component.m_container.GetInventory().MoveAll(GetInventory());
     }
 
-    private bool ShouldCreateTombStone()
-    {
-        return m_nview.GetZDO().GetBool("InventoryChanged".GetStableHashCode());
-    }
-
+    private bool ShouldCreateTombStone() => m_nview.GetZDO().GetBool("InventoryChanged".GetStableHashCode());
+    
     public override void SetupVisEquipment(VisEquipment visEq, bool isRagdoll)
     {
         if (!isRagdoll)
@@ -1493,7 +1485,7 @@ public class Companion : Humanoid, Interactable
         m_attachPoint = attachPoint;
         m_detachOffset = detachOffset;
         m_attachAnimation = attachAnimation;
-        m_animator.SetBool(attachAnimation, true);
+        if (!IsSailor()) m_animator.SetBool(attachAnimation, true);
         if (colliderRoot != null)
         {
             m_attachColliders = colliderRoot.GetComponentsInChildren<Collider>();

@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.0.2";
+        internal const string ModVersion = "0.0.3";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -63,7 +63,7 @@ namespace Settlers
         public static ConfigEntry<Toggle> _ownerLock = null!;
         public static ConfigEntry<float> _attackModifier = null!;
         public static ConfigEntry<float> _onDamagedModifier = null!;
-
+        private static ConfigEntry<bool> _centerFirst = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -86,6 +86,7 @@ namespace Settlers
             _locationEnabled = config("3 - Locations", "Enabled", Toggle.On, "If on, blueprint locations will generate");
             _quantity = config("3 - Locations", "Quantity", 600, "Set amount of blueprint locations to generate");
             _biomes = config("3 - Locations", "Biomes", Heightmap.Biome.All, "Set biomes settler locations can generate");
+            _centerFirst = config("3 - Locations", "Center First", true, "If true, locations will be placed center of map and expand");
             
             _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
             _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
@@ -132,6 +133,7 @@ namespace Settlers
         {
             RaiderArmor.Setup();
             RaiderDrops.Setup();
+            SettlerGear.Setup();
             InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;
@@ -172,7 +174,7 @@ namespace Settlers
                     m_quantity = _quantity.Value,
                     m_clearArea = true,
                     m_biome = _biomes.Value,
-                    m_centerFirst = true,
+                    m_centerFirst = _centerFirst.Value
                 }
             };
         }

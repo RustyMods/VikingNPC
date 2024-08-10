@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BepInEx;
 using HarmonyLib;
 using ServerSync;
@@ -51,8 +52,7 @@ public static class RaiderArmor
             try
             {
                 var deserializer = new DeserializerBuilder().Build();
-                m_equipment =
-                    deserializer.Deserialize<Dictionary<Heightmap.Biome, RaiderEquipment>>(ServerRaiderEquipment.Value);
+                m_equipment = deserializer.Deserialize<Dictionary<Heightmap.Biome, RaiderEquipment>>(ServerRaiderEquipment.Value);
             }
             catch
             {
@@ -69,12 +69,7 @@ public static class RaiderArmor
         if (data.Armors.Count > 0)
         {
             var armor = data.Armors[Random.Range(0, data.Armors.Count)];
-            foreach (var prefabName in armor)
-            {
-                var prefab = ZNetScene.instance.GetPrefab(prefabName);
-                if (!prefab) continue;
-                result.Add(prefab);
-            }
+            result.AddRange(GetPrefabs(armor));
         }
 
         if (data.Capes.Count > 0)
@@ -104,25 +99,14 @@ public static class RaiderArmor
             var utilityPrefab = ZNetScene.instance.GetPrefab(utility);
             if (utilityPrefab) result.Add(utilityPrefab);
         }
-
-        if (data.Misc.Count > 0)
-        {
-            foreach (var prefabName in data.Misc)
-            {
-                var prefab = ZNetScene.instance.GetPrefab(prefabName);
-                if (!prefab) continue;
-                result.Add(prefab);
-            }
-        }
-
-        if (isElf)
-        {
-            var elfEars = ZNetScene.instance.GetPrefab("ElvenEars");
-            result.Add(elfEars);
-        }
+        if (data.Misc.Count > 0) result.AddRange(GetPrefabs(data.Misc));
+        if (data.Shields.Count > 0) result.AddRange(GetPrefabs(data.Shields));
+        if (isElf) result.Add(ZNetScene.instance.GetPrefab("ElvenEars"));
+        
         return result.ToArray();
     }
-    
+
+    private static List<GameObject> GetPrefabs(List<string> names) => names.Select(prefabName => ZNetScene.instance.GetPrefab(prefabName)).Where(prefab => prefab).ToList();
     
     private static RaiderEquipment GetEquipment(Heightmap.Biome biome)
     {
@@ -162,9 +146,14 @@ public static class RaiderArmor
                 SettlersPlugin.SettlersLogger.LogDebug("Failed to parse file: " + Path.GetFileName(m_filePath));
             }
         }
+
+        if (ZNet.instance && ZNet.instance.IsServer())
+        {
+            UpdateServerRaiderEquipment();
+        }
     }
 
-    public static void SetupWatcher()
+    private static void SetupWatcher()
     {
         FileSystemWatcher watcher = new FileSystemWatcher(m_folderPath, m_fileName);
         watcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;

@@ -35,6 +35,30 @@ public class CompanionAI : MonsterAI
     }
     public override bool UpdateAI(float dt)
     {
+        if (m_companion.IsSailor())
+        {
+            if (!m_companion.m_attached) return base.UpdateAI(dt);
+            Humanoid? character = m_character as Humanoid;
+            if (character == null) return true;
+            UpdateTarget(character, dt, out bool canHearTarget, out bool canSeeTarget);
+            ItemDrop.ItemData itemData = SelectBestAttack(character, dt);
+            if (itemData == null) return true;
+            bool flag = (double) Time.time - itemData.m_lastAttackTime >itemData.m_shared.m_aiAttackInterval && (double) m_character.GetTimeSinceLastAttack() >= m_minAttackInterval && !IsTakingOff();
+            if (m_targetCreature != null)
+            {
+                SetAlerted(true);
+                var targetCreaturePos = m_targetCreature.transform.position;
+                m_lastKnownTargetPos = targetCreaturePos;
+                LookAt(m_targetCreature.GetTopPoint());
+                var distance = Vector3.Distance(targetCreaturePos, transform.position);
+                if (distance > itemData.m_shared.m_aiAttackRange) return true;
+                if (flag)
+                {
+                    DoAttack(m_targetCreature, false);
+                }
+            }
+            return true;
+        }
         if (!m_companion.IsTamed()) return base.UpdateAI(dt);
         if (m_companion.m_inUse)
         {
@@ -684,6 +708,16 @@ public class CompanionAI : MonsterAI
             }
 
             if (companionB.IsElf() && companionA.IsRaider())
+            {
+                __result = true;
+            }
+
+            if (companionA.IsSailor() && !companionB.IsSailor())
+            {
+                __result = true;
+            }
+
+            if (companionB.IsSailor() && !companionA.IsSailor())
             {
                 __result = true;
             }

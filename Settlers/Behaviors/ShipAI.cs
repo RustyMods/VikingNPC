@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 
@@ -6,15 +7,12 @@ namespace Settlers.Behaviors;
 
 public class ShipAI : MonoBehaviour, IUpdateAI
 {
-    public bool m_forwardPressed;
-    public bool m_backwardPressed;
+    private readonly int m_spawnedSailorsKey = "SpawnedSailorsKey".GetStableHashCode();
     public float m_sendRudderTime;
-    [Header("Objects")] 
-    public GameObject m_sailObject;
-    public GameObject m_mastObject;
-    public GameObject m_rudderObject;
-    [Header("Misc")] 
-    public BoxCollider m_floatCollider;
+    public GameObject m_sailObject = null!;
+    public GameObject m_mastObject = null!;
+    public GameObject m_rudderObject = null!;
+    public BoxCollider m_floatCollider = null!;
     public float m_waterLevelOffset;
     public float m_forceDistance = 1f;
     public float m_force = 0.5f;
@@ -66,9 +64,9 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     private bool m_lastFindPathResult;
     private Vector3 m_lastFindPathTarget;
     private Ship? m_currentShipTarget;
-    private Character? m_currentCharacterTarget;
     private readonly List<Vector3> m_path = new();
-    public static List<IUpdateAI> Instances = new();
+    public static readonly List<IUpdateAI> Instances = new();
+    
     public void Awake()
     {
         m_sailObject = Utils.FindChild(transform, "Sail").gameObject;
@@ -88,54 +86,128 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         {
             m_globalWind = m_sailCloth.gameObject.GetComponent<GlobalWind>();
         }
+
+        if (m_nview.IsValid())
+        {
+            m_nview.GetZDO().Set(ZDOVars.s_patrolPoint, transform.position);
+        }
         GetSailors();
+        s_currentShipAIs.Add(this);
+    }
+    public void OnEnable() => Instances.Add(this);
+    public void OnDisable() => Instances.Remove(this);
+
+    private void Destroy()
+    {
+        foreach (var sailor in m_sailors)
+        {
+            sailor.m_nview.Destroy();
+        }
+        m_nview.Destroy();
     }
 
-    public void OnEnable()
+    private void OnDestroy()
     {
-        Instances.Add(this);
+        s_currentShipAIs.Remove(this);
     }
-
-    public void OnDisable()
+    
+    public bool UpdateAI(float fixedDeltaTime)
     {
-        Instances.Remove(this);
+        SailTo(fixedDeltaTime);
+        UpdateSpeed(fixedDeltaTime);
+        UpdateSail(fixedDeltaTime);
+        UpdateRudder(fixedDeltaTime);
+        if (m_nview && !m_nview.IsOwner()) return false;
+        CalculateForces(fixedDeltaTime);
+        ApplyEdgeForce(fixedDeltaTime);
+        UpdateUpsideDmg(fixedDeltaTime);
+        return true;
+    }
+    
+    public void UpdateUpsideDmg(float dt)
+    {
+        if (transform.up.y >= 0.0) return;
+        m_upsideDownDmgTimer += dt;
+        if (m_upsideDownDmgTimer <= (double)m_upsideDownDmgInterval) return;
+        m_upsideDownDmgTimer = 0.0f;
+        m_destructible.Damage(new HitData()
+        {
+            m_damage = {
+                m_blunt = m_upsideDownDmg
+            },
+            m_point = transform.position,
+            m_dir = Vector3.up
+        });
     }
 
     private void GetSailors()
     {
-        foreach (Transform attachPoint in m_attachPoints)
+        if (m_nview.GetZDO().GetBool(m_spawnedSailorsKey))
         {
-            var raider = Instantiate(ZNetScene.instance.GetPrefab("VikingRaider"));
-            if (!raider.TryGetComponent(out Companion companion)) continue;
-            companion.m_startAsSailor = true;
-            companion.AttachStart(attachPoint, gameObject, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
-            Debug.LogWarning("spawned sailor");
+            int index = 0;
+            foreach (var companion in Companion.m_instances)
+            {
+                if (!companion.IsSailor()) continue;
+                if (index > m_attachPoints.Count - 1) break;
+                companion.AttachStart(m_attachPoints[index], null, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
+                m_sailors.Add(companion);
+                ++index;
+            }
+        }
+        else
+        {
+            foreach (Transform attachPoint in m_attachPoints)
+            {
+                var raider = Instantiate(ZNetScene.instance.GetPrefab("VikingSailor"), attachPoint.transform.position, Quaternion.identity);
+                if (!raider.TryGetComponent(out Companion companion)) continue;
+                companion.AttachStart(attachPoint, null, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
+                m_sailors.Add(companion);
+            }
+            m_nview.GetZDO().Set(m_spawnedSailorsKey, true);
         }
     }
 
     private void SailTo(float dt)
     {
-        Vector3 sailToPosition;
-        var target = FindShipTarget();
-        if (target == null)
+        if (!m_nview.IsValid()) return;
+        Ship? target = FindShipTarget();
+        var sailToPosition = target == null ? m_nview.GetZDO().GetVec3(ZDOVars.s_patrolPoint, transform.position) : target.transform.position;
+
+        if (!FindPath(sailToPosition))
         {
-            sailToPosition = Random.insideUnitSphere * 50f;
-        }
-        else
-        {
-            sailToPosition = target.transform.position;
+            return;
         }
 
-        if (!FindPath(sailToPosition)) return;
-        if (m_path.Count == 0) return;
+        if (m_path.Count == 0)
+        {
+            return;
+        }
 
         Vector3 vector3 = m_path[0];
         if (Utils.DistanceXZ(vector3, transform.position) < 5f)
         {
             m_path.RemoveAt(0);
-            if (m_path.Count == 0) return;
+            if (m_path.Count == 0)
+            {
+                return;
+            }
         }
         RotateTowards(vector3, dt);
+    }
+    
+    public void MoveAwayAndDespawn(float dt)
+    {
+        Player closestPlayer = Player.GetClosestPlayer(transform.position, 40f);
+        if (closestPlayer != null)
+        {
+            var position = transform.position;
+            Vector3 normalized = (closestPlayer.transform.position - position).normalized;
+            RotateTowards(position - normalized * 5f, 0.0f);
+        }
+        else
+        {
+            Destroy();
+        }
     }
 
     private void RotateTowards(Vector3 dir, float dt)
@@ -197,11 +269,11 @@ public class ShipAI : MonoBehaviour, IUpdateAI
             vector3_9 = vector3_9.normalized * m_body.velocity.magnitude;
         }
 
-        // if (m_sailors.Count == 0)
-        // {
-        //     vector3_9.x *= 0.1f;
-        //     vector3_9.z *= 0.1f;
-        // }
+        if (m_sailors.Count == 0)
+        {
+            vector3_9.x *= 0.1f;
+            vector3_9.z *= 0.1f;
+        }
 
         m_body.velocity = vector3_9;
         var angularVelocity = m_body.angularVelocity;
@@ -225,7 +297,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         {
             Ship.Speed.Full => 1f,
             Ship.Speed.Half => 0.5f,
-            _ => 0.0f
+            _ => m_rudderSpeed
         };
         m_body.AddForceAtPosition(GetSailForce(sailSize, fixedDeltaTime), worldCenterOfMass + transform.up * m_sailForceOffset, ForceMode.VelocityChange);
         Vector3 position = transform1.position + forward * m_stearForceOffset;
@@ -262,6 +334,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
 
     private Ship? FindShipTarget()
     {
+        if (m_currentShipTarget != null) return m_currentShipTarget;
         List<Ship> ships = Ship.s_currentShips;
         Ship? target = null;
         float num1 = 9999f;
@@ -274,35 +347,10 @@ public class ShipAI : MonoBehaviour, IUpdateAI
             num1 = distance;
         }
 
+        m_currentShipTarget = target;
         return target;
-    }
-
-    private Character? FindEnemy()
-    {
-        List<Character> characters = Character.GetAllCharacters();
-        Character? target = null;
-        float num1 = 9999f;
-        foreach (var character in characters)
-        {
-            if (character.IsDead()) continue;
-            if (character is Companion) continue;
-            var distance = Vector3.Distance(transform.position, character.transform.position);
-            if (distance > num1) continue;
-            num1 = distance;
-            target = character;
-        }
-
-        return target;
-    }
-
-    private bool CanSeeTarget(StaticTarget target)
-    {
-        if (target == null) return false;
-        Vector3 center = target.GetCenter();
-        return Vector3.Distance(center, transform.position) > 50f;
     }
     
-
     public void UpdateControls(float dt)
     {
         if (m_nview.IsOwner())
@@ -334,20 +382,9 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         }
         m_rudderObject.transform.localRotation = Quaternion.Slerp(m_rudderObject.transform.localRotation, b, 0.5f);
     }
-
-    private float m_updateSailTimer;
-    
-    public void UpdateSail(float dt)
+    private void UpdateSpeed(float dt)
     {
-        m_updateSailTimer += dt;
-        if (m_updateSailTimer < 5f) return;
-        m_updateSailTimer = 0.0f;
-        
-        UpdateSailSize(dt);
-        var up = transform.up;
-        var windDir = EnvMan.instance.GetWindDir();
-        Vector3 vector3 = Vector3.Cross(Vector3.Cross(windDir, up), up);
-        float angle = Vector3.Angle(transform.forward, windDir);
+        float angle = Vector3.Angle(transform.forward, EnvMan.instance.GetWindDir());
 
         switch (angle)
         {
@@ -361,6 +398,15 @@ public class ShipAI : MonoBehaviour, IUpdateAI
                 m_speed = Ship.Speed.Slow;
                 break;
         }
+    }
+    public void UpdateSail(float dt)
+    {
+        var up = transform.up;
+        var windDir = EnvMan.instance.GetWindDir();
+        Vector3 vector3 = Vector3.Cross(Vector3.Cross(windDir, up), up);
+
+        UpdateSailSize(dt);
+        
         if (m_speed == Ship.Speed.Full || m_speed == Ship.Speed.Half)
         {
             var forward = transform.forward;
@@ -373,7 +419,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
             m_mastObject.transform.rotation = Quaternion.RotateTowards(m_mastObject.transform.rotation, Quaternion.RotateTowards(Quaternion.LookRotation(-transform.forward, up), Quaternion.LookRotation(-vector3, up), 80f), 30f * dt);
         }
     }
-    
+
+    private float GetWindAngle() => -Utils.YawFromDirection(transform.InverseTransformDirection(EnvMan.instance.GetWindDir()));
     public void UpdateSailSize(float dt)
     {
         float target = 0.0f;
@@ -469,17 +516,6 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         });
     }
     
-    public bool UpdateAI(float fixedDeltaTime)
-    {
-        SailTo(fixedDeltaTime);
-        UpdateControls(fixedDeltaTime);
-        UpdateSail(fixedDeltaTime);
-        UpdateRudder(fixedDeltaTime);
-        if (m_nview && !m_nview.IsOwner()) return false;
-        CalculateForces(fixedDeltaTime);
-        ApplyEdgeForce(fixedDeltaTime);
-        return true;
-    }
 
     [HarmonyPatch(typeof(MonoUpdaters), nameof(MonoUpdaters.FixedUpdate))]
     private static class MonoUpdaters_FixedUpdate_Patch
@@ -490,5 +526,4 @@ public class ShipAI : MonoBehaviour, IUpdateAI
             __instance.m_ai.UpdateAI(Instances, "MonoUpdaters.FixedUpdate.ShipAI", fixedTimeDelta);
         }
     }
-    
 }

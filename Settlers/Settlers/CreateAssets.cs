@@ -19,10 +19,10 @@ public static class AssetMan
             CreateBaseHuman();
             Raids.AddRaidEvent(RandEventSystem.m_instance, CreateBaseRaider());
             CreateBaseElf();
+            CreateBaseSailor();
             CreateSpawners();
             BlueprintManager.CreateBaseTerrainObject(__instance);
             BlueprintManager.CreateBlueprintObject(__instance);
-            CreateBaseRaiderShip();
         }
     }
 
@@ -40,6 +40,7 @@ public static class AssetMan
                 __instance.m_StatusEffects.Add(status);
             }
             RegisterSettlerPurchase();
+            CreateBaseRaiderShip();
         }
     }
 
@@ -147,8 +148,9 @@ public static class AssetMan
         Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
     
         RaiderShip.transform.Find("ship/visual/Customize").gameObject.SetActive(true);
-        var component = RaiderShip.AddComponent<ShipAI>();
+        ShipAI component = RaiderShip.AddComponent<ShipAI>();
         component.m_waterImpactEffect = ship.m_waterImpactEffect;
+        component.m_rudderValue = ship.m_rudderValue;
         
         foreach (var chair in RaiderShip.GetComponentsInChildren<Chair>(true))
         {
@@ -184,7 +186,15 @@ public static class AssetMan
         raiderShipEffects.m_splashEffects = shipEffects.m_splashEffects;
         raiderShipEffects.m_wakeParticles = shipEffects.m_wakeParticles;
         raiderShipEffects.m_sailBaseVol = shipEffects.m_sailBaseVol;
+
+        var burning = ObjectDB.instance.GetStatusEffect(SEMan.s_statusEffectBurning);
+        ShipMan.m_fireEffect = burning.m_startEffects;
         Object.Destroy(shipEffects);
+
+        // if (RaiderShip.TryGetComponent(out ZNetView znv))
+        // {
+        //     znv.m_type = ZDO.ObjectType.Default;
+        // }
 
         RegisterToZNetScene(RaiderShip);
     }
@@ -203,7 +213,6 @@ public static class AssetMan
         AddDeathEffects(ref raider);
         AddDefaultItems(ref raider);
         AddAI(raiderHuman, true, true);
-        // AddRandomIdleAnimation(raiderHuman);
         SetTameSettings(ref raider, "Boar");
         raiderHuman.AddComponent<RandomHuman>();
         AddRandomTalk(raiderHuman);
@@ -211,6 +220,29 @@ public static class AssetMan
         RegisterToZNetScene(raiderHuman);
         GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings");
         return raiderHuman;
+    }
+    
+    private static GameObject? CreateBaseSailor()
+    {
+        GameObject player = ZNetScene.instance.GetPrefab("Player");
+        if (!player) return null;
+        if (!player.TryGetComponent(out Player component)) return null;
+        GameObject sailorHuman = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
+        sailorHuman.name = "VikingSailor";
+        DestroyPlayerComponents(sailorHuman);
+        SetZNetView(sailorHuman);
+        Companion sailor = sailorHuman.AddComponent<Companion>();
+        SetCompanionValues(sailorHuman, ref sailor, component, false, true);
+        AddDeathEffects(ref sailor);
+        AddDefaultItems(ref sailor);
+        AddAI(sailorHuman, true, true);
+        SetTameSettings(ref sailor, "Boar");
+        sailorHuman.AddComponent<RandomHuman>();
+        AddRandomTalk(sailorHuman);
+        sailorHuman.AddComponent<CharacterDrop>();
+        RegisterToZNetScene(sailorHuman);
+        GlobalSpawn.AddToSpawnList(sailorHuman, "Raider Spawn Settings");
+        return sailorHuman;
     }
 
     private static void SetZNetView(GameObject prefab)
@@ -229,13 +261,14 @@ public static class AssetMan
         Object.Destroy(prefab.GetComponent<Skills>());
     }
 
-    private static void SetCompanionValues(GameObject prefab, ref Companion companion, Player player, bool startAsRaider = false)
+    private static void SetCompanionValues(GameObject prefab, ref Companion companion, Player player, bool startAsRaider = false, bool startAsSailor = false)
     {
         companion.m_startAsRaider = startAsRaider;
+        companion.m_startAsSailor = startAsSailor;
         companion.name = prefab.name;
         companion.m_name = "Viking";
         companion.m_group = "Humans";
-        companion.m_faction = startAsRaider ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
+        companion.m_faction = startAsRaider || startAsSailor ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
         companion.m_crouchSpeed = player.m_crouchSpeed;
         companion.m_walkSpeed = player.m_walkSpeed;
         companion.m_speed = player.m_speed;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -13,9 +14,14 @@ public class ShipMan : MonoBehaviour, IDestructible
     public GameObject? m_broken;
 
     public float m_health = 1000f;
-    public HitData.DamageModifiers m_damages;
+    public HitData.DamageModifiers m_damages = new HitData.DamageModifiers()
+    {
+        m_chop = HitData.DamageModifier.Weak,
+        m_fire = HitData.DamageModifier.Resistant,
+    };
     public EffectList m_destroyedEffect = new();
     public EffectList m_hitEffect = new();
+    public EffectList m_fireEffect = new();
     public float m_destroyNoise;
     public List<ShipMan> m_instances = new();
     public ZNetView m_nview = null!;
@@ -87,16 +93,37 @@ public class ShipMan : MonoBehaviour, IDestructible
 
     private float GetMaxHealth()
     {
-        return 1000f;
+        return 10000f;
     }
 
+    private readonly List<GameObject> m_fireEffects = new();
+    private bool m_isBurning;
+
+    private void ClearFireEffects()
+    {
+        foreach (var effect in m_fireEffects)
+        {
+            if (effect == null) continue;
+            if (!effect.TryGetComponent(out ZNetView zNetView)) continue;
+            zNetView.ClaimOwnership();
+            zNetView.Destroy();
+        }
+        m_fireEffects.Clear();
+    }
     private void UpdateBurn(float dt)
     {
-        if (m_burnDamageTime <= 0.0) return;
+        if (m_burnDamageTime <= 0.0)
+        {
+            ClearFireEffects();
+            m_isBurning = false;
+            return;
+        }
+
         m_burnDamageTime -= dt;
-        HitData hit = new HitData();
-        hit.m_damage.m_fire = 1f;
-        Damage(hit);
+        if (m_isBurning) return;
+        m_fireEffects.AddRange(m_fireEffect.Create(m_shipAI.m_mastObject.transform.position, Quaternion.identity, m_shipAI.m_mastObject.transform).ToList());
+        m_fireEffects.AddRange(m_fireEffect.Create(m_shipAI.m_sailObject.transform.position, Quaternion.identity, m_shipAI.m_sailObject.transform).ToList());
+        m_isBurning = true;
     }
 
     private void UpdateCurrentBiome(float dt)
@@ -119,6 +146,7 @@ public class ShipMan : MonoBehaviour, IDestructible
     public void RPC_Damage(long sender, HitData hit)
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner()) return;
+        if (hit.GetAttacker() && hit.GetAttacker() is Companion companion && companion.IsSailor()) return;
         if (GetHealth() <= 0.0) return;
         hit.ApplyResistance(m_damages, out HitData.DamageModifier significantModifier);
         float totalDamage = hit.GetTotalDamage();
@@ -129,7 +157,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_onDamaged?.Invoke();
         UpdateVisual(true);
         if (hit.m_damage.m_fire <= 0) return;
-        m_burnDamageTime = 3f;
+        if (!m_isBurning) m_burnDamageTime = 100f;
     }
     
     private bool ApplyDamage(float totalDamage, HitData hit)

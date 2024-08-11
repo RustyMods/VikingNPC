@@ -99,10 +99,9 @@ public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
             bool flag = m_body.velocity.magnitude > (double) m_minimumWakeVel;
             FadeSounds(m_inWaterSounds, true, deltaTime);
             SetWake(flag, deltaTime);
-            if ((bool) (Object) m_sailSound)
-                ShipEffects.FadeSound(m_sailSound, m_shipAI.m_speed is not Ship.Speed.Stop ? m_sailBaseVol : 0.0f, m_sailFadeDuration, deltaTime);
+            if (m_sailSound) ShipEffects.FadeSound(m_sailSound, m_shipAI.m_speed is not Ship.Speed.Stop ? m_sailBaseVol : 0.0f, m_sailFadeDuration, deltaTime);
             if (m_splashEffects == null) return;
-            m_splashEffects.SetActive(m_shipAI.m_sailors.Count > 0);
+            m_splashEffects.SetActive(m_shipAI.m_sailors.Count <= 0);
         }
     }
     

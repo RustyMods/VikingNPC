@@ -61,11 +61,19 @@ public static class RaiderArmor
         };
     }
 
-    public static GameObject[]? GetRaiderEquipment(Heightmap.Biome biome, bool isElf)
+    public static GameObject[]? GetRaiderEquipment(Heightmap.Biome biome, bool isElf, bool isSailor)
     {
         if (!ZNetScene.instance) return null;
         List<GameObject> result = new();
-        RaiderEquipment data = GetEquipment(biome);
+        Heightmap.Biome sailorBiome = Heightmap.Biome.BlackForest;
+        if (isSailor)
+        {
+            Array biomes = Enum.GetValues(typeof(Heightmap.Biome));
+            var random = Random.Range(1, biomes.Length - 1);
+            sailorBiome = (Heightmap.Biome)biomes.GetValue(random);
+            if (sailorBiome is Heightmap.Biome.None or Heightmap.Biome.All) sailorBiome = Heightmap.Biome.BlackForest;
+        }
+        RaiderEquipment data = GetEquipment(isSailor ? sailorBiome : biome);
         if (data.Armors.Count > 0)
         {
             var armor = data.Armors[Random.Range(0, data.Armors.Count)];
@@ -192,7 +200,7 @@ public static class RaiderArmor
                 },
                 Melee = new() { "AtgeirBronze", "SwordBronze", "KnifeCopper", "MaceBronze" },
                 Shields = new() { "ShieldBronzeBuckler", "ShieldBoneTower" },
-                Ranged = new() { "FineWoodBow" },
+                Ranged = new() { "BowFineWood" },
                 Capes = new() { "CapeTrollHide" }
             },
             [Heightmap.Biome.Swamp] = new RaiderEquipment()

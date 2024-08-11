@@ -104,7 +104,7 @@ public class Companion : Humanoid, Interactable
         bool isSailor = IsSailor();
         if (isRaider || isElf || isSailor)
         {
-            GetRaiderEquipment();
+            GetRaiderEquipment(isElf, isSailor);
             SetGearQuality(m_level);
             SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
             if (isRaider || isSailor) m_faction = SettlersPlugin._raiderFaction.Value;
@@ -130,17 +130,16 @@ public class Companion : Humanoid, Interactable
         if (m_nview.GetZDO() == null) return;
         if (!m_nview.IsOwner()) return;
         if (IsDead()) return;
-        if (IsRaider() || IsElf())
+        bool isSailor = IsSailor();
+        if (IsRaider() || IsElf() || isSailor)
         {
-            AutoPickup(fixedDeltaTime);
+            if (!isSailor) AutoPickup(fixedDeltaTime);
             UpdateActionQueue(fixedDeltaTime);
             UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
-        }
-        else if (IsSailor())
-        {
-            UpdateActionQueue(fixedDeltaTime);
-            UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
-            UpdateAttach();
+            if (isSailor)
+            {
+                UpdateAttach();
+            }
         }
         else
         {
@@ -221,10 +220,10 @@ public class Companion : Humanoid, Interactable
         m_nview.GetZDO().Set(m_elf, enable);
         if (enable) m_defeatSetGlobalKey = "defeated_vikingelf";
     }
-    private void GetRaiderEquipment()
+    private void GetRaiderEquipment(bool isElf, bool isSailor)
     {
         m_currentBiome = Heightmap.FindBiome(transform.position);
-        GameObject[]? raiderItems = RaiderArmor.GetRaiderEquipment(m_currentBiome, IsElf());
+        GameObject[]? raiderItems = RaiderArmor.GetRaiderEquipment(m_currentBiome, isElf, isSailor);
         if (raiderItems != null)
         {
             m_defaultItems = raiderItems;
@@ -498,7 +497,7 @@ public class Companion : Humanoid, Interactable
 
     public override bool HaveEitr(float amount = 0)
     {
-        if (IsRaider() || IsElf()) return true;
+        if (IsRaider() || IsElf() || IsSailor()) return true;
         return amount < m_eitr;
     }
 
@@ -1136,7 +1135,7 @@ public class Companion : Humanoid, Interactable
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || IsTamed()) return;
         if (m_companionAI == null) return;
-        if (IsRaider() || IsElf()) return;
+        if (IsRaider() || IsElf() || IsSailor()) return;
         m_companionAI.MakeTame();
         Transform transform1 = transform;
         Vector3 position = transform1.position;
@@ -1268,7 +1267,7 @@ public class Companion : Humanoid, Interactable
     private float GetEitr() => m_eitr;
     public override float GetMaxEitr()
     {
-        return IsRaider() || IsElf() ? 9999f : m_maxEitr;
+        return IsRaider() || IsElf() || IsSailor() ? 9999f : m_maxEitr;
     }
     public override void UseEitr(float eitr)
     {
@@ -1281,7 +1280,7 @@ public class Companion : Humanoid, Interactable
     public override string GetHoverText()
     {
         if (!m_nview.IsValid()) return "";
-        if (IsRaider() || IsElf()) return "";
+        if (IsRaider() || IsElf() || IsSailor()) return "";
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.Append(m_name);
         if (IsTamed())
@@ -1485,7 +1484,7 @@ public class Companion : Humanoid, Interactable
         m_attachPoint = attachPoint;
         m_detachOffset = detachOffset;
         m_attachAnimation = attachAnimation;
-        if (!IsSailor()) m_animator.SetBool(attachAnimation, true);
+        m_animator.SetBool(attachAnimation, true);
         if (colliderRoot != null)
         {
             m_attachColliders = colliderRoot.GetComponentsInChildren<Collider>();
@@ -1531,7 +1530,17 @@ public class Companion : Humanoid, Interactable
 
     private bool UpdateAttach()
     {
-        if (!m_attached) return false;
+        if (!m_attached)
+        {
+            Damage(new HitData()
+            {
+                m_damage = new HitData.DamageTypes()
+                {
+                    m_blunt = 99999f
+                }
+            });
+            return false;
+        }
         if (m_attachPoint == null)
         {
             AttachStop();
@@ -1546,6 +1555,7 @@ public class Companion : Humanoid, Interactable
         m_maxAirAltitude = transform.position.y;
         return true;
     }
+
     public override bool IsAttached() => m_attached || base.IsAttached();
     public override bool IsAttachedToShip() => m_attached && m_attachedToShip;
     public override void AttachStop()
@@ -1860,11 +1870,11 @@ public class Companion : Humanoid, Interactable
             if (__instance is not Companion component) return true;
             List<ItemDrop.ItemData> allItems = component.GetInventory().GetAllItems();
             if (allItems.Count == 0 || component.InAttack()) return true;
-            ModifyRangedItems(allItems);
+            ModifyRangedItems(allItems, component.IsSailor());
             return true;
         }
 
-        private static void ModifyRangedItems(List<ItemDrop.ItemData> allItems)
+        private static void ModifyRangedItems(List<ItemDrop.ItemData> allItems, bool isSailor)
         {
             foreach (ItemDrop.ItemData? item in allItems)
             {
@@ -1880,7 +1890,7 @@ public class Companion : Humanoid, Interactable
                         item.m_shared.m_attack.m_useCharacterFacingYAim = true;
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
-                        item.m_shared.m_aiAttackRange = 30f;
+                        item.m_shared.m_aiAttackRange = isSailor ? 60f : 30f;
                         item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = 12f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;
@@ -1914,7 +1924,7 @@ public class Companion : Humanoid, Interactable
                         item.m_shared.m_attack.m_useCharacterFacingYAim = true;
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
-                        item.m_shared.m_aiAttackRange = 40f;
+                        item.m_shared.m_aiAttackRange = isSailor ? 60f : 40f;
                         item.m_shared.m_aiAttackRangeMin = 5f;
                         item.m_shared.m_aiAttackInterval = 12f;
                         item.m_shared.m_aiAttackMaxAngle = 15f;
@@ -1933,7 +1943,7 @@ public class Companion : Humanoid, Interactable
                             item.m_shared.m_attack.m_useCharacterFacingYAim = true;
                             item.m_shared.m_attack.m_launchAngle = 0f;
                             item.m_shared.m_attack.m_projectiles = 1;
-                            item.m_shared.m_aiAttackRange = 30f;
+                            item.m_shared.m_aiAttackRange = isSailor ? 60f : 30f;
                             item.m_shared.m_aiAttackRangeMin = 5f;
                             item.m_shared.m_aiAttackInterval = 12f;
                             item.m_shared.m_aiAttackMaxAngle = 15f;
@@ -1982,8 +1992,10 @@ public class Companion : Humanoid, Interactable
         private static void Postfix(Humanoid character, ref bool __result)
         {
             if (character is not Companion companion) return;
-            if (!companion.IsRaider()) return;
-            __result = true;
+            if (companion.IsRaider() || companion.IsSailor() || companion.IsElf())
+            {
+                __result = true;
+            }
         }
     }
 
@@ -1993,30 +2005,32 @@ public class Companion : Humanoid, Interactable
         private static void Prefix(Humanoid character, ItemDrop.ItemData weapon, ref bool __result)
         {
             if (character is not Companion companion) return;
-            if (!companion.IsRaider()) return;
-            switch (weapon.m_shared.m_ammoType)
+            if (companion.IsRaider() || companion.IsSailor() || companion.IsElf())
             {
-                case "$ammo_arrows":
-                    var arrow = ObjectDB.instance.GetItemPrefab("ArrowWood");
-                    if (arrow.TryGetComponent(out ItemDrop arrowComponent))
-                    {
-                        ItemDrop.ItemData? cloneArrow = arrowComponent.m_itemData.Clone();
-                        character.GetInventory().AddItem(cloneArrow);
-                    }
+                switch (weapon.m_shared.m_ammoType)
+                {
+                    case "$ammo_arrows":
+                        var arrow = ObjectDB.instance.GetItemPrefab("ArrowWood");
+                        if (arrow.TryGetComponent(out ItemDrop arrowComponent))
+                        {
+                            ItemDrop.ItemData? cloneArrow = arrowComponent.m_itemData.Clone();
+                            character.GetInventory().AddItem(cloneArrow);
+                        }
 
-                    break;
-                case "$ammo_bolts":
-                    var bolt = ObjectDB.instance.GetItemPrefab("BoltBone");
-                    if (bolt.TryGetComponent(out ItemDrop boltComponent))
-                    {
-                        ItemDrop.ItemData? cloneArrow = boltComponent.m_itemData.Clone();
-                        character.GetInventory().AddItem(cloneArrow);
-                    }
+                        break;
+                    case "$ammo_bolts":
+                        var bolt = ObjectDB.instance.GetItemPrefab("BoltBone");
+                        if (bolt.TryGetComponent(out ItemDrop boltComponent))
+                        {
+                            ItemDrop.ItemData? cloneArrow = boltComponent.m_itemData.Clone();
+                            character.GetInventory().AddItem(cloneArrow);
+                        }
 
-                    break;
+                        break;
+                }
+
+                __result = true;
             }
-
-            __result = true;
         }
     }
 

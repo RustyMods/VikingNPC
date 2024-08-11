@@ -3,6 +3,7 @@ using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
+using Settlers.Behaviors;
 using UnityEngine;
 
 namespace Settlers.Settlers;
@@ -19,7 +20,24 @@ public static class GlobalSpawn
         }
     }
 
-    public static void AddToSpawnList(GameObject prefab, string configKey)
+    [HarmonyPatch(typeof(SpawnSystem), nameof(SpawnSystem.Spawn))]
+    private static class SpawnSystem_Spawn_Patch
+    {
+        private static bool Prefix(SpawnSystem.SpawnData critter, Vector3 spawnPoint, bool eventSpawner)
+        {
+            if (!critter.m_prefab.GetComponent<ShipAI>()) return true;
+            spawnPoint.y = ZoneSystem.instance.m_waterLevel;
+            GameObject gameObject = Object.Instantiate(critter.m_prefab, spawnPoint, Quaternion.identity);
+            if (Terminal.m_showTests && Terminal.m_testList.ContainsKey("spawns"))
+            {
+                Terminal.Log($"Spawning {critter.m_prefab.name} at {spawnPoint}");
+                Chat.instance.SendPing(spawnPoint);
+            }
+            return false;
+        }
+    }
+
+    public static void AddToSpawnList(GameObject prefab, string configKey, Heightmap.Biome biomeSetting, float spawnInterval = 1000f, float spawnChance = 50f, float spawnDistance = 35f)
     {
         if (!SettlersPlugin._Root.TryGetComponent(out SpawnSystemList component))
         {
@@ -40,7 +58,7 @@ public static class GlobalSpawn
             info.m_enabled = enabled.Value is SettlersPlugin.Toggle.On;
         };
         data.m_prefab = ZNetScene.instance.GetPrefab(prefab.name);
-        ConfigEntry<Heightmap.Biome> biome = SettlersPlugin._Plugin.config(configKey, "Biomes", Heightmap.Biome.Meadows, "Set biomes settlers can spawn in");
+        ConfigEntry<Heightmap.Biome> biome = SettlersPlugin._Plugin.config(configKey, "Biomes", biomeSetting, "Set biomes settlers can spawn in");
         data.m_biome = biome.Value;
         biome.SettingChanged += (sender, args) =>
         {
@@ -64,7 +82,7 @@ public static class GlobalSpawn
             if (info == null) return;
             info.m_maxSpawned = max.Value;
         };
-        ConfigEntry<float> interval = SettlersPlugin._Plugin.config(configKey, "Spawn Interval", 1000f, "How often settler spawns");
+        ConfigEntry<float> interval = SettlersPlugin._Plugin.config(configKey, "Spawn Interval", spawnInterval, "How often settler spawns");
         data.m_spawnInterval = interval.Value;
         interval.SettingChanged += (sender, args) =>
         {
@@ -72,7 +90,7 @@ public static class GlobalSpawn
             if (info == null) return;
             info.m_spawnInterval = interval.Value;
         };
-        ConfigEntry<float> chance = SettlersPlugin._Plugin.config(configKey, "Spawn Chance", 50f, new ConfigDescription("Chance to spawn each spawn interval", new AcceptableValueRange<float>(0f, 100f)));
+        ConfigEntry<float> chance = SettlersPlugin._Plugin.config(configKey, "Spawn Chance", spawnChance, new ConfigDescription("Chance to spawn each spawn interval", new AcceptableValueRange<float>(0f, 100f)));
         data.m_spawnChance = chance.Value;
         chance.SettingChanged += (sender, args) =>
         {
@@ -80,7 +98,7 @@ public static class GlobalSpawn
             if (info == null) return;
             info.m_spawnChance = chance.Value;
         };
-        ConfigEntry<float> distance = SettlersPlugin._Plugin.config(configKey, "Spawn Distance", 35f, "Spawn range, 0 = use global settings");
+        ConfigEntry<float> distance = SettlersPlugin._Plugin.config(configKey, "Spawn Distance", spawnDistance, "Spawn range, 0 = use global settings");
         data.m_spawnDistance = distance.Value;
         distance.SettingChanged += (sender, args) =>
         {

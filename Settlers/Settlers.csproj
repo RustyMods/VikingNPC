@@ -145,6 +145,8 @@
         <Compile Include="Settlers\Commands.cs" />
         <Compile Include="Settlers\Emoting.cs" />
         <Compile Include="Settlers\GlobalSpawn.cs" />
+        <Compile Include="Settlers\HairColors.cs" />
+        <Compile Include="Settlers\LineAttachPatch.cs" />
         <Compile Include="Settlers\RaiderArmor.cs" />
         <Compile Include="Settlers\RaiderDrops.cs" />
         <Compile Include="Settlers\RaiderSE.cs" />

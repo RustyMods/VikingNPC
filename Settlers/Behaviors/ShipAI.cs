@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 
@@ -58,7 +57,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public float m_rudderPaddleTimer;
     public float m_lastUpdateWaterForceTime;
     public List<Transform> m_attachPoints = new();
-    public List<Companion> m_sailors = new();
+    public Dictionary<Transform, Companion> m_sailors = new();
     private static readonly Collider[] m_tempSphereOverlap = new Collider[128];
     private float m_lastFindPathTime;
     private bool m_lastFindPathResult;
@@ -66,6 +65,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     private Ship? m_currentShipTarget;
     private readonly List<Vector3> m_path = new();
     public static readonly List<IUpdateAI> Instances = new();
+    private bool m_attachedToTarget;
+    private ShipMan m_shipMan;
     
     public void Awake()
     {
@@ -77,8 +78,13 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         m_nview = GetComponent<ZNetView>();
         m_body = GetComponent<Rigidbody>();
         m_destructible = GetComponent<IDestructible>();
+        m_shipMan = GetComponent<ShipMan>();
 
-        if (m_nview.GetZDO() == null) enabled = false;
+        if (m_nview.GetZDO() == null)
+        {
+            enabled = false;
+            
+        }
         m_body.maxDepenetrationVelocity = 2f;
         Heightmap.ForceGenerateAll();
         m_sailCloth = m_sailObject.GetComponentInChildren<Cloth>();
@@ -91,7 +97,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         {
             m_nview.GetZDO().Set(ZDOVars.s_patrolPoint, transform.position);
         }
-        GetSailors();
+        Invoke(nameof(GetSailors), 5f);
         s_currentShipAIs.Add(this);
     }
     public void OnEnable() => Instances.Add(this);
@@ -99,10 +105,11 @@ public class ShipAI : MonoBehaviour, IUpdateAI
 
     private void Destroy()
     {
-        foreach (var sailor in m_sailors)
+        foreach (var sailor in m_sailors.Values)
         {
             sailor.m_nview.Destroy();
         }
+        m_sailors.Clear();
         m_nview.Destroy();
     }
 
@@ -113,6 +120,10 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     
     public bool UpdateAI(float fixedDeltaTime)
     {
+        if (m_shipMan.GetCurrentBiome() != Heightmap.Biome.Ocean)
+        {
+            Destroy();
+        }
         SailTo(fixedDeltaTime);
         UpdateSpeed(fixedDeltaTime);
         UpdateSail(fixedDeltaTime);
@@ -140,6 +151,20 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         });
     }
 
+    private void UpdateSailors()
+    {
+        if (m_sailors.Count > 4) return;
+        var sailor = ZNetScene.instance.GetPrefab("VikingSailor");
+        if (!sailor) return;
+        foreach (var attachPoint in m_attachPoints)
+        {
+            if (m_sailors.ContainsKey(attachPoint)) continue;
+            var raider = Instantiate(sailor, attachPoint.transform.position, Quaternion.identity);
+            if (!raider.TryGetComponent(out Companion companion)) continue;
+            companion.AttachStart(attachPoint, null, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
+            m_sailors[attachPoint] = companion;
+        }
+    }
     private void GetSailors()
     {
         if (m_nview.GetZDO().GetBool(m_spawnedSailorsKey))
@@ -150,28 +175,34 @@ public class ShipAI : MonoBehaviour, IUpdateAI
                 if (!companion.IsSailor()) continue;
                 if (index > m_attachPoints.Count - 1) break;
                 companion.AttachStart(m_attachPoints[index], null, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
-                m_sailors.Add(companion);
+                m_sailors[m_attachPoints[index]] = companion;
                 ++index;
             }
+            UpdateSailors();
         }
         else
         {
+            var sailor = ZNetScene.instance.GetPrefab("VikingSailor");
+            if (!sailor) return;
             foreach (Transform attachPoint in m_attachPoints)
             {
-                var raider = Instantiate(ZNetScene.instance.GetPrefab("VikingSailor"), attachPoint.transform.position, Quaternion.identity);
+                var raider = Instantiate(sailor, attachPoint.transform.position, Quaternion.identity);
                 if (!raider.TryGetComponent(out Companion companion)) continue;
                 companion.AttachStart(attachPoint, null, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
-                m_sailors.Add(companion);
+                m_sailors[attachPoint] = companion;
             }
             m_nview.GetZDO().Set(m_spawnedSailorsKey, true);
         }
     }
 
+    private Vector3 GetPatrolPoint() => m_nview.GetZDO().GetVec3(ZDOVars.s_patrolPoint, transform.position);
     private void SailTo(float dt)
     {
         if (!m_nview.IsValid()) return;
+        var patrolPoint = GetPatrolPoint();
         Ship? target = FindShipTarget();
-        var sailToPosition = target == null ? m_nview.GetZDO().GetVec3(ZDOVars.s_patrolPoint, transform.position) : target.transform.position;
+        bool flag = Vector3.Distance(patrolPoint, transform.position) > 400f;
+        var sailToPosition = target == null ? patrolPoint : flag ? patrolPoint : target.transform.position;
 
         if (!FindPath(sailToPosition))
         {
@@ -255,7 +286,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         var transform1 = transform;
         var right = transform1.right;
         var forward = transform1.forward;
-        
+
         float f1 = Vector3.Dot(m_body.velocity, forward);
         float f2 = Vector3.Dot(m_body.velocity, right);
         Vector3 velocity = m_body.velocity;
@@ -274,6 +305,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
             vector3_9.x *= 0.1f;
             vector3_9.z *= 0.1f;
         }
+
+        AttachToTarget(fixedDeltaTime);
 
         m_body.velocity = vector3_9;
         var angularVelocity = m_body.angularVelocity;
@@ -320,6 +353,26 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         m_body.AddForceAtPosition(zero * fixedDeltaTime, position, ForceMode.VelocityChange);
     }
 
+    private bool AttachToTarget(float fixedDeltaTime)
+    {
+        if (m_currentShipTarget != null)
+        {
+            var targetVelocity = m_currentShipTarget.m_body.velocity;
+            if (targetVelocity.magnitude > m_body.velocity.magnitude)
+            {
+                m_body.velocity = Vector3.Lerp(m_body.velocity, targetVelocity, 0.5f * fixedDeltaTime);
+            }
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, m_currentShipTarget.transform.rotation, 10f * fixedDeltaTime);
+            m_attachedToTarget = true;
+        }
+        else
+        {
+            m_attachedToTarget = false;
+        }
+
+        return m_attachedToTarget;
+    }
+    
     private bool FindPath(Vector3 target)
     {
         float time = Time.time;

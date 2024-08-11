@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Settlers.Settlers;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -32,6 +33,11 @@ public class ShipMan : MonoBehaviour, IDestructible
     private float m_updateBiomeTimer;
     private float m_healthPercentage;
     private float m_healthRegenTimer;
+    private Container m_container = null!;
+    private uint m_lastRevision;
+    private string m_lastDataString = "";
+    private bool m_loading;
+    public List<Transform> m_burnObjects = new();
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
@@ -44,7 +50,90 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_health += Game.m_worldLevel * Game.instance.m_worldLevelPieceHPMultiplier;
         SetHealth(m_health);
         m_biome = Heightmap.FindBiome(transform.position);
+        m_container = GetComponentInChildren<Container>();
+        
+        Transform customize = gameObject.transform.Find("ship/visual/Customize");
+        foreach (Transform child in customize)
+        {
+            m_burnObjects.Add(child);
+        }
+        
         m_instances.Add(this);
+    }
+
+    private void Start()
+    {
+        AddLoot();
+    }
+
+    private void AddLoot()
+    {
+        if (!m_container) return;
+        // LoadInventory();
+        if (m_container.GetInventory().GetAllItems().Count > 0) return;
+        List<DropTable.DropData> data = new();
+        foreach (var item in RaiderDrops.GetRaiderDrops(Heightmap.Biome.Swamp))
+        {
+            data.Add(new DropTable.DropData()
+            {
+                m_item = item.m_prefab,
+                m_weight = item.m_chance,
+                m_stackMax = item.m_amountMax * 3,
+                m_stackMin = item.m_amountMin * 3,
+                m_dontScale = item.m_dontScale
+            });
+        }
+
+        var iron = ZNetScene.instance.GetPrefab("IronScrap");
+        int count = 0;
+        int max = 3;
+        while (count < max)
+        {
+            data.Add(new DropTable.DropData()
+            {
+                m_item = iron,
+                m_weight = 1f,
+                m_stackMax = 30,
+                m_stackMin = 30,
+                m_dontScale = true,
+            });
+            ++count;
+        }
+        m_container.m_defaultItems = new DropTable()
+        {
+            m_dropMin = 5,
+            m_dropMax = m_container.m_height * m_container.m_width,
+            m_oneOfEach = true,
+            m_dropChance = 1f,
+            m_drops = data
+        };
+            
+        m_container.AddDefaultItems();
+        // m_inventory.m_onChanged += SaveInventory;
+    }
+    
+    private void LoadInventory()
+    {
+        if (m_nview.GetZDO().DataRevision == m_lastRevision) return;
+        string? data = m_nview.GetZDO().GetString(ZDOVars.s_items);
+        if (string.IsNullOrEmpty(data) || m_lastDataString == data) return;
+        ZPackage pkg = new ZPackage(data);
+        m_loading = true;
+        m_container.m_inventory.Load(pkg);
+        m_loading = false;
+        m_lastRevision = m_nview.GetZDO().DataRevision;
+        m_lastDataString = data;
+    }
+    
+    private void SaveInventory()
+    {
+        if (m_loading || !m_nview.IsOwner()) return;
+        ZPackage pkg = new ZPackage();
+        m_container.m_inventory.Save(pkg);
+        string? data = pkg.GetBase64();
+        m_nview.GetZDO().Set(ZDOVars.s_items, data);
+        m_lastRevision = m_nview.GetZDO().DataRevision;
+        m_lastDataString = data;
     }
     
     public void Update()
@@ -63,7 +152,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_healthRegenTimer = 0.0f;
         if (GetHealth() >= GetMaxHealth()) return;
         Heal(10f);
-        UpdateVisual(false);
+        UpdateVisual(true);
     }
 
     private void Heal(float hp, bool showText = true)
@@ -123,6 +212,11 @@ public class ShipMan : MonoBehaviour, IDestructible
         if (m_isBurning) return;
         m_fireEffects.AddRange(m_fireEffect.Create(m_shipAI.m_mastObject.transform.position, Quaternion.identity, m_shipAI.m_mastObject.transform).ToList());
         m_fireEffects.AddRange(m_fireEffect.Create(m_shipAI.m_sailObject.transform.position, Quaternion.identity, m_shipAI.m_sailObject.transform).ToList());
+        foreach (var prefab in m_burnObjects)
+        {
+            if (prefab == null) continue;
+            m_fireEffects.AddRange(m_fireEffect.Create(prefab.position, Quaternion.identity, prefab));
+        }
         m_isBurning = true;
     }
 
@@ -133,6 +227,8 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_updateBiomeTimer = 0.0f;
         m_biome = Heightmap.FindBiome(transform.position);
     }
+
+    public Heightmap.Biome GetCurrentBiome() => m_biome;
 
     public void OnDestroy()
     {
@@ -212,24 +308,23 @@ public class ShipMan : MonoBehaviour, IDestructible
     private void SetHealthVisual(float health, bool triggerEffects)
     {
         if (m_worn == null || m_broken == null || m_new == null) return;
+        if (!triggerEffects) return;
         if (health > 0.75)
         {
-            if (m_worn != m_new) m_worn.SetActive(false);
-            if (m_broken != m_new) m_broken.SetActive(false);
+            m_worn.SetActive(false);
+            m_broken.SetActive(false);
             m_new.SetActive(true);
         }
         else if (health > 0.25)
         {
-            if (triggerEffects && !m_worn.activeSelf) 
-                if (m_new != m_worn) m_new.SetActive(false);
-            if (m_broken != m_worn) m_broken.SetActive(false);
+            m_new.SetActive(false);
+            m_broken.SetActive(false);
             m_worn.SetActive(true);
         }
         else
         {
-            if (triggerEffects && !m_broken.activeSelf)
-                if (m_new != m_broken) m_new.SetActive(false);
-            if (m_worn != m_broken) m_worn.SetActive(false);
+            m_new.SetActive(false);
+            m_worn.SetActive(false);
             m_broken.SetActive(true);
         }
     }

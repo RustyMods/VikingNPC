@@ -93,7 +93,7 @@ public static class AssetMan
         human.AddComponent<RandomHuman>();
         AddRandomTalk(human);
         RegisterToZNetScene(human);
-        GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings");
+        GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings", Heightmap.Biome.Meadows);
     }
     
     private static void CreateBaseElf()
@@ -118,7 +118,7 @@ public static class AssetMan
         AddRandomTalk(human);
         RegisterToZNetScene(human);
         human.AddComponent<CharacterDrop>();
-        GlobalSpawn.AddToSpawnList(human, "Elf Spawn Settings");
+        GlobalSpawn.AddToSpawnList(human, "Elf Spawn Settings", Heightmap.Biome.All);
     }
 
     private static void CreateBaseRaiderShip()
@@ -133,7 +133,7 @@ public static class AssetMan
         Object.Destroy(RaiderShip.GetComponent<Piece>());
 
         if (!RaiderShip.TryGetComponent(out WearNTear wearNTear)) return;
-        var ShipMan = RaiderShip.AddComponent<ShipMan>();
+        ShipMan ShipMan = RaiderShip.AddComponent<ShipMan>();
         ShipMan.m_broken = wearNTear.m_broken;
         ShipMan.m_new = wearNTear.m_new;
         ShipMan.m_worn = wearNTear.m_worn;
@@ -146,13 +146,14 @@ public static class AssetMan
         Object.Destroy(RaiderShip.transform.Find("ship/visual/unused").gameObject);
         Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentRight").gameObject);
         Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
-    
-        RaiderShip.transform.Find("ship/visual/Customize").gameObject.SetActive(true);
+
+        Transform customize = RaiderShip.transform.Find("ship/visual/Customize");
+        customize.gameObject.SetActive(true);
         ShipAI component = RaiderShip.AddComponent<ShipAI>();
         component.m_waterImpactEffect = ship.m_waterImpactEffect;
         component.m_rudderValue = ship.m_rudderValue;
         
-        foreach (var chair in RaiderShip.GetComponentsInChildren<Chair>(true))
+        foreach (Chair chair in RaiderShip.GetComponentsInChildren<Chair>(true))
         {
             component.m_attachPoints.Add(chair.m_attachPoint);
             if (chair.TryGetComponent(out BoxCollider collider))
@@ -163,7 +164,7 @@ public static class AssetMan
             Object.Destroy(chair);
         }
     
-        var interactive = RaiderShip.transform.Find("interactive");
+        Transform interactive = RaiderShip.transform.Find("interactive");
         Object.Destroy(interactive.Find("sit_box/box").gameObject);
         Object.Destroy(interactive.Find("sit_box (1)/box").gameObject);
         Object.Destroy(interactive.Find("sit_box (2)/box").gameObject);
@@ -171,9 +172,9 @@ public static class AssetMan
         Object.Destroy(interactive.Find("sit_box (4)/box").gameObject);
         Object.Destroy(interactive.Find("controlls/box").gameObject);
         Object.Destroy(interactive.Find("controlls/rudder_button").gameObject);
-        
-        var shipEffects = RaiderShip.GetComponentInChildren<ShipEffects>();
-        var raiderShipEffects = shipEffects.gameObject.AddComponent<RaiderShipEffects>();
+
+        ShipEffects shipEffects = RaiderShip.GetComponentInChildren<ShipEffects>();
+        RaiderShipEffects raiderShipEffects = shipEffects.gameObject.AddComponent<RaiderShipEffects>();
         raiderShipEffects.m_shadow = shipEffects.m_shadow;
         raiderShipEffects.m_offset = shipEffects.m_offset;
         raiderShipEffects.m_minimumWakeVel = shipEffects.m_minimumWakeVel;
@@ -187,16 +188,12 @@ public static class AssetMan
         raiderShipEffects.m_wakeParticles = shipEffects.m_wakeParticles;
         raiderShipEffects.m_sailBaseVol = shipEffects.m_sailBaseVol;
 
-        var burning = ObjectDB.instance.GetStatusEffect(SEMan.s_statusEffectBurning);
+        StatusEffect burning = ObjectDB.instance.GetStatusEffect(SEMan.s_statusEffectBurning);
         ShipMan.m_fireEffect = burning.m_startEffects;
         Object.Destroy(shipEffects);
-
-        // if (RaiderShip.TryGetComponent(out ZNetView znv))
-        // {
-        //     znv.m_type = ZDO.ObjectType.Default;
-        // }
-
         RegisterToZNetScene(RaiderShip);
+        GlobalSpawn.AddToSpawnList(RaiderShip, "Raider Ship Spawn Settings", Heightmap.Biome.None, 4000f, 25f, 50f);
+
     }
     
     private static GameObject? CreateBaseRaider()
@@ -218,7 +215,7 @@ public static class AssetMan
         AddRandomTalk(raiderHuman);
         raiderHuman.AddComponent<CharacterDrop>();
         RegisterToZNetScene(raiderHuman);
-        GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings");
+        GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings", Heightmap.Biome.All);
         return raiderHuman;
     }
     
@@ -241,7 +238,7 @@ public static class AssetMan
         AddRandomTalk(sailorHuman);
         sailorHuman.AddComponent<CharacterDrop>();
         RegisterToZNetScene(sailorHuman);
-        GlobalSpawn.AddToSpawnList(sailorHuman, "Raider Spawn Settings");
+        // GlobalSpawn.AddToSpawnList(sailorHuman, "Raider Spawn Settings", Heightmap.Biome.None);
         return sailorHuman;
     }
 

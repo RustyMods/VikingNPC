@@ -1532,13 +1532,13 @@ public class Companion : Humanoid, Interactable
     {
         if (!m_attached)
         {
-            Damage(new HitData()
+            if (IsSailor())
             {
-                m_damage = new HitData.DamageTypes()
+                Damage(new HitData()
                 {
-                    m_blunt = 99999f
-                }
-            });
+                    m_damage = new HitData.DamageTypes() { m_blunt = 10f }
+                });
+            }
             return false;
         }
         if (m_attachPoint == null)

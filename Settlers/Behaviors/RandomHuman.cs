@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using BepInEx;
+using Settlers.Settlers;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -109,10 +110,11 @@ public class RandomHuman : MonoBehaviour
         {
             modelIndex = Random.Range(0, 2);
             random = Random.Range(0, 20);
-            color = new Vector3(Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+            color = HairColors.GetHairColor();
             m_nview.GetZDO().Set("ModelIndex", modelIndex);
             m_nview.GetZDO().Set("HairNumber", random);
             m_nview.GetZDO().Set("HairColor", color);
+            
         }
         
         female = modelIndex == 1;

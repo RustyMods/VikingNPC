@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.0.3";
+        internal const string ModVersion = "0.0.4";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -64,6 +64,7 @@ namespace Settlers
         public static ConfigEntry<float> _attackModifier = null!;
         public static ConfigEntry<float> _onDamagedModifier = null!;
         private static ConfigEntry<bool> _centerFirst = null!;
+        public static ConfigEntry<Toggle> _colorfulHair = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -72,6 +73,8 @@ namespace Settlers
             _autoPickup = config("2 - Settings", "Pickup Items", Toggle.On, "If on, settler and raiders picks up nearby items");
             _attackModifier = config("2 - Settings", "Attack Modifier", 1f, new ConfigDescription("Make settlers and raiders weaker or stronger", new AcceptableValueRange<float>(0f, 2f)));
             _onDamagedModifier = config("2 - Settings", "On Damaged Modifier", 1f, new ConfigDescription("Make settlers and raiders take more or less damage", new AcceptableValueRange<float>(0f, 2f)));
+            _colorfulHair = config("2 - Settings", "Colorful Hair", Toggle.Off, "If on, the hair color generation is completely random");
+
             _SettlersCanLumber = config("5 - Settlers", "Can Lumber", Toggle.On, "If on, settlers will lumber trees, logs and stumps, if has axe");
             _SettlersCanMine = config("5 - Settlers", "Can Mine", Toggle.On, "If on, settlers will mine any rocks that drop ore or scraps if has pickaxe");
             _SettlerCanFish = config("5 - Settlers", "Can Fish", Toggle.On, "If on, settlers will fish if has rod and bait");
@@ -92,7 +95,6 @@ namespace Settlers
             _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
             _spawnRaiders = config("4 - Raiders", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
             _raiderDropChance = config("4 - Raiders", "Raider Gear Drop Chance", 0.2f, new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
-            
             
             List<string> m_maleFirstNames = new()
             {

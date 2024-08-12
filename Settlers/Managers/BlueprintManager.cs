@@ -71,7 +71,18 @@ public static class BlueprintManager
         RuinedTower.AddChestItem("Blueberries", 10, 15);
         RuinedTower.AddChestItem("TinOre", 5, 10, 0.5f);
         RuinedTower.SetRandomDamage(true);
-
+        RuinedTower.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
+        
+        BlueprintData RuinsAshlands = new BlueprintData("SettlerRuins_Ashlands1.blueprint", Heightmap.Biome.AshLands);
+        RuinsAshlands.SetCritter("VikingRaider");
+        RuinsAshlands.AddChestItem("MoltenCore_0", 1, 2);
+        RuinsAshlands.AddChestItem("MarinatedGreens", 1, 5, 0.5f);
+        RuinsAshlands.AddChestItem("BarleyWine", 1, 3, 0.5f);
+        RuinedTower.SetChestData(1, 2, false, 1f);
+        RuinsAshlands.SetRandomDamage(true);
+        RuinsAshlands.SetAdjustment(new Vector3(0f, -1f, 0f));
+        RuinsAshlands.m_creature.m_creatureSpawnerPrefab = "Spawner_VikingRaider";
+        
         BlueprintData MeadowTown1 = new BlueprintData("MeadowSettlerTown1.blueprint", Heightmap.Biome.Meadows);
         MeadowTown1.SetCritter("VikingSettler");
         MeadowTown1.AddChestItem("CookedMeat", 3, 5);

@@ -109,7 +109,12 @@ public class BluePrinter : MonoBehaviour
     {
         if (!data.m_randomDamage) return;
         if (!prefab.TryGetComponent(out WearNTear component)) return;
-        component.m_nview.GetZDO().Set(ZDOVars.s_health, Random.Range(component.m_health * 0.1f, component.m_health * 0.6f));
+        var hp = component.m_health;
+        var health = Random.Range(component.m_health * 0.1f, component.m_health * 0.6f);
+        component.m_nview.GetZDO().Set(ZDOVars.s_health, health);
+        component.m_health = health;
+        component.m_healthPercentage = health / hp;
+        component.UpdateVisual(true);
     }
 
     private static void SetItemStand(GameObject prefab, BlueprintManager.PlanPiece piece)

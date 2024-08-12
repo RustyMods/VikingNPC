@@ -110,7 +110,7 @@ public static class RaiderArmor
         if (data.Misc.Count > 0) result.AddRange(GetPrefabs(data.Misc));
         if (data.Shields.Count > 0) result.AddRange(GetPrefabs(data.Shields));
         if (isElf) result.Add(ZNetScene.instance.GetPrefab("ElvenEars"));
-        
+        if (isSailor) result.Add(ZNetScene.instance.GetPrefab("SpearChitin"));
         return result.ToArray();
     }
 
@@ -120,7 +120,6 @@ public static class RaiderArmor
     {
         return m_equipment.TryGetValue(biome, out RaiderEquipment equipment) ? equipment : GetFallBackEquipment();
     }
-
     private static RaiderEquipment GetFallBackEquipment()
     {
         return new RaiderEquipment()

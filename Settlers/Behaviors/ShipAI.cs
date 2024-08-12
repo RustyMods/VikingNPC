@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 
@@ -31,8 +32,6 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public float m_minWaterImpactForce = 2.5f;
     public float m_minWaterImpactInterval = 2f;
     public float m_waterImpactDamage = 10f;
-    public float m_upsideDownDmgInterval = 1f;
-    public float m_upsideDownDmg = 20f;
     public EffectList m_waterImpactEffect = new EffectList();
     public bool m_sailWasInPosition;
     public Vector3 m_windChangeVelocity = Vector3.zero;
@@ -40,25 +39,24 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public float m_rudder;
     public float m_rudderValue;
     public Vector3 m_sailForce = Vector3.zero;
-    public WaterVolume m_previousCenter;
-    public WaterVolume m_previousLeft;
-    public WaterVolume m_previousRight;
-    public WaterVolume m_previousForward;
-    public WaterVolume m_previousBack;
+    public WaterVolume m_previousCenter = null!;
+    public WaterVolume m_previousLeft = null!;
+    public WaterVolume m_previousRight = null!;
+    public WaterVolume m_previousForward = null!;
+    public WaterVolume m_previousBack = null!;
     public static readonly List<ShipAI> s_currentShipAIs = new List<ShipAI>();
-    public GlobalWind m_globalWind;
-    public Rigidbody m_body;
-    public ZNetView m_nview;
-    public IDestructible m_destructible;
-    public Cloth m_sailCloth;
+    public GlobalWind m_globalWind = null!;
+    public Rigidbody m_body = null!;
+    public ZNetView m_nview = null!;
+    public IDestructible m_destructible = null!;
+    public Cloth m_sailCloth = null!;
     public float m_lastDepth = -9999f;
     public float m_lastWaterImpactTime;
     public float m_upsideDownDmgTimer;
     public float m_rudderPaddleTimer;
     public float m_lastUpdateWaterForceTime;
     public List<Transform> m_attachPoints = new();
-    public Dictionary<Transform, Companion> m_sailors = new();
-    private static readonly Collider[] m_tempSphereOverlap = new Collider[128];
+    public readonly Dictionary<Transform, Companion> m_sailors = new();
     private float m_lastFindPathTime;
     private bool m_lastFindPathResult;
     private Vector3 m_lastFindPathTarget;
@@ -67,7 +65,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public static readonly List<IUpdateAI> Instances = new();
     private bool m_attachedToTarget;
     private ShipMan m_shipMan;
-    
+    private readonly List<Player> m_players = new();
+    private float m_checkSailorTimer;
     public void Awake()
     {
         m_sailObject = Utils.FindChild(transform, "Sail").gameObject;
@@ -83,7 +82,6 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         if (m_nview.GetZDO() == null)
         {
             enabled = false;
-            
         }
         m_body.maxDepenetrationVelocity = 2f;
         Heightmap.ForceGenerateAll();
@@ -105,7 +103,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
 
     private void Destroy()
     {
-        foreach (var sailor in m_sailors.Values)
+        if (m_players.Count > 0) return;
+        foreach (Companion sailor in m_sailors.Values)
         {
             sailor.m_nview.Destroy();
         }
@@ -120,31 +119,62 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     
     public bool UpdateAI(float fixedDeltaTime)
     {
-        if (m_shipMan.GetCurrentBiome() != Heightmap.Biome.Ocean)
-        {
-            Destroy();
-        }
         SailTo(fixedDeltaTime);
         UpdateSpeed(fixedDeltaTime);
         UpdateSail(fixedDeltaTime);
         UpdateRudder(fixedDeltaTime);
         if (m_nview && !m_nview.IsOwner()) return false;
+        UpdateCheckSailors(fixedDeltaTime);
         CalculateForces(fixedDeltaTime);
         ApplyEdgeForce(fixedDeltaTime);
         UpdateUpsideDmg(fixedDeltaTime);
         return true;
+    }
+
+    public void UpdateCheckSailors(float dt)
+    {
+        m_checkSailorTimer += dt;
+        if (m_checkSailorTimer < 10f) return;
+        m_checkSailorTimer = 0.0f;
+        List<Transform> keysToRemove = new();
+        foreach (var kvp in m_sailors)
+        {
+            if (kvp.Value == null || kvp.Value.IsDead())
+            {
+                keysToRemove.Add(kvp.Key);
+            }
+        }
+
+        foreach (var key in keysToRemove)
+        {
+            m_sailors.Remove(key);
+        }
+        
+        SettlersPlugin.SettlersLogger.LogWarning("Current sailor count: " + m_sailors.Count);
+
+        if (m_sailors.Count <= 0)
+        {
+            m_destructible.Damage(new HitData()
+            {
+                m_damage = new HitData.DamageTypes()
+                {
+                    m_fire = 5f,
+                    m_blunt = 20f
+                }
+            });
+        }
     }
     
     public void UpdateUpsideDmg(float dt)
     {
         if (transform.up.y >= 0.0) return;
         m_upsideDownDmgTimer += dt;
-        if (m_upsideDownDmgTimer <= (double)m_upsideDownDmgInterval) return;
+        if (m_upsideDownDmgTimer <= 1f) return;
         m_upsideDownDmgTimer = 0.0f;
         m_destructible.Damage(new HitData()
         {
             m_damage = {
-                m_blunt = m_upsideDownDmg
+                m_blunt = 20f
             },
             m_point = transform.position,
             m_dir = Vector3.up
@@ -199,9 +229,9 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     private void SailTo(float dt)
     {
         if (!m_nview.IsValid()) return;
-        var patrolPoint = GetPatrolPoint();
+        Vector3 patrolPoint = GetPatrolPoint();
         Ship? target = FindShipTarget();
-        bool flag = Vector3.Distance(patrolPoint, transform.position) > 400f;
+        bool flag = Vector3.Distance(patrolPoint, transform.position) > 400f || m_shipMan.GetCurrentBiome() != Heightmap.Biome.Ocean;
         var sailToPosition = target == null ? patrolPoint : flag ? patrolPoint : target.transform.position;
 
         if (!FindPath(sailToPosition))
@@ -225,20 +255,19 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         }
         RotateTowards(vector3, dt);
     }
-    
-    public void MoveAwayAndDespawn(float dt)
+
+    public void OnTriggerEnter(Collider other)
     {
-        Player closestPlayer = Player.GetClosestPlayer(transform.position, 40f);
-        if (closestPlayer != null)
-        {
-            var position = transform.position;
-            Vector3 normalized = (closestPlayer.transform.position - position).normalized;
-            RotateTowards(position - normalized * 5f, 0.0f);
-        }
-        else
-        {
-            Destroy();
-        }
+        if (!other.TryGetComponent(out Player player)) return;
+        m_players.Add(player);
+        SettlersPlugin.SettlersLogger.LogDebug("Player boarded raider ship, total: " + m_players.Count);
+    }
+
+    public void OnTriggerExit(Collider other)
+    {
+        if (!other.TryGetComponent(out Player player)) return;
+        m_players.Remove(player);
+        SettlersPlugin.SettlersLogger.LogDebug("Player left raider ship, total: " + m_players.Count);
     }
 
     private void RotateTowards(Vector3 dir, float dt)
@@ -403,22 +432,6 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         m_currentShipTarget = target;
         return target;
     }
-    
-    public void UpdateControls(float dt)
-    {
-        if (m_nview.IsOwner())
-        {
-            m_nview.GetZDO().Set(ZDOVars.s_forward, (int) m_speed, false);
-            m_nview.GetZDO().Set(ZDOVars.s_rudder, m_rudderValue);
-        }
-        else
-        {
-            m_speed = (Ship.Speed) m_nview.GetZDO().GetInt(ZDOVars.s_forward);
-            if ((double) Time.time - m_sendRudderTime <= 1.0) return;
-            m_rudderValue = m_nview.GetZDO().GetFloat(ZDOVars.s_rudder);
-        }
-    }
-    
     public void UpdateRudder(float dt)
     {
         if (!m_rudderObject) return;
@@ -437,8 +450,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     }
     private void UpdateSpeed(float dt)
     {
+        if (m_players.Count > 0) return;
         float angle = Vector3.Angle(transform.forward, EnvMan.instance.GetWindDir());
-
         switch (angle)
         {
             case < 45f:
@@ -460,7 +473,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
 
         UpdateSailSize(dt);
         
-        if (m_speed == Ship.Speed.Full || m_speed == Ship.Speed.Half)
+        if (m_speed is Ship.Speed.Full or Ship.Speed.Half)
         {
             var forward = transform.forward;
             float t = (float) (0.5 + Vector3.Dot(forward, vector3) * 0.5);

@@ -107,7 +107,7 @@ public class Companion : Humanoid, Interactable
             GetRaiderEquipment(isElf, isSailor);
             SetGearQuality(m_level);
             SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
-            if (isRaider || isSailor) m_faction = SettlersPlugin._raiderFaction.Value;
+            if (isRaider) m_faction = SettlersPlugin._raiderFaction.Value;
             GiveDefaultItems();
         }
         else
@@ -1761,7 +1761,6 @@ public class Companion : Humanoid, Interactable
             {
                 m_currentCompanion.GetInventory().MoveItemToThis(localPlayer.GetInventory(), item);
             }
-
             __instance.m_moveItemEffects.Create(__instance.transform.position, Quaternion.identity);
             return false;
         }

@@ -176,6 +176,7 @@
         <EmbeddedResource Include="blueprints\MountainRaiderTown1.blueprint" />
         <EmbeddedResource Include="blueprints\MeadowSettlerTown2.blueprint" />
         <EmbeddedResource Include="blueprints\PlainsRaiderTower1.blueprint" />
+        <EmbeddedResource Include="blueprints\SettlerRuins_Ashlands1.blueprint" />
         <Content Include="environment.props" />
         <Content Include="ILRepack.targets" />
         <Content Include="Libs\ServerSync.dll">

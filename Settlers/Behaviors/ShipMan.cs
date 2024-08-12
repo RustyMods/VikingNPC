@@ -64,12 +64,18 @@ public class ShipMan : MonoBehaviour, IDestructible
     private void Start()
     {
         AddLoot();
+        m_container.GetInventory().m_onChanged += () =>
+        {
+            foreach (var kvp in m_shipAI.m_sailors)
+            {
+                kvp.Value.m_companionAI.SetAggravated(true, BaseAI.AggravatedReason.Theif);
+            }
+        };
     }
 
     private void AddLoot()
     {
         if (!m_container) return;
-        // LoadInventory();
         if (m_container.GetInventory().GetAllItems().Count > 0) return;
         List<DropTable.DropData> data = new();
         foreach (var item in RaiderDrops.GetRaiderDrops(Heightmap.Biome.Swamp))
@@ -109,33 +115,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         };
             
         m_container.AddDefaultItems();
-        // m_inventory.m_onChanged += SaveInventory;
     }
-    
-    private void LoadInventory()
-    {
-        if (m_nview.GetZDO().DataRevision == m_lastRevision) return;
-        string? data = m_nview.GetZDO().GetString(ZDOVars.s_items);
-        if (string.IsNullOrEmpty(data) || m_lastDataString == data) return;
-        ZPackage pkg = new ZPackage(data);
-        m_loading = true;
-        m_container.m_inventory.Load(pkg);
-        m_loading = false;
-        m_lastRevision = m_nview.GetZDO().DataRevision;
-        m_lastDataString = data;
-    }
-    
-    private void SaveInventory()
-    {
-        if (m_loading || !m_nview.IsOwner()) return;
-        ZPackage pkg = new ZPackage();
-        m_container.m_inventory.Save(pkg);
-        string? data = pkg.GetBase64();
-        m_nview.GetZDO().Set(ZDOVars.s_items, data);
-        m_lastRevision = m_nview.GetZDO().DataRevision;
-        m_lastDataString = data;
-    }
-    
     public void Update()
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner()) return;
@@ -144,7 +124,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         UpdateBurn(deltaTime);
         UpdateHealthRegen(deltaTime);
     }
-    
+
     private void UpdateHealthRegen(float dt)
     {
         m_healthRegenTimer += dt;
@@ -277,7 +257,7 @@ public class ShipMan : MonoBehaviour, IDestructible
     {
         SetHealth(0.0f);
         m_health = 0.0f;
-        // drop resources
+        m_container.OnDestroyed();
         m_onDestroyed?.Invoke();
         var transform1 = transform;
         if (m_destroyNoise > 0.0 && hit is not { m_hitType: HitData.HitType.CinderFire })

@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.0.4";
+        internal const string ModVersion = "0.0.5";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";

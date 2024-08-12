@@ -265,7 +265,7 @@ public static class AssetMan
         companion.name = prefab.name;
         companion.m_name = "Viking";
         companion.m_group = "Humans";
-        companion.m_faction = startAsRaider || startAsSailor ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
+        companion.m_faction = startAsRaider ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
         companion.m_crouchSpeed = player.m_crouchSpeed;
         companion.m_walkSpeed = player.m_walkSpeed;
         companion.m_speed = player.m_speed;

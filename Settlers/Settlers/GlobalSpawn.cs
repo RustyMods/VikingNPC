@@ -27,6 +27,12 @@ public static class GlobalSpawn
         {
             if (!critter.m_prefab.GetComponent<ShipAI>()) return true;
             spawnPoint.y = ZoneSystem.instance.m_waterLevel;
+            foreach (var ship in ShipMan.m_instances)
+            {
+                var distance = Vector3.Distance(ship.transform.position, spawnPoint);
+                if (distance < 50f) return false;
+            }
+            if (!ZoneSystem.instance.IsZoneLoaded(spawnPoint)) return false;
             GameObject gameObject = Object.Instantiate(critter.m_prefab, spawnPoint, Quaternion.identity);
             if (Terminal.m_showTests && Terminal.m_testList.ContainsKey("spawns"))
             {
@@ -37,7 +43,7 @@ public static class GlobalSpawn
         }
     }
 
-    public static void AddToSpawnList(GameObject prefab, string configKey, Heightmap.Biome biomeSetting, float spawnInterval = 1000f, float spawnChance = 50f, float spawnDistance = 35f)
+    public static void AddToSpawnList(GameObject prefab, string configKey, Heightmap.Biome biomeSetting, SettlersPlugin.Toggle isEnabled = SettlersPlugin.Toggle.On, float spawnInterval = 1000f, float spawnChance = 50f, float spawnDistance = 35f)
     {
         if (!SettlersPlugin._Root.TryGetComponent(out SpawnSystemList component))
         {
@@ -49,7 +55,7 @@ public static class GlobalSpawn
             m_name = prefab.name
         };
 
-        ConfigEntry<SettlersPlugin.Toggle> enabled = SettlersPlugin._Plugin.config(configKey, "_Enabled", SettlersPlugin.Toggle.On, "If true, viking settlers can spawn");
+        ConfigEntry<SettlersPlugin.Toggle> enabled = SettlersPlugin._Plugin.config(configKey, "_Enabled", isEnabled, "If true, viking settlers can spawn");
         data.m_enabled = enabled.Value is SettlersPlugin.Toggle.On;
         enabled.SettingChanged += (sender, args) =>
         {

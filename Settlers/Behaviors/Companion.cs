@@ -1528,17 +1528,16 @@ public class Companion : Humanoid, Interactable
         ResetCloth();
     }
 
+    public override bool IsDead()
+    {
+        return m_nview.IsValid() && GetHealth() <= 0;
+    }
+
     private bool UpdateAttach()
     {
         if (!m_attached)
         {
-            if (IsSailor())
-            {
-                Damage(new HitData()
-                {
-                    m_damage = new HitData.DamageTypes() { m_blunt = 10f }
-                });
-            }
+            if (IsSailor()) OnDeath();
             return false;
         }
         if (m_attachPoint == null)

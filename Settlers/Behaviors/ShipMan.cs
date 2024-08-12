@@ -14,7 +14,7 @@ public class ShipMan : MonoBehaviour, IDestructible
     public GameObject? m_worn;
     public GameObject? m_broken;
 
-    public float m_health = 1000f;
+    public float m_health = 5000f;
     public HitData.DamageModifiers m_damages = new HitData.DamageModifiers()
     {
         m_chop = HitData.DamageModifier.Weak,
@@ -24,7 +24,7 @@ public class ShipMan : MonoBehaviour, IDestructible
     public EffectList m_hitEffect = new();
     public EffectList m_fireEffect = new();
     public float m_destroyNoise;
-    public List<ShipMan> m_instances = new();
+    public static List<ShipMan> m_instances = new();
     public ZNetView m_nview = null!;
     public WaterVolume m_previousWaterVolume;
     public Heightmap.Biome m_biome;
@@ -34,9 +34,6 @@ public class ShipMan : MonoBehaviour, IDestructible
     private float m_healthPercentage;
     private float m_healthRegenTimer;
     private Container m_container = null!;
-    private uint m_lastRevision;
-    private string m_lastDataString = "";
-    private bool m_loading;
     public List<Transform> m_burnObjects = new();
     public void Awake()
     {
@@ -53,7 +50,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_container = GetComponentInChildren<Container>();
         
         Transform customize = gameObject.transform.Find("ship/visual/Customize");
-        foreach (Transform child in customize)
+        foreach (Transform child in customize.Find("storage"))
         {
             m_burnObjects.Add(child);
         }
@@ -66,13 +63,24 @@ public class ShipMan : MonoBehaviour, IDestructible
         AddLoot();
         m_container.GetInventory().m_onChanged += () =>
         {
-            foreach (var kvp in m_shipAI.m_sailors)
-            {
-                kvp.Value.m_companionAI.SetAggravated(true, BaseAI.AggravatedReason.Theif);
-            }
+            SetSailorAggravated(BaseAI.AggravatedReason.Theif);
+        };
+        m_onDamaged += () =>
+        {
+            SetSailorAggravated(BaseAI.AggravatedReason.Damage);
         };
     }
 
+    private void SetSailorAggravated(BaseAI.AggravatedReason reason)
+    {
+        if (!m_shipAI) return;
+        foreach (var kvp in m_shipAI.m_sailors)
+        {
+            if (!kvp.Value.m_nview.IsValid()) continue;
+            kvp.Value.m_companionAI.SetAggravated(true, reason);
+        }
+    }
+    
     private void AddLoot()
     {
         if (!m_container) return;
@@ -127,6 +135,7 @@ public class ShipMan : MonoBehaviour, IDestructible
 
     private void UpdateHealthRegen(float dt)
     {
+        if (!m_shipAI.HasSailors()) return;
         m_healthRegenTimer += dt;
         if (m_healthRegenTimer < 5f) return;
         m_healthRegenTimer = 0.0f;
@@ -162,7 +171,7 @@ public class ShipMan : MonoBehaviour, IDestructible
 
     private float GetMaxHealth()
     {
-        return 10000f;
+        return 5000f;
     }
 
     private readonly List<GameObject> m_fireEffects = new();
@@ -179,6 +188,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         }
         m_fireEffects.Clear();
     }
+    
     private void UpdateBurn(float dt)
     {
         if (m_burnDamageTime <= 0.0)
@@ -233,7 +243,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_onDamaged?.Invoke();
         UpdateVisual(true);
         if (hit.m_damage.m_fire <= 0) return;
-        if (!m_isBurning) m_burnDamageTime = 100f;
+        if (!m_isBurning) m_burnDamageTime = 50f;
     }
     
     private bool ApplyDamage(float totalDamage, HitData hit)
@@ -320,6 +330,11 @@ public class ShipMan : MonoBehaviour, IDestructible
     {
         if (!m_nview.IsValid()) return;
         m_nview.InvokeRPC(nameof(RPC_Damage), hit);
+    }
+
+    public string GetHoverName()
+    {
+        return "Raider Ship";
     }
 
     public DestructibleType GetDestructibleType() => DestructibleType.Default;

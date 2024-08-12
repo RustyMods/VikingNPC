@@ -190,10 +190,10 @@ public static class AssetMan
 
         StatusEffect burning = ObjectDB.instance.GetStatusEffect(SEMan.s_statusEffectBurning);
         ShipMan.m_fireEffect = burning.m_startEffects;
+
         Object.Destroy(shipEffects);
         RegisterToZNetScene(RaiderShip);
-        GlobalSpawn.AddToSpawnList(RaiderShip, "Raider Ship Spawn Settings", Heightmap.Biome.None, 4000f, 25f, 50f);
-
+        GlobalSpawn.AddToSpawnList(RaiderShip, "Raider Ship Spawn Settings", Heightmap.Biome.None, SettlersPlugin.Toggle.Off, 4000f, 25f, 50f);
     }
     
     private static GameObject? CreateBaseRaider()
@@ -238,7 +238,6 @@ public static class AssetMan
         AddRandomTalk(sailorHuman);
         sailorHuman.AddComponent<CharacterDrop>();
         RegisterToZNetScene(sailorHuman);
-        // GlobalSpawn.AddToSpawnList(sailorHuman, "Raider Spawn Settings", Heightmap.Biome.None);
         return sailorHuman;
     }
 
@@ -412,21 +411,6 @@ public static class AssetMan
         raiderAI.m_consumeItems = new();
         raiderAI.m_aggravatable = aggravatable;
         raiderAI.m_attackPlayerObjects = attackPlayerObjects;
-    }
-    
-    private static void AddRandomIdleAnimation(GameObject prefab)
-    {
-        RandomAnimation randomAnimation = prefab.AddComponent<RandomAnimation>();
-        randomAnimation.m_values = new()
-        {
-            new RandomAnimation.RandomValue()
-            {
-                m_name = "idle",
-                m_value = 5,
-                m_interval = 3,
-                m_floatTransition = 1f,
-            }
-        };
     }
 
     private static void SetTameSettings(ref Companion companion, string cloneFrom)

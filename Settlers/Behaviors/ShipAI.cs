@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
 
@@ -41,7 +40,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public WaterVolume m_previousRight = null!;
     public WaterVolume m_previousForward = null!;
     public WaterVolume m_previousBack = null!;
-    public static readonly List<ShipAI> s_currentShipAIs = new List<ShipAI>();
+    public static readonly List<ShipAI> m_instances = new List<ShipAI>();
     public GlobalWind m_globalWind = null!;
     public Rigidbody m_body = null!;
     public ZNetView m_nview = null!;
@@ -92,16 +91,20 @@ public class ShipAI : MonoBehaviour, IUpdateAI
             m_nview.GetZDO().Set(ZDOVars.s_patrolPoint, transform.position);
         }
         
-        s_currentShipAIs.Add(this);
     }
 
     public void OnEnable()
     {
         Instances.Add(this);
+        m_instances.Add(this);
         Invoke(nameof(GetSailors), 5f);
     }
 
-    public void OnDisable() => Instances.Remove(this);
+    public void OnDisable()
+    {
+        Instances.Remove(this);
+        m_instances.Remove(this);
+    }
 
     public bool HasShipTarget() => m_currentShipTarget != null;
     private void Destroy()
@@ -109,15 +112,15 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         if (m_players.Count > 0) return;
         foreach (Companion sailor in m_sailors.Values)
         {
-            sailor.m_nview.Destroy();
+            ZNetScene.instance.Destroy(sailor.gameObject);
         }
         m_sailors.Clear();
-        m_nview.Destroy();
+        ZNetScene.instance.Destroy(gameObject);
     }
 
     private void OnDestroy()
     {
-        s_currentShipAIs.Remove(this);
+        m_instances.Remove(this);
     }
     
     public bool UpdateAI(float fixedDeltaTime)
@@ -214,6 +217,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         }
         m_sailors.Clear();
         SpawnMissingSailors();
+        
         InvokeRepeating(nameof(UpdateCheckSailors), 1f, 1f);
     }
 

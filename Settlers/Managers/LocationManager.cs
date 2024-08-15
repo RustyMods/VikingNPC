@@ -22,15 +22,15 @@ public class LocationManager
     internal static void TerrainModAwake(TerrainModifier __instance)
     {
         string name = __instance.name.Replace("(Clone)", string.Empty);
-        if (name is not ("BlueprintTerrain" or "BlueprintTerrainPersist")) return;
         if (name != "BlueprintTerrain") return;
         Heightmap.Biome biome = Heightmap.FindBiome(__instance.transform.position);
         List<BlueprintManager.BlueprintData> list = BlueprintManager.GetBiomeBlueprints(biome);
         if (list.Count == 0) return;
         BlueprintManager.BlueprintData data = list[Random.Range(0, list.Count)];
-        Transform transform = __instance.transform;
-        GameObject mock = Object.Instantiate(BlueprintManager.m_blueprintObject, transform.position, transform.rotation);
-        if (!mock.TryGetComponent(out BluePrinter component)) return;
+        if (!__instance.TryGetComponent(out BluePrinter component))
+        {
+            component = __instance.gameObject.AddComponent<BluePrinter>();
+        }
         component.GenerateLocation(data);
     }
     private static void SetupLocations_Prefix(ZoneSystem __instance)

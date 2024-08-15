@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.0.5";
+        internal const string ModVersion = "0.0.7";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -30,7 +30,7 @@ namespace Settlers
         public static readonly ConfigSync ConfigSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
         
         private static readonly AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
-        private static readonly AssetBundle _locationBundle = GetAssetBundle("blueprintlocationbundle");
+        public static readonly AssetBundle _locationBundle = GetAssetBundle("blueprintlocationbundle");
         public static readonly AssetBundle _elfBundle = GetAssetBundle("elfassets");
         
         public static SettlersPlugin _Plugin = null!;
@@ -65,6 +65,8 @@ namespace Settlers
         public static ConfigEntry<float> _onDamagedModifier = null!;
         private static ConfigEntry<bool> _centerFirst = null!;
         public static ConfigEntry<Toggle> _colorfulHair = null!;
+        public static ConfigEntry<Toggle> _settlersCanRide = null!;
+        public static ConfigEntry<int> _settlerPurchasePrice = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -78,13 +80,15 @@ namespace Settlers
             _SettlersCanLumber = config("5 - Settlers", "Can Lumber", Toggle.On, "If on, settlers will lumber trees, logs and stumps, if has axe");
             _SettlersCanMine = config("5 - Settlers", "Can Mine", Toggle.On, "If on, settlers will mine any rocks that drop ore or scraps if has pickaxe");
             _SettlerCanFish = config("5 - Settlers", "Can Fish", Toggle.On, "If on, settlers will fish if has rod and bait");
+            _settlersCanRide = config("5 - Settlers", "Can Ride", Toggle.On, "If on, settlers will ride nearest rideable tame, and will make tame follow user");
+            _settlerPurchasePrice = config("5 - Settlers", "Purchase Price", 999, "Set price to purchase tamed settler from haldor");
             
             _settlerTamingTime = config("5 - Settlers", "Tame Duration", 1800f, "Set amount of time required to tame settler");
             _baseMaxCarryWeight = config("5 - Settlers", "Base Carry Weight", 300f, "Set base carry weight for settlers");
             _makeAllFollowKey = config("5 - Settlers", "Make All Follow Key", KeyCode.None, "Set the key that will make all tamed settlers follow you, if they aren't following");
             _makeAllUnfollowKey = config("5 - Settlers", "Make All Unfollow Key", KeyCode.None, "Set the key that will make all tamed settlers unfollow, if they are following");
             _addMinimapPin = config("5 - Settlers", "Add Pin", Toggle.On, "If on, when settler is following a pin will be added on the minimap to track them");
-            _ownerLock = config("5 - Settlers", "Inventory Locked", Toggle.On, "If on, only owner can access settler inventory");
+            _ownerLock = config("5 - Settlers", "Inventory Locked", Toggle.Off, "If on, only owner can access settler inventory");
             
             _locationEnabled = config("3 - Locations", "Enabled", Toggle.On, "If on, blueprint locations will generate");
             _quantity = config("3 - Locations", "Quantity", 600, "Set amount of blueprint locations to generate");
@@ -136,6 +140,7 @@ namespace Settlers
             RaiderArmor.Setup();
             RaiderDrops.Setup();
             SettlerGear.Setup();
+            RaiderShipDrops.Setup();
             InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;

@@ -48,7 +48,6 @@ public class ShipMan : MonoBehaviour, IDestructible
         SetHealth(m_health);
         m_biome = Heightmap.FindBiome(transform.position);
         m_container = GetComponentInChildren<Container>();
-        
         Transform customize = gameObject.transform.Find("ship/visual/Customize");
         foreach (Transform child in customize.Find("storage"))
         {
@@ -58,7 +57,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_instances.Add(this);
     }
 
-    private void Start()
+    public void Start()
     {
         AddLoot();
         m_container.GetInventory().m_onChanged += () =>
@@ -85,41 +84,42 @@ public class ShipMan : MonoBehaviour, IDestructible
     {
         if (!m_container) return;
         if (m_container.GetInventory().GetAllItems().Count > 0) return;
-        List<DropTable.DropData> data = new();
-        foreach (var item in RaiderDrops.GetRaiderDrops(Heightmap.Biome.Swamp))
-        {
-            data.Add(new DropTable.DropData()
-            {
-                m_item = item.m_prefab,
-                m_weight = item.m_chance,
-                m_stackMax = item.m_amountMax * 3,
-                m_stackMin = item.m_amountMin * 3,
-                m_dontScale = item.m_dontScale
-            });
-        }
-
-        var iron = ZNetScene.instance.GetPrefab("IronScrap");
-        int count = 0;
-        int max = 3;
-        while (count < max)
-        {
-            data.Add(new DropTable.DropData()
-            {
-                m_item = iron,
-                m_weight = 1f,
-                m_stackMax = 30,
-                m_stackMin = 30,
-                m_dontScale = true,
-            });
-            ++count;
-        }
+        
+        // List<DropTable.DropData> data = new();
+        // foreach (var item in RaiderDrops.GetRaiderDrops(Heightmap.Biome.Swamp))
+        // {
+        //     data.Add(new DropTable.DropData()
+        //     {
+        //         m_item = item.m_prefab,
+        //         m_weight = item.m_chance,
+        //         m_stackMax = item.m_amountMax * 3,
+        //         m_stackMin = item.m_amountMin * 3,
+        //         m_dontScale = item.m_dontScale
+        //     });
+        // }
+        //
+        // var iron = ZNetScene.instance.GetPrefab("IronScrap");
+        // int count = 0;
+        // int max = 3;
+        // while (count < max)
+        // {
+        //     data.Add(new DropTable.DropData()
+        //     {
+        //         m_item = iron,
+        //         m_weight = 1f,
+        //         m_stackMax = 30,
+        //         m_stackMin = 30,
+        //         m_dontScale = true,
+        //     });
+        //     ++count;
+        // }
         m_container.m_defaultItems = new DropTable()
         {
             m_dropMin = 5,
             m_dropMax = m_container.m_height * m_container.m_width,
             m_oneOfEach = true,
             m_dropChance = 1f,
-            m_drops = data
+            m_drops = RaiderShipDrops.GetRaiderShipLoot()
         };
             
         m_container.AddDefaultItems();
@@ -268,6 +268,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         SetHealth(0.0f);
         m_health = 0.0f;
         m_container.OnDestroyed();
+        
         m_onDestroyed?.Invoke();
         var transform1 = transform;
         if (m_destroyNoise > 0.0 && hit is not { m_hitType: HitData.HitType.CinderFire })
@@ -277,6 +278,7 @@ public class ShipMan : MonoBehaviour, IDestructible
         }
         m_destroyedEffect.Create(transform1.position, transform1.rotation, transform1);
         m_nview.InvokeRPC(ZNetView.Everybody, nameof(RPC_CreateFragments));
+        
         ZNetScene.instance.Destroy(gameObject);
     }
 
@@ -316,6 +318,7 @@ public class ShipMan : MonoBehaviour, IDestructible
             m_new.SetActive(false);
             m_worn.SetActive(false);
             m_broken.SetActive(true);
+            
         }
     }
 

@@ -7,6 +7,8 @@ hud_fishing: 'Fishing'
 hud_encumbered: 'Encumbered'
 hud_follow: 'Follow'
 hud_stay: 'Stay'
+name_vikingsettler: 'Viking Settler'
+purchase_settler_desc: 'Purchase tamed viking settler'
 
 msg_settlerfollows: "warriors have heeded your call!"
 

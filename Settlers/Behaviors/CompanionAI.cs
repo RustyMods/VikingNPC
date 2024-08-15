@@ -9,6 +9,7 @@ namespace Settlers.Behaviors;
 public class CompanionAI : MonsterAI
 {
     public static readonly Dictionary<Chair, Companion> m_occupiedChairs = new();
+    public static readonly Dictionary<Sadle, Companion> m_occupiedSaddles = new();
     private Companion m_companion = null!;
     private CompanionTalk m_companionTalk = null!;
     private ItemDrop.ItemData? m_axe;
@@ -33,31 +34,36 @@ public class CompanionAI : MonsterAI
         m_companionTalk = GetComponent<CompanionTalk>();
         m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "");
     }
+
+    private bool UpdateSailorAI(float dt)
+    {
+        Humanoid? character = m_character as Humanoid;
+        if (character == null) return true;
+        UpdateTarget(character, dt, out bool canHearTarget, out bool canSeeTarget);
+        ItemDrop.ItemData itemData = SelectBestAttack(character, dt);
+        if (itemData == null) return true;
+        bool flag = (double) Time.time - itemData.m_lastAttackTime >itemData.m_shared.m_aiAttackInterval && (double) m_character.GetTimeSinceLastAttack() >= m_minAttackInterval && !IsTakingOff();
+        if (m_targetCreature != null)
+        {
+            SetAlerted(true);
+            var targetCreaturePos = m_targetCreature.transform.position;
+            m_lastKnownTargetPos = targetCreaturePos;
+            LookAt(m_targetCreature.GetTopPoint());
+            var distance = Vector3.Distance(targetCreaturePos, transform.position);
+            if (distance > itemData.m_shared.m_aiAttackRange) return true;
+            if (flag)
+            {
+                DoAttack(m_targetCreature, false);
+            }
+        }
+        return true;
+    }
     public override bool UpdateAI(float dt)
     {
         if (m_companion.IsSailor())
         {
             if (!m_companion.m_attached) return base.UpdateAI(dt);
-            Humanoid? character = m_character as Humanoid;
-            if (character == null) return true;
-            UpdateTarget(character, dt, out bool canHearTarget, out bool canSeeTarget);
-            ItemDrop.ItemData itemData = SelectBestAttack(character, dt);
-            if (itemData == null) return true;
-            bool flag = (double) Time.time - itemData.m_lastAttackTime >itemData.m_shared.m_aiAttackInterval && (double) m_character.GetTimeSinceLastAttack() >= m_minAttackInterval && !IsTakingOff();
-            if (m_targetCreature != null)
-            {
-                SetAlerted(true);
-                var targetCreaturePos = m_targetCreature.transform.position;
-                m_lastKnownTargetPos = targetCreaturePos;
-                LookAt(m_targetCreature.GetTopPoint());
-                var distance = Vector3.Distance(targetCreaturePos, transform.position);
-                if (distance > itemData.m_shared.m_aiAttackRange) return true;
-                if (flag)
-                {
-                    DoAttack(m_targetCreature, false);
-                }
-            }
-            return true;
+            if (UpdateSailorAI(dt)) return true;
         }
         if (!m_companion.IsTamed()) return base.UpdateAI(dt);
         if (m_companion.m_inUse)
@@ -115,51 +121,6 @@ public class CompanionAI : MonsterAI
         ResetActions();
         return base.UpdateAI(dt);
     }
-
-    private void UpdateFarming()
-    {
-        if (!HasCultivator()) return;
-        if (m_companion.GetCurrentWeapon() == null || m_companion.GetCurrentWeapon().m_shared.m_name != "$item_cultivator") return;
-        if (ZNet.instance.GetTimeSeconds() - m_timeSinceLastSeedConversion < 100f) return;
-        ConvertSeeds();
-        m_timeSinceLastSeedConversion = ZNet.instance.GetTimeSeconds();
-    }
-
-    private void ConvertSeeds()
-    {
-        ItemDrop.ItemData? itemToConvert = null;
-        ItemDrop.ItemData? itemResult = null;
-        foreach (ItemDrop.ItemData? item in m_companion.GetInventory().GetAllItems())
-        {
-            if (item.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Material) continue;
-            ItemDrop.ItemData? conversion = GetSeedConversion(item);
-            if (conversion == null) continue;
-            itemToConvert = item;
-            itemResult = conversion;
-            break;
-        }
-
-        m_companion.GetInventory().RemoveOneItem(itemToConvert);
-        m_companion.GetInventory().AddItem(itemResult);
-    }
-
-    private ItemDrop.ItemData? GetSeedConversion(ItemDrop.ItemData seed)
-    {
-        var itemName = seed.m_shared.m_name switch
-        {
-            "$item_carrotseeds" => "Carrot",
-            "$item_turnipseeds" => "Turnip",
-            "$item_onionseeds" => "Onion",
-            "$item_barley" => "Barley",
-            "$item_flax" => "Flax",
-            _ => ""
-        };
-        if (itemName.IsNullOrWhiteSpace()) return null;
-        var prefab = ObjectDB.instance.GetItemPrefab(itemName);
-        if (!prefab) return null;
-        return prefab.TryGetComponent(out ItemDrop component) ? component.m_itemData : null;
-    }
-    private bool HasCultivator() => m_companion.GetInventory().GetAllItems().Any(item => item.m_shared.m_name == "$item_cultivator");
     private bool UpdateRepair(float dt)
     {
         ItemDrop.ItemData? hammer = GetHammer();
@@ -439,17 +400,30 @@ public class CompanionAI : MonsterAI
         if (!m_companion.m_attached && follow != null)
         {
             Chair? chair = FindNearestChair();
-            if (chair == null) return false;
-            if (!MoveTo(dt, chair.transform.position, 10f, true)) return true;
-            LookAt(chair.transform.position);
-            chair.Interact(m_companion, false, false);
+
+            if (chair != null)
+            {
+                if (!MoveTo(dt, chair.transform.position, 10f, true)) return true;
+                LookAt(chair.transform.position);
+                chair.Interact(m_companion, false, false);
+                return true;
+            }
+
+            if (SettlersPlugin._settlersCanRide.Value is SettlersPlugin.Toggle.Off) return false;
+            Sadle? saddle = FindNearestSaddle();
+            if (saddle == null) return false;
+            if (!MoveTo(dt, saddle.transform.position, 10f, true)) return true;
+            LookAt(saddle.transform.position);
+            saddle.Interact(m_companion, false, false);
             return true;
+            
         }
+
         if (m_companion.m_attached)
         {
             if (follow != null && follow.TryGetComponent(out Player player))
             {
-                if (Vector3.Distance(follow.transform.position, transform.position) < 25f) return true;
+                if (Vector3.Distance(follow.transform.position, transform.position) < 15f) return true;
                 m_companion.AttachStop();
                 m_companion.Warp(player);
             }
@@ -482,6 +456,26 @@ public class CompanionAI : MonsterAI
         }
 
         return closestChair;
+    }
+    
+    private Sadle? FindNearestSaddle()
+    {
+        Sadle? closestSaddle = null;
+        float num1 = m_searchAttachRange;
+        foreach (Collider collider in Physics.OverlapSphere(transform.position, m_searchAttachRange, LayerMask.GetMask("piece_nonsolid")))
+        {
+            Sadle sadle = collider.GetComponentInParent<Sadle>();
+            if (!sadle) continue;
+            if (m_occupiedSaddles.ContainsKey(sadle)) continue;
+            if (!sadle.m_nview.GetZDO().GetBool(ZDOVars.s_haveSaddleHash)) continue;
+            var distance = Vector3.Distance(sadle.transform.position, transform.position);
+            if (distance < num1 || closestSaddle == null)
+            {
+                closestSaddle = sadle;
+                num1 = distance;
+            }
+        }
+        return closestSaddle;
     }
 
     private GameObject? FindClosestTree(float maxRange)
@@ -683,6 +677,58 @@ public class CompanionAI : MonsterAI
             m_occupiedChairs[__instance] = companion;
             companion.m_attachedChair = __instance;
             return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(Sadle), nameof(Sadle.Interact))]
+    private static class Sadle_Interact_Patch
+    {
+        private static bool Prefix(Sadle __instance, Humanoid character, bool repeat, bool alt)
+        {
+            if (character is not Companion companion) return true;
+            if (!__instance.m_character.IsTamed()) return false;
+            if (!__instance.m_nview.GetZDO().GetBool(ZDOVars.s_haveSaddleHash)) return false;
+            
+            companion.AttachStart(__instance.m_attachPoint, __instance.m_character.gameObject, false, false, false, __instance.m_attachAnimation, __instance.m_detachOffset, null);
+            m_occupiedSaddles[__instance] = companion;
+            companion.m_attachedSadle = __instance;
+            var follow = companion.m_companionAI.GetFollowTarget();
+            if (follow != null)
+            {
+                if (follow.TryGetComponent(out Player player))
+                {
+                    __instance.m_tambable.Command(player);
+                }
+            }
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(Tameable), nameof(Tameable.Awake))]
+    private static class Tamable_Awake_Patch
+    {
+        private static void Postfix(Tameable __instance)
+        {
+            if (__instance.m_commandable) return;
+            if (!__instance.m_nview.IsOwner()) return;
+            var follow = __instance.m_nview.GetZDO().GetString(ZDOVars.s_follow);
+            if (follow.IsNullOrWhiteSpace()) return;
+            __instance.m_monsterAI.SetFollowTarget(null);
+            __instance.m_monsterAI.SetPatrolPoint();
+            __instance.m_nview.GetZDO().Set(ZDOVars.s_follow, "");
+            
+        }
+    }
+
+    [HarmonyPatch(typeof(Sadle), nameof(Sadle.RPC_RequestControl))]
+    private static class Sadle_RPC_RequestControl_Patch
+    {
+        private static void Prefix(Sadle __instance)
+        {
+            if (m_occupiedSaddles.TryGetValue(__instance, out Companion companion))
+            {
+                companion.AttachStop();
+            }
         }
     }
 

@@ -17,15 +17,18 @@ public static class AssetMan
         private static void Postfix(ZNetScene __instance)
         {
             CreateBaseHuman();
+            CreateBaseRenameHuman();
             Raids.AddRaidEvent(RandEventSystem.m_instance, CreateBaseRaider());
             CreateBaseElf();
             CreateBaseSailor();
             CreateSpawners();
             BlueprintManager.CreateBaseTerrainObject(__instance);
             BlueprintManager.CreateBlueprintObject(__instance);
+            RegisterToZNetScene(SettlersPlugin._locationBundle.LoadAsset<GameObject>("BlueprintTerrain"));
         }
     }
 
+    private static bool m_registeredSettlerPurchase;
     [HarmonyPatch(typeof(ObjectDB), nameof(ObjectDB.Awake))]
     private static class ObjectDB_Awake_Patch
     {
@@ -39,7 +42,12 @@ public static class AssetMan
             {
                 __instance.m_StatusEffects.Add(status);
             }
-            RegisterSettlerPurchase();
+
+            if (!m_registeredSettlerPurchase)
+            {
+                RegisterSettlerPurchase();
+                m_registeredSettlerPurchase = true;
+            }
             CreateBaseRaiderShip();
         }
     }
@@ -88,12 +96,32 @@ public static class AssetMan
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);
-        // AddRandomIdleAnimation(human);
         SetTameSettings(ref companion, "Boar");
         human.AddComponent<RandomHuman>();
         AddRandomTalk(human);
         RegisterToZNetScene(human);
         GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings", Heightmap.Biome.Meadows);
+    }
+    
+    private static void CreateBaseRenameHuman()
+    {
+        GameObject player = ZNetScene.instance.GetPrefab("Player");
+        if (!player) return;
+        if (!player.TryGetComponent(out Player component)) return;
+        GameObject human = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
+        human.name = "VikingSettler_Rename";
+        DestroyPlayerComponents(human);
+        SetZNetView(human);
+        Companion companion = human.AddComponent<Companion>();
+        SetCompanionValues(human, ref companion, component);
+        companion.m_renameable = true;
+        AddDeathEffects(ref companion);
+        AddDefaultItems(ref companion);
+        AddAI(human, true, false);
+        SetTameSettings(ref companion, "Boar");
+        human.AddComponent<RandomHuman>();
+        AddRandomTalk(human);
+        RegisterToZNetScene(human);
     }
     
     private static void CreateBaseElf()
@@ -111,7 +139,6 @@ public static class AssetMan
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);
-        // AddRandomIdleAnimation(human);
         SetTameSettings(ref companion, "Boar");
         RandomHuman randomHuman = human.AddComponent<RandomHuman>();
         randomHuman.m_isElf = true;
@@ -190,6 +217,14 @@ public static class AssetMan
 
         StatusEffect burning = ObjectDB.instance.GetStatusEffect(SEMan.s_statusEffectBurning);
         ShipMan.m_fireEffect = burning.m_startEffects;
+
+        // container awake looks for either wear n tear or destructible
+        
+        // var container = RaiderShip.GetComponentInChildren<Container>();
+        // if (container)
+        // {
+        //     container.m_rootObjectOverride = RaiderShip.GetComponent<ZNetView>();
+        // }
 
         Object.Destroy(shipEffects);
         RegisterToZNetScene(RaiderShip);
@@ -543,17 +578,27 @@ public static class AssetMan
         var clone = Object.Instantiate(sword, SettlersPlugin._Root.transform, false);
         clone.name = "SettlerSword";
         if (!clone.TryGetComponent(out ItemDrop itemDrop)) return;
-        itemDrop.m_itemData.m_shared.m_name = "Viking Settler";
+        itemDrop.m_itemData.m_shared.m_name = "$name_vikingsettler";
+        itemDrop.m_itemData.m_shared.m_description = "$purchase_settler_desc";
+        itemDrop.m_itemData.m_shared.m_movementModifier = 0f;
+        itemDrop.m_itemData.m_shared.m_useDurability = false;
+        itemDrop.m_itemData.m_shared.m_weight = 0f;
+        itemDrop.m_itemData.m_shared.m_maxQuality = 0;
+        itemDrop.m_itemData.m_shared.m_itemType = ItemDrop.ItemData.ItemType.Material;
         RegisterToZNetScene(clone);
         RegisterToDatabase(clone);
         var tradeItem = new Trader.TradeItem()
         {
-            m_price = 999,
+            m_price = SettlersPlugin._settlerPurchasePrice.Value,
             m_stack = 1,
             m_prefab = itemDrop,
             m_requiredGlobalKey = "defeated_vikingraider"
         };
         if (!component.m_items.Contains(tradeItem)) component.m_items.Add(tradeItem);
+        SettlersPlugin._settlerPurchasePrice.SettingChanged += (sender, args) =>
+        {
+            tradeItem.m_price = SettlersPlugin._settlerPurchasePrice.Value;
+        };
     }
 
     private static void RegisterToDatabase(GameObject prefab)

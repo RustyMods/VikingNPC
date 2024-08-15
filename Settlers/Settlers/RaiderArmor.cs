@@ -65,7 +65,7 @@ public static class RaiderArmor
     {
         if (!ZNetScene.instance) return null;
         List<GameObject> result = new();
-        Heightmap.Biome sailorBiome = Heightmap.Biome.BlackForest;
+        var sailorBiome = Heightmap.Biome.BlackForest;
         if (isSailor)
         {
             Array biomes = Enum.GetValues(typeof(Heightmap.Biome));

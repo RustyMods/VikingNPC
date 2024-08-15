@@ -10,7 +10,7 @@ using Random = UnityEngine.Random;
 
 namespace Settlers.Behaviors;
 
-public class Companion : Humanoid, Interactable
+public class Companion : Humanoid, Interactable, TextReceiver
 {
     private static readonly int Visible = Animator.StringToHash("visible");
     private static Companion? m_currentCompanion;
@@ -56,6 +56,7 @@ public class Companion : Humanoid, Interactable
     public bool m_attached;
     private bool m_attachedToShip;
     public Chair? m_attachedChair;
+    public Sadle? m_attachedSadle;
     public Transform? m_attachPoint;
     private Vector3 m_detachOffset;
     private string m_attachAnimation = "";
@@ -66,12 +67,15 @@ public class Companion : Humanoid, Interactable
     private float m_envStatusTimer;
     public bool m_startAsElf;
     public bool m_startAsSailor;
+    public bool m_renameable;
+    private readonly int m_rename = "VikingRename".GetStableHashCode();
     public override void Awake()
     {
         base.Awake();
         if (m_startAsRaider) SetRaider(true);
         if (m_startAsElf) SetElf(true);
         if (m_startAsSailor) SetSailor(true);
+        if (m_renameable) SetRenameable(true);
         m_autoPickupMask = LayerMask.GetMask("item");
         m_companionAI = GetComponent<CompanionAI>();
         m_companionTalk = GetComponent<CompanionTalk>();
@@ -196,7 +200,13 @@ public class Companion : Humanoid, Interactable
     }
 
     public bool IsRaider() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_raider);
-    
+
+    public void SetRenameable(bool enable)
+    {
+        m_nview.GetZDO().Set(m_rename, enable);
+    }
+
+    public bool IsRenameable() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_rename);
     public void SetRaider(bool enable)
     {
         m_nview.GetZDO().Set(m_raider, enable);
@@ -425,9 +435,18 @@ public class Companion : Humanoid, Interactable
         foreach (Collider collider in Physics.OverlapSphere(vector3_1, m_autoPickupRange, m_autoPickupMask))
         {
             if (!collider.attachedRigidbody) continue;
-            ItemDrop component = collider.attachedRigidbody.GetComponent<ItemDrop>();
-            FloatingTerrainDummy? floatingTerrainDummy = collider.attachedRigidbody.gameObject.GetComponent<FloatingTerrainDummy>();
-            if (component == null && floatingTerrainDummy != null) component = floatingTerrainDummy.m_parent.gameObject.GetComponent<ItemDrop>();
+            collider.attachedRigidbody.TryGetComponent(out ItemDrop component);
+            // ItemDrop component = collider.attachedRigidbody.GetComponent<ItemDrop>();
+            collider.attachedRigidbody.gameObject.TryGetComponent(out FloatingTerrainDummy floatingTerrainDummy);
+            // FloatingTerrainDummy? floatingTerrainDummy = collider.attachedRigidbody.gameObject.GetComponent<FloatingTerrainDummy>();
+            if (component == null && floatingTerrainDummy != null)
+            {
+                if (floatingTerrainDummy.m_parent.gameObject.TryGetComponent(out ItemDrop floatingItemDrop))
+                {
+                    component = floatingItemDrop;
+                }
+                // component = floatingTerrainDummy.m_parent.gameObject.GetComponent<ItemDrop>();
+            }
             if (component == null || !component.m_autoPickup || !component.m_nview.IsValid()) continue;
             if (component.m_itemData.GetWeight() + GetWeight() > GetMaxCarryWeight()) continue;
             if (!component.CanPickup()) component.RequestOwn();
@@ -1227,6 +1246,7 @@ public class Companion : Humanoid, Interactable
     {
         if (!m_nview.IsValid() || hold) return false;
         if (!IsTamed()) return false;
+
         long playerID = Game.instance.GetPlayerProfile().GetPlayerID();
         if (alt)
         {
@@ -1240,6 +1260,12 @@ public class Companion : Humanoid, Interactable
         }
         else
         {
+            if (Input.GetKey(KeyCode.LeftAlt))
+            {
+                TextInput.instance.RequestText(this, "Rename", 100);
+                return true;
+            }
+
             if (Time.time - m_lastPetTime <= 1.0) return false;
             if (user is Player player) SetOwner(player);
             m_lastPetTime = Time.time;
@@ -1294,6 +1320,11 @@ public class Companion : Humanoid, Interactable
             {
                 string ownerName = GetOwnerName();
                 if (!string.IsNullOrWhiteSpace(ownerName)) stringBuilder.AppendFormat("\n$hud_owner: {0}", ownerName);
+            }
+
+            if (IsRenameable())
+            {
+                stringBuilder.Append("\n[<color=yellow><b>L.Alt + $KEY_Use</b></color>] $hud_rename");
             }
             stringBuilder.AppendFormat("\n$se_health: {0}/{1}", (int)GetHealth(), (int)GetMaxHealth());
             stringBuilder.AppendFormat("\n$item_armor: {0}", (int)GetBodyArmor());
@@ -1528,10 +1559,11 @@ public class Companion : Humanoid, Interactable
         ResetCloth();
     }
 
-    public override bool IsDead()
-    {
-        return m_nview.IsValid() && GetHealth() <= 0;
-    }
+    // public override bool IsDead()
+    // {
+    //          Careful this made them never die!!!!
+    //     return m_nview.IsValid() && GetHealth() <= 0;
+    // }
 
     private bool UpdateAttach()
     {
@@ -1589,6 +1621,23 @@ public class Companion : Humanoid, Interactable
                 CompanionAI.m_occupiedChairs.Remove(m_attachedChair);
             }
             m_attachedChair = null;
+        }
+
+        if (m_attachedSadle != null)
+        {
+            if (CompanionAI.m_occupiedSaddles.ContainsKey(m_attachedSadle))
+            {
+                // m_attachedSadle.m_tambable.m_commandable = false;
+                m_attachedSadle.m_monsterAI.SetFollowTarget(null);
+                m_attachedSadle.m_monsterAI.SetPatrolPoint();
+                if (m_attachedSadle.m_monsterAI.m_nview.IsOwner())
+                {
+                    m_attachedSadle.m_monsterAI.m_nview.GetZDO().Set(ZDOVars.s_follow, "");
+                }
+                CompanionAI.m_occupiedSaddles.Remove(m_attachedSadle);
+            }
+
+            m_attachedSadle = null;
         }
         ResetCloth();
     }
@@ -2067,5 +2116,18 @@ public class Companion : Humanoid, Interactable
             Unequip,
             Reload,
         }
+    }
+
+    public string GetText()
+    {
+        if (!m_nview.IsValid()) return m_name;
+        return m_nview.GetZDO().GetString("RandomName".GetStableHashCode());
+    }
+
+    public void SetText(string text)
+    {
+        if (!m_nview.IsValid()) return;
+        m_nview.GetZDO().Set("RandomName".GetStableHashCode(), text);
+        m_name = text;
     }
 }

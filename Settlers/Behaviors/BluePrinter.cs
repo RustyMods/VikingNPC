@@ -89,6 +89,7 @@ public class BluePrinter : MonoBehaviour
             ghost.transform.localScale = piece.m_scale;
             
             GameObject clone = Instantiate(prefab, ghost.transform.position, ghost.transform.rotation);
+            if (!clone) continue;
             clone.transform.localScale = piece.m_scale;
             
             SetProperties(clone, piece,  data);
@@ -97,6 +98,7 @@ public class BluePrinter : MonoBehaviour
 
     private static void SetProperties(GameObject prefab, BlueprintManager.PlanPiece piece, BlueprintManager.BlueprintData data)
     {
+        if (prefab == null) return;
         SetWearNTear(prefab, data);
         SetBed(prefab, data);
         SetChair(prefab, data);
@@ -119,23 +121,31 @@ public class BluePrinter : MonoBehaviour
 
     private static void SetItemStand(GameObject prefab, BlueprintManager.PlanPiece piece)
     {
-        if (!prefab.TryGetComponent(out ItemStand component)) return;
-        if (piece.m_data.IsNullOrWhiteSpace()) return;
-        GameObject item = ZNetScene.instance.GetPrefab(piece.m_data);
-        if (!item) return;
-        if (!item.TryGetComponent(out ItemDrop itemDrop)) return;
-        ItemDrop.ItemData itemData = itemDrop.m_itemData.Clone();
-        int variant = -1;
-        if (itemData.m_shared.m_icons.Length > 1)
+        try
         {
-            variant = Random.Range(0, itemData.m_shared.m_icons.Length);
+            if (!prefab.TryGetComponent(out ItemStand component)) return;
+            if (piece.m_data.IsNullOrWhiteSpace()) return;
+            GameObject item = ZNetScene.instance.GetPrefab(piece.m_data);
+            if (!item) return;
+            if (!item.TryGetComponent(out ItemDrop itemDrop)) return;
+            ItemDrop.ItemData itemData = itemDrop.m_itemData.Clone();
+            int variant = -1;
+            if (itemData.m_shared.m_icons.Length > 1)
+            {
+                variant = Random.Range(0, itemData.m_shared.m_icons.Length);
+            }
+
+            itemData.m_variant = variant;
+            component.SetVisualItem(piece.m_data, variant, 1);
+            itemData.m_stack = 1;
+            component.m_nview.GetZDO().Set(ZDOVars.s_item, itemData.m_dropPrefab.name);
+            ItemDrop.SaveToZDO(itemData, component.m_nview.GetZDO());
+            component.UpdateVisual();
         }
-        itemData.m_variant = variant;
-        component.SetVisualItem(piece.m_data, variant, 1);
-        itemData.m_stack = 1;
-        component.m_nview.GetZDO().Set(ZDOVars.s_item, itemData.m_dropPrefab.name);
-        ItemDrop.SaveToZDO(itemData, component.m_nview.GetZDO());
-        component.UpdateVisual();
+        catch
+        {
+            //
+        }
     }
 
     private static void SetBed(GameObject prefab, BlueprintManager.BlueprintData data)

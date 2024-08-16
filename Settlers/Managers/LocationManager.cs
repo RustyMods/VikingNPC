@@ -23,15 +23,20 @@ public class LocationManager
     {
         string name = __instance.name.Replace("(Clone)", string.Empty);
         if (name != "BlueprintTerrain") return;
-        Heightmap.Biome biome = Heightmap.FindBiome(__instance.transform.position);
-        List<BlueprintManager.BlueprintData> list = BlueprintManager.GetBiomeBlueprints(biome);
-        if (list.Count == 0) return;
-        BlueprintManager.BlueprintData data = list[Random.Range(0, list.Count)];
-        if (!__instance.TryGetComponent(out BluePrinter component))
+        // Heightmap.Biome biome = Heightmap.FindBiome(__instance.transform.position);
+        // List<BlueprintManager.BlueprintData> list = BlueprintManager.GetBiomeBlueprints(biome);
+        // if (list.Count == 0) return;
+        // BlueprintManager.BlueprintData data = list[Random.Range(0, list.Count)];
+        // if (!__instance.TryGetComponent(out BluePrinter component))
+        // {
+        //     component = __instance.gameObject.AddComponent<BluePrinter>();
+        // }
+        // component.GenerateLocation(data);
+
+        if (!__instance.GetComponent<BluePrinter>())
         {
-            component = __instance.gameObject.AddComponent<BluePrinter>();
+            __instance.gameObject.AddComponent<BluePrinter>();
         }
-        component.GenerateLocation(data);
     }
     private static void SetupLocations_Prefix(ZoneSystem __instance)
     {

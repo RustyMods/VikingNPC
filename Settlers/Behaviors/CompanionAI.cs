@@ -26,7 +26,6 @@ public class CompanionAI : MonsterAI
     public float m_lastFishTime;
     public Piece? m_repairPiece;
     public float m_repairTimer;
-    public double m_timeSinceLastSeedConversion;
     public override void Awake()
     {
         base.Awake();
@@ -37,12 +36,12 @@ public class CompanionAI : MonsterAI
 
     private bool UpdateSailorAI(float dt)
     {
-        Humanoid? character = m_character as Humanoid;
-        if (character == null) return true;
+        if (m_character is not Humanoid character) return false;
         UpdateTarget(character, dt, out bool canHearTarget, out bool canSeeTarget);
         ItemDrop.ItemData itemData = SelectBestAttack(character, dt);
         if (itemData == null) return true;
-        bool flag = (double) Time.time - itemData.m_lastAttackTime >itemData.m_shared.m_aiAttackInterval && (double) m_character.GetTimeSinceLastAttack() >= m_minAttackInterval && !IsTakingOff();
+        bool flag = (double)Time.time - itemData.m_lastAttackTime > itemData.m_shared.m_aiAttackInterval &&
+                    (double)m_character.GetTimeSinceLastAttack() >= m_minAttackInterval && !IsTakingOff();
         if (m_targetCreature != null)
         {
             SetAlerted(true);
@@ -56,6 +55,7 @@ public class CompanionAI : MonsterAI
                 DoAttack(m_targetCreature, false);
             }
         }
+
         return true;
     }
     public override bool UpdateAI(float dt)

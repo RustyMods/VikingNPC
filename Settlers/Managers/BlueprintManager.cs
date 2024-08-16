@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -346,9 +347,9 @@ public static class BlueprintManager
         string[] data = text.Split(';');
         snapPoint.m_name = $"snappoint_{index}";
         snapPoint.m_position = new Vector3(
-            float.TryParse(data[0], out float x) ? x : 0f, 
-            float.TryParse(data[1], out float y) ? y : 0f, 
-            float.TryParse(data[2], out float z) ? z : 0f);
+            float.TryParse(data[0], NumberStyles.Any, CultureInfo.InvariantCulture, out float x) ? x : 0f, 
+            float.TryParse(data[1], NumberStyles.Any, CultureInfo.InvariantCulture, out float y) ? y : 0f, 
+            float.TryParse(data[2], NumberStyles.Any, CultureInfo.InvariantCulture, out float z) ? z : 0f);
 
         try
         {
@@ -417,18 +418,18 @@ public static class BlueprintManager
     private static Vector3 ParsePieceVector3(string strX, string strY, string strZ)
     {
         return new Vector3(
-            float.TryParse(strX, out float x) ? x : 0f, 
-            float.TryParse(strY, out float y) ? y : 0f, 
-            float.TryParse(strZ, out float z) ? z : 0f);
+            float.TryParse(strX, NumberStyles.Any, CultureInfo.InvariantCulture, out float x) ? x : 0f, 
+            float.TryParse(strY, NumberStyles.Any, CultureInfo.InvariantCulture, out float y) ? y : 0f, 
+            float.TryParse(strZ, NumberStyles.Any, CultureInfo.InvariantCulture, out float z) ? z : 0f);
     }
 
     private static Quaternion ParsePieceRotation(string strX, string strY, string strZ, string strW)
     {
         return new Quaternion(
-            float.TryParse(strX, out float x) ? x : 0f, 
-            float.TryParse(strY, out float y) ? y : 0f, 
-            float.TryParse(strZ, out float z) ? z : 0f, 
-            float.TryParse(strW, out float w) ? w : 0f
+            float.TryParse(strX, NumberStyles.Any, CultureInfo.InvariantCulture, out float x) ? x : 0f, 
+            float.TryParse(strY, NumberStyles.Any, CultureInfo.InvariantCulture, out float y) ? y : 0f, 
+            float.TryParse(strZ, NumberStyles.Any, CultureInfo.InvariantCulture, out float z) ? z : 0f, 
+            float.TryParse(strW, NumberStyles.Any, CultureInfo.InvariantCulture, out float w) ? w : 0f
         );
     }
 
@@ -437,9 +438,9 @@ public static class BlueprintManager
         var data = text.Split(':')[1];
         string[] values = data.Split(',');
         return new Vector3(
-            float.TryParse(values[0], out float x) ? x : 0f, 
-            float.TryParse(values[1], out float y) ? y : 0f, 
-            float.TryParse(values[2], out float z) ? z : 0f);
+            float.TryParse(values[0], NumberStyles.Any, CultureInfo.InvariantCulture, out float x) ? x : 0f, 
+            float.TryParse(values[1], NumberStyles.Any, CultureInfo.InvariantCulture, out float y) ? y : 0f, 
+            float.TryParse(values[2], NumberStyles.Any, CultureInfo.InvariantCulture, out float z) ? z : 0f);
     }
     
     private static TextAsset GetText(string fileName)

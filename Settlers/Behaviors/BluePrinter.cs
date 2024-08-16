@@ -12,46 +12,53 @@ namespace Settlers.Behaviors;
 public class BluePrinter : MonoBehaviour
 {
     private ZNetView m_nview = null!;
-    private static bool m_generated;
+    private BlueprintManager.BlueprintData? m_data;
 
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
+        if (!m_nview.IsValid()) return;
+        m_data = GetData();
+        if (m_data == null) return;
+        GenerateLocation(m_data);
+    }
+
+    private BlueprintManager.BlueprintData? GetData()
+    {
+        Heightmap.Biome biome = Heightmap.FindBiome(transform.position);
+        List<BlueprintManager.BlueprintData> list = BlueprintManager.GetBiomeBlueprints(biome);
+        if (list.Count == 0) return null;
+        return list[Random.Range(0, list.Count)];
     }
 
     public void SetGenerated(bool generated) => m_nview.GetZDO().Set("BlueprintGenerated".GetStableHashCode(), generated);
+    private bool IsGenerated() => m_nview.GetZDO().GetBool("BlueprintGenerated".GetStableHashCode());
 
     public void GenerateLocation(BlueprintManager.BlueprintData data)
     {
-        if (!ZoneSystem.instance) return;
-        m_generated = m_nview.GetZDO().GetBool("BlueprintGenerated".GetStableHashCode());
-        if (m_generated) return;
+        if (!ZoneSystem.instance || !m_nview.IsValid()) return;
+        if (IsGenerated()) return;
+        SettlersPlugin.SettlersLogger.LogDebug("Trying to generate location: " + data.m_blueprint.m_name);
         if (!ZoneSystem.instance.m_zones.ContainsKey(ZoneSystem.instance.GetZone(transform.position)))
         {
-            SettlersPlugin._Plugin.StartCoroutine(TryGenerate(this, data));
+            Invoke(nameof(TryGenerate), 1f);
         }
         else
         {
+            ZNetView.m_useInitZDO = false;
             BuildTerrain(data.m_blueprint.m_terrain, data, transform);
             BuildObjects(data, transform);
             CreateSpawnArea(data, transform);
-            m_generated = true;
             SetGenerated(true);
         }
     }
 
-    private static IEnumerator TryGenerate(BluePrinter printer, BlueprintManager.BlueprintData data)
+    private void TryGenerate()
     {
-        while (!m_generated)
-        {
-            if (!ZoneSystem.instance.m_zones.ContainsKey(ZoneSystem.instance.GetZone(printer.transform.position))) yield return new WaitForSeconds(1f);
-            BuildTerrain(data.m_blueprint.m_terrain, data, printer.transform);
-            BuildObjects(data, printer.transform);
-            CreateSpawnArea(data, printer.transform);
-            m_generated = true;
-            printer.SetGenerated(true);
-        }
+        if (!m_nview.IsValid() || !ZoneSystem.instance || m_data == null) return;
+        GenerateLocation(m_data);
     }
+    
 
     private static void BuildTerrain(List<BlueprintManager.TerrainPiece> terrainPieces, BlueprintManager.BlueprintData data, Transform parent)
     {

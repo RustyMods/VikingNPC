@@ -185,6 +185,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         if (m_sailors.Count > 4) return;
         GameObject sailor = ZNetScene.instance.GetPrefab("VikingSailor");
         if (!sailor) return;
+        ZNetView.m_useInitZDO = false;
         foreach (Transform attachPoint in m_attachPoints)
         {
             if (m_sailors.ContainsKey(attachPoint)) continue;

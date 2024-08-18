@@ -13,19 +13,6 @@ purchase_settler_desc: 'Purchase tamed viking settler'
 msg_settlerfollows: "warriors have heeded your call!"
 msg_repairship: "Not enough material to fix ship"
 
-item_stafffirecharge: 'Fire Charge'
-item_stafffirecharge_desc: 'To allow viking settlers to use fireball staff'
-item_stafficecharge: 'Ice Charge'
-item_stafficecharge_desc: 'To allow viking settlers to use ice shard staff'
-item_staffshieldcharge: 'Shield charge'
-item_staffshieldcharge_desc: 'To allow viking settlers to use shield staff'
-item_staffclusterbombcharge: 'Cluster Bomb Charge'
-item_staffclusterbombcharge_desc: 'To allow viking settlers to use cluster bomb staff'
-item_staffrootscharge: 'Roots Charge'
-item_staffrootscharge_desc: 'To allow viking setters to use roots staff'
-item_stafflightningcharge: 'Lightning Charge'
-item_stafflightningcharge_desc: 'To allow viking settlers to use lightning staff'
-
 npc_settler_random_talk_1: 'Hail, traveler!'
 npc_settler_random_talk_2: 'The mist of the fjords cloaks us like a shroud'
 npc_settler_random_talk_3: 'Another dawn in Midgard, land of mortals'

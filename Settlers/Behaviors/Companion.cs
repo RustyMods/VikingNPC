@@ -69,6 +69,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public bool m_startAsSailor;
     public bool m_renameable;
     private readonly int m_rename = "VikingRename".GetStableHashCode();
+    private bool m_teleporting;
     public override void Awake()
     {
         base.Awake();
@@ -134,6 +135,12 @@ public class Companion : Humanoid, Interactable, TextReceiver
         if (m_nview.GetZDO() == null) return;
         if (!m_nview.IsOwner()) return;
         if (IsDead()) return;
+        if (!m_companionAI.IsAlerted() && IsBlocking())
+        {
+            m_animator.SetBool("blocking", false);
+            m_blocking = false;
+            m_nview.GetZDO().Set(ZDOVars.s_isBlockingHash, false);
+        }
         bool isSailor = IsSailor();
         if (IsRaider() || IsElf() || isSailor)
         {
@@ -181,12 +188,24 @@ public class Companion : Humanoid, Interactable, TextReceiver
 
     public void Teleport(Vector3 pos, Quaternion rot, bool distantTeleport)
     {
-        Vector3 random = Random.insideUnitSphere * 10f;
-        Vector3 location = pos + new Vector3(random.x, 0f, random.z);
-        location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
-        transform.position = location;
-        transform.rotation = rot;
+        m_teleporting = true;
+        Vector3 location;
+        if (distantTeleport)
+        {
+            location = pos + new Vector3(0f, 2f, 0f);
+        }
+        else
+        {
+            Vector3 random = Random.insideUnitSphere * 10f;
+            location = pos + new Vector3(random.x, 0f, random.z);
+            location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
+        }
+
+        var transform1 = transform;
+        transform1.position = location;
+        transform1.rotation = rot;
         m_body.velocity = Vector3.zero;
+        m_teleporting = false;
     }
 
     public void UpdatePins(float dt)
@@ -214,6 +233,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     }
 
     private readonly int m_sailor = "VikingSailor".GetStableHashCode();
+    private static readonly int Blocking = Animator.StringToHash("blocking");
 
     public bool IsSailor() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_sailor);
 
@@ -388,6 +408,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public void Warp(Player player)
     {
         if (m_companionAI == null) return;
+        if (player.IsTeleporting()) return;
         Vector3 location = player.GetLookDir() * 5f + player.transform.position;
         if (!m_nview.IsOwner())
         {
@@ -412,6 +433,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     }
     public void RPC_Warp(long sender, Vector3 playerPos, Vector3 pos)
     {
+        if (m_teleporting) return;
         ZoneSystem.instance.GetSolidHeight(pos, out float height, 1000);
         if (height >= 0.0 && Mathf.Abs(height - pos.y) <= 2f && Vector3.Distance(pos, playerPos) >= 2f)
         {
@@ -528,7 +550,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         ItemDrop.ItemData currentWeapon = GetCurrentWeapon();
         if (currentWeapon == null || (!currentWeapon.HaveSecondaryAttack() && !currentWeapon.HavePrimaryAttack())) return false;
 
-        bool secondary = currentWeapon.HavePrimaryAttack() && currentWeapon.HaveSecondaryAttack() && Random.value > 0.5 || !currentWeapon.HaveSecondaryAttack();
+        bool secondary = currentWeapon.HavePrimaryAttack() && currentWeapon.HaveSecondaryAttack() && Random.value > 0.5 || currentWeapon.HaveSecondaryAttack();
         if (currentWeapon.m_shared.m_skillType is Skills.SkillType.Spears) secondary = false;
         
         if (m_currentAttack != null)
@@ -537,25 +559,13 @@ public class Companion : Humanoid, Interactable, TextReceiver
             m_previousAttack = m_currentAttack;
             m_currentAttack = null;
         }
-        
-        Attack? attack = secondary ? currentWeapon.m_shared.m_attack.Clone() : currentWeapon.m_shared.m_secondaryAttack.Clone();
+        Attack? attack = !secondary ? currentWeapon.m_shared.m_attack.Clone() : currentWeapon.m_shared.m_secondaryAttack.Clone();
         if (!attack.Start(this, m_body, m_zanim, m_animEvent, m_visEquipment, currentWeapon, m_previousAttack,
                 m_timeSinceLastAttack, Random.Range(0.5f, 1f))) return false;
 
-        if (currentWeapon.m_shared.m_attack.m_requiresReload)
-        {
-            SetWeaponLoaded(null);
-        }
-
-        if (currentWeapon.m_shared.m_attack.m_bowDraw)
-        {
-            currentWeapon.m_shared.m_attack.m_attackDrawPercentage = 0.0f;
-        }
-
-        if (currentWeapon.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Torch)
-        {
-            currentWeapon.m_durability -= 1.5f;
-        }
+        if (currentWeapon.m_shared.m_attack.m_requiresReload) SetWeaponLoaded(null);
+        if (currentWeapon.m_shared.m_attack.m_bowDraw) currentWeapon.m_shared.m_attack.m_attackDrawPercentage = 0.0f;
+        if (currentWeapon.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Torch) currentWeapon.m_durability -= 1.5f;
         
         ClearActionQueue();
         StartAttackGroundCheck();
@@ -568,7 +578,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
         }
         return true;
     }
-
+    
+    
     public override void ClearActionQueue() => m_actionQueue.Clear();
 
     public void UpdateActionQueue(float dt)
@@ -1926,7 +1937,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
             foreach (ItemDrop.ItemData? item in allItems)
             {
                 if (!item.IsWeapon()) continue;
-
+                
                 switch (item.m_shared.m_skillType)
                 {
                     case Skills.SkillType.Bows:
@@ -1934,7 +1945,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
                         item.m_shared.m_attack.m_projectileVelMin = 2f;
                         item.m_shared.m_attack.m_projectileAccuracy = 2f;
                         item.m_shared.m_attack.m_projectileAccuracyMin = 20f;
-                        item.m_shared.m_attack.m_useCharacterFacingYAim = true;
+                        item.m_shared.m_attack.m_useCharacterFacingYAim = !isSailor;
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
                         item.m_shared.m_aiAttackRange = isSailor ? 60f : 30f;
@@ -1968,7 +1979,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
                         item.m_shared.m_attack.m_projectileVelMin = 2f;
                         item.m_shared.m_attack.m_projectileAccuracy = 2f;
                         item.m_shared.m_attack.m_projectileAccuracyMin = 20f;
-                        item.m_shared.m_attack.m_useCharacterFacingYAim = true;
+                        item.m_shared.m_attack.m_useCharacterFacingYAim = !isSailor;
                         item.m_shared.m_attack.m_launchAngle = 0f;
                         item.m_shared.m_attack.m_projectiles = 1;
                         item.m_shared.m_aiAttackRange = isSailor ? 60f : 40f;
@@ -1987,7 +1998,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
                             item.m_shared.m_attack.m_projectileVelMin = 2f;
                             item.m_shared.m_attack.m_projectileAccuracy = 2f;
                             item.m_shared.m_attack.m_projectileAccuracyMin = 20f;
-                            item.m_shared.m_attack.m_useCharacterFacingYAim = true;
+                            item.m_shared.m_attack.m_useCharacterFacingYAim = !isSailor;
                             item.m_shared.m_attack.m_launchAngle = 0f;
                             item.m_shared.m_attack.m_projectiles = 1;
                             item.m_shared.m_aiAttackRange = isSailor ? 60f : 30f;
@@ -2013,7 +2024,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     [HarmonyPatch(typeof(Player), nameof(Player.TeleportTo))]
     private static class Player_TeleportTo_Patch
     {
-        private static void Postfix(Player __instance, Vector3 pos, Quaternion rot)
+        private static void Postfix(Player __instance, Vector3 pos, Quaternion rot, bool distantTeleport)
         {
             if (!__instance) return;
             List<Companion> companions = new();
@@ -2028,7 +2039,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
 
             foreach (Companion companion in companions)
             {
-                if (companion.IsTeleportable()) companion.TeleportTo(pos, rot, true);
+                companion.TeleportTo(pos, rot, distantTeleport);
             }
         }
     }

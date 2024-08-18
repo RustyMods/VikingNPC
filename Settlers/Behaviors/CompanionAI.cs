@@ -20,7 +20,7 @@ public class CompanionAI : MonsterAI
     public GameObject? m_rockTarget;
     public GameObject? m_fishTarget;
     private float m_searchAttachTimer;
-    private readonly float m_searchAttachRange = 50f;
+    private const float m_searchAttachRange = 50f;
     public bool m_resting;
     public string m_action = "";
     public float m_lastFishTime;
@@ -591,6 +591,8 @@ public class CompanionAI : MonsterAI
         }
         return result;
     }
+
+    public bool IsFemale() => m_nview.IsValid() && m_nview.GetZDO().GetInt("ModelIndex") == 1;
     
     [HarmonyPatch(typeof(BaseAI), nameof(UpdateRegeneration))]
     private static class BaseAI_UpdateRegeneration_Patch
@@ -610,41 +612,6 @@ public class CompanionAI : MonsterAI
             }
             component.m_companion.Heal(amount, true);
             return false;
-        }
-    }
-
-    [HarmonyPatch(typeof(SE_Puke), nameof(SE_Puke.UpdateStatusEffect))]
-    private static class SE_Puke_Update_Patch
-    {
-        private static bool Prefix(SE_Puke __instance, float dt)
-        {
-            if (__instance.m_character.IsPlayer()) return true;
-            UpdateStatus(__instance, dt);
-            UpdateStats(__instance, dt);
-            return false;
-        }
-        
-        private static void UpdateStatus(SE_Puke __instance, float dt)
-        {
-            __instance.m_removeTimer += dt;
-            if (__instance.m_removeTimer <= __instance.m_removeInterval) return;
-            __instance.m_removeTimer = 0.0f;
-        }
-
-        private static void UpdateStats(SE_Puke __instance, float dt)
-        {
-            __instance.m_tickTimer += dt;
-            if (!(__instance.m_tickTimer >= __instance.m_tickInterval)) return;
-            __instance.m_tickTimer = 0.0f;
-            __instance.m_character.Damage(new HitData()
-            {
-                m_damage =
-                {
-                    m_damage = 1f
-                },
-                m_point = __instance.m_character.GetTopPoint(),
-                m_hitType = HitData.HitType.PlayerHit
-            });
         }
     }
 

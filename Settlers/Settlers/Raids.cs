@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Configuration;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Settlers.Settlers;
@@ -87,5 +88,29 @@ public static class Raids
         music.SettingChanged += (sender, args) => raidEvent.m_forceMusic = music.Value;
         environment.SettingChanged += (sender, args) => raidEvent.m_forceEnvironment = environment.Value;
         __instance.m_events.Add(raidEvent);
+    }
+
+    [HarmonyPatch(typeof(RandEventSystem), nameof(RandEventSystem.GetCurrentSpawners))]
+    private static class RandEventSystem_GetCurrentSpawners_Patch
+    {
+        private static void Postfix(RandEventSystem __instance, ref List<SpawnSystem.SpawnData>? __result)
+        {
+            if (__result == null) return;
+            var currentEvent = __instance.GetCurrentRandomEvent();
+            if (currentEvent == null) return;
+            if (currentEvent.m_name != "VikingRaidEvent") return;
+            var biome = WorldGenerator.instance.GetBiome(currentEvent.m_pos);
+            if (biome is not Heightmap.Biome.Ocean) return;
+            __result = new List<SpawnSystem.SpawnData>()
+            {
+                new SpawnSystem.SpawnData()
+                {
+                    m_name = "RaiderShips",
+                    m_enabled = true,
+                    m_biome = Heightmap.Biome.Ocean,
+                    m_prefab = ZNetScene.instance.GetPrefab("RaiderShip"),
+                }
+            };
+        }
     }
 }

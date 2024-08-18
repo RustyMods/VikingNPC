@@ -12,7 +12,7 @@ public static class StorePatches
         private static bool Prefix(StoreGui __instance)
         {
             if (__instance.m_selectedItem == null || !__instance.CanAfford(__instance.m_selectedItem)) return true;
-            if (__instance.m_selectedItem.m_prefab.m_itemData.m_shared.m_name == "Viking Settler")
+            if (__instance.m_selectedItem.m_prefab.m_itemData.m_shared.m_name == "$name_vikingsettler")
             {
                 var prefab = ZNetScene.instance.GetPrefab("VikingSettler");
                 var random = Random.insideUnitCircle * 5f;

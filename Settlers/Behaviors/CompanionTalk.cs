@@ -58,7 +58,7 @@ public class CompanionTalk : MonoBehaviour
 
     private bool ShouldUpdate()
     {
-        if (m_companion.IsRaider() || m_companion.IsElf()) return true;
+        if (m_companion.IsRaider() || m_companion.IsElf() || m_companion.IsSailor()) return true;
         return m_companionAI.m_treeTarget == null && m_companionAI.m_rockTarget == null &&
                m_companionAI.m_fishTarget == null && !m_companion.m_attached && m_companionAI.m_repairPiece == null;
     }
@@ -130,7 +130,7 @@ public class CompanionTalk : MonoBehaviour
         QueueSay(InPlayerBase() ? m_randomTalkInPlayerBase : m_randomTalk, m_randomEmote[Random.Range(0, m_randomEmote.Count)], m_randomTalkFX);
     }
 
-    public void QueueSay(List<string> texts, string trigger, EffectList effect)
+    public void QueueSay(List<string> texts, string trigger, EffectList? effect)
     {
         if (texts.Count == 0 || m_queuedTexts.Count >= 3) return;
         m_queuedTexts.Enqueue(new NpcTalk.QueuedSay()
@@ -155,8 +155,7 @@ public class CompanionTalk : MonoBehaviour
         if (m_queuedTexts.Count == 0 || Time.time - NpcTalk.m_lastTalkTime < m_minTalkInterval) return;
         NpcTalk.QueuedSay queuedSay = m_queuedTexts.Dequeue();
         Say(queuedSay.text, queuedSay.trigger);
-        if (queuedSay.m_effect == null) return;
-        queuedSay.m_effect.Create(transform.position, Quaternion.identity);
+        queuedSay.m_effect?.Create(transform.position, Quaternion.identity, variant: m_companionAI.IsFemale() ? 1 : 0);
     }
 
     public void Say(string text, string trigger)
@@ -164,7 +163,7 @@ public class CompanionTalk : MonoBehaviour
         NpcTalk.m_lastTalkTime = Time.time;
         if (!text.IsNullOrWhiteSpace())
             Chat.instance.SetNpcText(gameObject, Vector3.up * m_offset, 20f, m_hideDialogDelay, "", text, false);
-        if (trigger.Length <= 0) return;
+        if (trigger.IsNullOrWhiteSpace()) return;
         m_animator.SetTrigger(trigger);
         if (trigger == "emote_sit") m_isSitting = true;
     }

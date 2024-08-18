@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.0.8";
+        internal const string ModVersion = "0.0.9";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -32,6 +32,7 @@ namespace Settlers
         private static readonly AssetBundle _assetBundle = GetAssetBundle("settlerbundle");
         public static readonly AssetBundle _locationBundle = GetAssetBundle("blueprintlocationbundle");
         public static readonly AssetBundle _elfBundle = GetAssetBundle("elfassets");
+        public static readonly AssetBundle _oarsBundle = GetAssetBundle("oarsbundle");
         
         public static SettlersPlugin _Plugin = null!;
         public static GameObject _Root = null!;
@@ -54,7 +55,7 @@ namespace Settlers
         public static ConfigEntry<float> _baseMaxCarryWeight = null!;
         private static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
         private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
-        public static ConfigEntry<Toggle> _spawnRaiders = null!;
+        public static ConfigEntry<Toggle> _replaceSpawns = null!;
         public static ConfigEntry<float> _raiderDropChance = null!;
         public static ConfigEntry<Character.Faction> _raiderFaction = null!;
         public static ConfigEntry<float> _raiderBaseHealth = null!;
@@ -67,6 +68,14 @@ namespace Settlers
         public static ConfigEntry<Toggle> _colorfulHair = null!;
         public static ConfigEntry<Toggle> _settlersCanRide = null!;
         public static ConfigEntry<int> _settlerPurchasePrice = null!;
+        
+        public static ConfigEntry<float> _harpoonPullSpeed = null!;
+        public static ConfigEntry<float> _shipHealth = null!;
+        
+        public static ConfigEntry<Toggle> _repairShips = null!;
+        public static ConfigEntry<string> _repairShipMat = null!;
+        public static ConfigEntry<int> _repairShipValue = null!;
+        public static ConfigEntry<float> _costModifier = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -97,8 +106,16 @@ namespace Settlers
             
             _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
             _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
-            _spawnRaiders = config("4 - Raiders", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
+            _replaceSpawns = config("4 - Raiders", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
             _raiderDropChance = config("4 - Raiders", "Raider Gear Drop Chance", 0.2f, new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
+
+            _harpoonPullSpeed = config("6 - Raider Ships", "Harpoon pull speed", 25f, "Set the speed of harpoon pull+");
+            _shipHealth = config("6 - Raider Ships", "Ship Health", 5000f, "Set the health of the raider ship");
+            
+            _repairShips = config("7 - Player Ships", "Repair On Water", Toggle.Off, "If on, players can repair their ships without a crafting station");
+            _repairShipMat = config("7 - Player Ships", "Material", "Wood", "Set the material requirements to repair while on water");
+            _repairShipValue = config("7 - Player Ships", "Material Amount", 1, "Set the amount of material needed to repair ship, multiplied by ship health");
+            _costModifier = config("7 - Player Ships", "Cost Modifier", 2f, new ConfigDescription("Set the divider of the total cost amount, larger number makes it cheaper", new AcceptableValueRange<float>(1, 10)));
             
             List<string> m_maleFirstNames = new()
             {

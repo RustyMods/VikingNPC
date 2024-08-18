@@ -93,6 +93,10 @@ public class RandomHuman : MonoBehaviour
         }
     }
 
+    public Vector3 GetHairColor() => m_nview.GetZDO().GetVec3("HairColor", Vector3.zero);
+    public int GetModelIndex() => m_nview.GetZDO().GetInt("ModelIndex");
+    public int GetHairType() => m_nview.GetZDO().GetInt("HairNumber");
+
     public void Randomize(Companion humanoid, VisEquipment visEquipment, out bool female)
     {
         bool hasData = m_nview.GetZDO().GetBool("RandomHuman");
@@ -102,9 +106,9 @@ public class RandomHuman : MonoBehaviour
 
         if (hasData)
         {
-            modelIndex = m_nview.GetZDO().GetInt("ModelIndex");
-            random = m_nview.GetZDO().GetInt("HairNumber");
-            color = m_nview.GetZDO().GetVec3("HairColor", Vector3.zero);
+            modelIndex = GetModelIndex();
+            random = GetHairType();
+            color = GetHairColor();
         }
         else
         {
@@ -114,7 +118,6 @@ public class RandomHuman : MonoBehaviour
             m_nview.GetZDO().Set("ModelIndex", modelIndex);
             m_nview.GetZDO().Set("HairNumber", random);
             m_nview.GetZDO().Set("HairColor", color);
-            
         }
         
         female = modelIndex == 1;

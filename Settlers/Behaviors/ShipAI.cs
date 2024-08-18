@@ -9,6 +9,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public GameObject m_sailObject = null!;
     public GameObject m_mastObject = null!;
     public GameObject m_rudderObject = null!;
+    public GameObject m_oarsObject = null!;
     public BoxCollider m_floatCollider = null!;
     public float m_waterLevelOffset;
     public float m_forceDistance = 1f;
@@ -40,11 +41,11 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     public WaterVolume m_previousRight = null!;
     public WaterVolume m_previousForward = null!;
     public WaterVolume m_previousBack = null!;
-    public static readonly List<ShipAI> m_instances = new List<ShipAI>();
+    private static readonly List<ShipAI> m_instances = new List<ShipAI>();
     public GlobalWind m_globalWind = null!;
     public Rigidbody m_body = null!;
     public ZNetView m_nview = null!;
-    public IDestructible m_destructible = null!;
+    private IDestructible m_destructible = null!;
     public Cloth m_sailCloth = null!;
     public float m_lastDepth = -9999f;
     public float m_lastWaterImpactTime;
@@ -67,6 +68,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         m_sailObject = Utils.FindChild(transform, "Sail").gameObject;
         m_mastObject = Utils.FindChild(transform, "Mast").gameObject;
         m_rudderObject = Utils.FindChild(transform, "rudder").gameObject;
+        m_oarsObject = Utils.FindChild(transform, "oars").gameObject;
         m_floatCollider = transform.Find("FloatCollider").GetComponent<BoxCollider>();
 
         m_nview = GetComponent<ZNetView>();
@@ -122,6 +124,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
     {
         m_instances.Remove(this);
     }
+
+    public static List<ShipAI> GetAllShips() => m_instances;
     
     public bool UpdateAI(float fixedDeltaTime)
     {
@@ -129,6 +133,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         UpdateSpeed(fixedDeltaTime);
         UpdateSail(fixedDeltaTime);
         UpdateRudder(fixedDeltaTime);
+        UpdateOars();
         if (m_nview && !m_nview.IsOwner()) return false;
         CalculateForces(fixedDeltaTime);
         ApplyEdgeForce(fixedDeltaTime);
@@ -136,6 +141,15 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         return true;
     }
 
+    private void UpdateOars()
+    {
+        if (!m_oarsObject) return;
+        float rowingAngle = Mathf.Sin(Time.time) * 30f;
+        foreach (Transform child in m_oarsObject.transform)
+        {
+            child.localEulerAngles = new Vector3(0f, 0f, rowingAngle);
+        }
+    }
     public void UpdateCheckSailors()
     {
         List<Transform> keysToRemove = new();

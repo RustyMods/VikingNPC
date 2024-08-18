@@ -226,9 +226,12 @@ public static class AssetMan
         //     container.m_rootObjectOverride = RaiderShip.GetComponent<ZNetView>();
         // }
 
+        var oars = SettlersPlugin._oarsBundle.LoadAsset<GameObject>("ShipOars");
+        var oarsObj = Object.Instantiate(oars, RaiderShip.transform);
+        oarsObj.name = "oars";
         Object.Destroy(shipEffects);
         RegisterToZNetScene(RaiderShip);
-        GlobalSpawn.AddToSpawnList(RaiderShip, "Raider Ship Spawn Settings", Heightmap.Biome.None, SettlersPlugin.Toggle.Off, 4000f, 25f, 50f);
+        GlobalSpawn.AddToSpawnList(RaiderShip, "Raider Ship Spawn Settings", Heightmap.Biome.None, SettlersPlugin.Toggle.On, 4000f, 25f, 50f);
     }
     
     private static GameObject? CreateBaseRaider()

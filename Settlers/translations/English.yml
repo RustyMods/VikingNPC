@@ -11,6 +11,7 @@ name_vikingsettler: 'Viking Settler'
 purchase_settler_desc: 'Purchase tamed viking settler'
 
 msg_settlerfollows: "warriors have heeded your call!"
+msg_repairship: "Not enough material to fix ship"
 
 item_stafffirecharge: 'Fire Charge'
 item_stafffirecharge_desc: 'To allow viking settlers to use fireball staff'
@@ -69,3 +70,25 @@ npc_settler_aggravated_5: 'Out of my sight, before I unleash Fenrir!'
 npc_settler_aggravated_6: 'You tread on thin ice, beware!'
 npc_settler_aggravated_7: "By Yggdrasil's roots, you try my temper!"
 npc_settler_aggravated_8: 'Enough! The wrath of the gods is not to be trifled with!'
+
+npc_settler_puke_1: "By Thor's hammer, this feast has turned foul!"
+npc_settler_puke_2: "May Loki's trickery be the cause of this wretched meal!"
+npc_settler_puke_3: "Odin's ravens would not touch such a putrid offering!"
+npc_settler_puke_4: "Skál to the gods for this cursed sustenance!"
+npc_settler_puke_5: "The mead may be sweet, but this meal is a sour betrayal!"
+npc_settler_puke_6: "A feast fit for the depths of Niflheim!"
+npc_settler_puke_7: "Valhalla awaits, but this dish belongs in the depths of Hel!"
+npc_settler_puke_8: "The taste of Jormungandr's venom lingers in this fare!"
+npc_settler_puke_9: "Even Fenrir would turn his nose up at this spoiled repast!"
+npc_settler_puke_10: "May Freyja guide us to better provisions, for this is a dish of misfortune!"
+
+npc_sailor_thief_1: "By Odin's eye, our plunder has been taken!"
+npc_sailor_thief_2: "May Loki's curse befall the thief who stole our riches!"
+npc_sailor_thief_3: "To the depths of Niflheim with the scoundrel who dared pilfer our treasure!"
+npc_sailor_thief_4: "Valhalla will not welcome those who steal from viking sailors!"
+npc_sailor_thief_5: "The wrath of Thor shall strike down the thief who dares touch our spoils!"
+npc_sailor_thief_6: "Hoist the sails and set course to reclaim what is rightfully ours!"
+npc_sailor_thief_7: "Jormungandr's fury awaits the one who absconds with our loot!"
+npc_sailor_thief_8: "Freyja's tears shall guide us to recover our stolen bounty!"
+npc_sailor_thief_9: "Even the gods tremble at the retribution of viking sailors scorned!"
+npc_sailor_thief_10: "A viking's oath: blood for blood, gold for gold - the thief shall pay!"

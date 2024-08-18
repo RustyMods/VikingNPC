@@ -11,7 +11,7 @@ public static class ReplaceSpawns
     {
         private static bool Prefix(CreatureSpawner __instance, ref ZNetView __result)
         {
-            if (SettlersPlugin._spawnRaiders.Value is SettlersPlugin.Toggle.Off) return true;
+            if (SettlersPlugin._replaceSpawns.Value is SettlersPlugin.Toggle.Off) return true;
             if (__instance.m_creaturePrefab.name == "VikingSettler") return true;
             Vector3 position = __instance.transform.position;
             if (ZoneSystem.instance.FindFloor(position, out var height))

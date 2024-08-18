@@ -14,7 +14,7 @@ public class ShipMan : MonoBehaviour, IDestructible
     public GameObject? m_worn;
     public GameObject? m_broken;
 
-    public float m_health = 5000f;
+    public float m_health = SettlersPlugin._shipHealth.Value;
     public HitData.DamageModifiers m_damages = new HitData.DamageModifiers()
     {
         m_chop = HitData.DamageModifier.Weak,
@@ -35,6 +35,13 @@ public class ShipMan : MonoBehaviour, IDestructible
     private float m_healthRegenTimer;
     private Container m_container = null!;
     public List<Transform> m_burnObjects = new();
+    private readonly List<GameObject> m_fireEffects = new();
+    private bool m_isBurning;
+    private VisualType m_visual = VisualType.New;
+    private enum VisualType
+    {
+        New, Worn, Broken
+    }
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
@@ -70,49 +77,41 @@ public class ShipMan : MonoBehaviour, IDestructible
         };
     }
 
-    private void SetSailorAggravated(BaseAI.AggravatedReason reason)
+    public void EventSpawnSetAggravated()
+    {
+        Invoke(nameof(SetAggravated), 10f);
+    }
+    
+    private void SetAggravated()
+    {
+        SetSailorAggravated(BaseAI.AggravatedReason.Damage);
+    }
+
+    public void SetSailorAggravated(BaseAI.AggravatedReason reason)
     {
         if (!m_shipAI) return;
         foreach (var kvp in m_shipAI.m_sailors)
         {
             if (!kvp.Value.m_nview.IsValid()) continue;
             kvp.Value.m_companionAI.SetAggravated(true, reason);
+            if (reason is BaseAI.AggravatedReason.Theif)
+            {
+                kvp.Value.m_companionTalk.QueueSay(GetThiefSay(), "", null);
+            }
         }
     }
+
+    private List<string> GetThiefSay() => new List<string>()
+    {
+        "$npc_sailor_thief_1", "$npc_sailor_thief_2", "$npc_sailor_thief_3", "$npc_sailor_thief_4", "$npc_sailor_thief_5",
+        "$npc_sailor_thief_6", "$npc_sailor_thief_7", "$npc_sailor_thief_8", "$npc_sailor_thief_9", "$npc_sailor_thief_10",
+    };
     
     private void AddLoot()
     {
         if (!m_container) return;
         if (m_container.GetInventory().GetAllItems().Count > 0) return;
         
-        // List<DropTable.DropData> data = new();
-        // foreach (var item in RaiderDrops.GetRaiderDrops(Heightmap.Biome.Swamp))
-        // {
-        //     data.Add(new DropTable.DropData()
-        //     {
-        //         m_item = item.m_prefab,
-        //         m_weight = item.m_chance,
-        //         m_stackMax = item.m_amountMax * 3,
-        //         m_stackMin = item.m_amountMin * 3,
-        //         m_dontScale = item.m_dontScale
-        //     });
-        // }
-        //
-        // var iron = ZNetScene.instance.GetPrefab("IronScrap");
-        // int count = 0;
-        // int max = 3;
-        // while (count < max)
-        // {
-        //     data.Add(new DropTable.DropData()
-        //     {
-        //         m_item = iron,
-        //         m_weight = 1f,
-        //         m_stackMax = 30,
-        //         m_stackMin = 30,
-        //         m_dontScale = true,
-        //     });
-        //     ++count;
-        // }
         m_container.m_defaultItems = new DropTable()
         {
             m_dropMin = 5,
@@ -174,9 +173,6 @@ public class ShipMan : MonoBehaviour, IDestructible
         return 5000f;
     }
 
-    private readonly List<GameObject> m_fireEffects = new();
-    private bool m_isBurning;
-
     private void ClearFireEffects()
     {
         foreach (var effect in m_fireEffects)
@@ -187,6 +183,7 @@ public class ShipMan : MonoBehaviour, IDestructible
             zNetView.Destroy();
         }
         m_fireEffects.Clear();
+        m_isBurning = false;
     }
     
     private void UpdateBurn(float dt)
@@ -194,7 +191,6 @@ public class ShipMan : MonoBehaviour, IDestructible
         if (m_burnDamageTime <= 0.0)
         {
             ClearFireEffects();
-            m_isBurning = false;
             return;
         }
 
@@ -265,6 +261,7 @@ public class ShipMan : MonoBehaviour, IDestructible
 
     private void Destroy(HitData? hit = null)
     {
+        ClearFireEffects();
         SetHealth(0.0f);
         m_health = 0.0f;
         m_container.OnDestroyed();
@@ -290,11 +287,24 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_healthPercentage = Mathf.Clamp01(health / m_health);
         SetHealthVisual(health1, true);
     }
-
+    
     public void UpdateVisual(bool triggerEffects)
     {
         if (!m_nview.IsValid()) return;
-        SetHealthVisual(GetHealthPercentage(), triggerEffects);
+        var health = GetHealthPercentage();
+        switch (m_visual)
+        {
+            case VisualType.New:
+                if (health > 0.75) triggerEffects = false;
+                break;
+            case VisualType.Worn:
+                if (health < 0.75 && health > 0.25) triggerEffects = false;
+                break;
+            case VisualType.Broken:
+                if (health < 0.25) triggerEffects = false;
+                break;
+        }
+        SetHealthVisual(health, triggerEffects);
     }
 
     private void SetHealthVisual(float health, bool triggerEffects)
@@ -306,19 +316,21 @@ public class ShipMan : MonoBehaviour, IDestructible
             m_worn.SetActive(false);
             m_broken.SetActive(false);
             m_new.SetActive(true);
+            m_visual = VisualType.New;
         }
         else if (health > 0.25)
         {
             m_new.SetActive(false);
             m_broken.SetActive(false);
             m_worn.SetActive(true);
+            m_visual = VisualType.Worn;
         }
         else
         {
             m_new.SetActive(false);
             m_worn.SetActive(false);
             m_broken.SetActive(true);
-            
+            m_visual = VisualType.Broken;
         }
     }
 

@@ -9,14 +9,14 @@ namespace Settlers.Behaviors;
 
 public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
 {
-    public Transform m_shadow;
+    public Transform m_shadow = null!;
     public float m_offset = 0.01f;
     public float m_minimumWakeVel = 5f;
-    public GameObject m_speedWakeRoot;
-    public GameObject m_wakeSoundRoot;
-    public GameObject m_inWaterSoundRoot;
+    public GameObject m_speedWakeRoot = null!;
+    public GameObject m_wakeSoundRoot = null!;
+    public GameObject m_inWaterSoundRoot = null!;
     public float m_audioFadeDuration = 2f;
-    public AudioSource m_sailSound;
+    public AudioSource m_sailSound = null!;
     public float m_sailFadeDuration = 1f;
     public GameObject m_splashEffects;
     public ParticleSystem[] m_wakeParticles;
@@ -24,8 +24,8 @@ public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
     public readonly List<KeyValuePair<AudioSource, float>> m_wakeSounds = new List<KeyValuePair<AudioSource, float>>();
     public readonly List<KeyValuePair<AudioSource, float>> m_inWaterSounds = new List<KeyValuePair<AudioSource, float>>();
     public WaterVolume m_previousWaterVolume;
-    public Rigidbody m_body;
-    public ShipAI m_shipAI;
+    public Rigidbody m_body = null!;
+    public ShipAI m_shipAI = null!;
 
     public static List<IMonoUpdater> Instances = new();
     public void Awake()

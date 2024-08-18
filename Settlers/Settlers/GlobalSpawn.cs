@@ -25,7 +25,7 @@ public static class GlobalSpawn
     {
         private static bool Prefix(SpawnSystem.SpawnData critter, Vector3 spawnPoint, bool eventSpawner)
         {
-            if (!critter.m_prefab.GetComponent<ShipAI>()) return true;
+            if (!critter.m_prefab.TryGetComponent(out ShipMan shipMan)) return true;
             spawnPoint.y = ZoneSystem.instance.m_waterLevel;
             foreach (var ship in ShipMan.m_instances)
             {
@@ -38,6 +38,11 @@ public static class GlobalSpawn
             {
                 Terminal.Log($"Spawning {critter.m_prefab.name} at {spawnPoint}");
                 Chat.instance.SendPing(spawnPoint);
+            }
+
+            if (eventSpawner)
+            {
+                shipMan.EventSpawnSetAggravated();
             }
             return false;
         }

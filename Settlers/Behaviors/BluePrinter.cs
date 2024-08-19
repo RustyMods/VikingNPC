@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BepInEx;
@@ -98,7 +97,6 @@ public class BluePrinter : MonoBehaviour
             GameObject clone = Instantiate(prefab, ghost.transform.position, ghost.transform.rotation);
             if (!clone) continue;
             clone.transform.localScale = piece.m_scale;
-            
             SetProperties(clone, piece,  data);
         }
     }

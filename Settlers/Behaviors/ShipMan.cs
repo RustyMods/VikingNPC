@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Settlers.Settlers;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
 
-public class ShipMan : MonoBehaviour, IDestructible
+public class ShipMan : MonoBehaviour, IDestructible, Hoverable
 {
     public Action? m_onDestroyed;
     public Action? m_onDamaged;
@@ -14,7 +15,7 @@ public class ShipMan : MonoBehaviour, IDestructible
     public GameObject? m_worn;
     public GameObject? m_broken;
 
-    public float m_health = SettlersPlugin._shipHealth.Value;
+    public float m_health = 5000f;
     public HitData.DamageModifiers m_damages = new HitData.DamageModifiers()
     {
         m_chop = HitData.DamageModifier.Weak,
@@ -31,17 +32,15 @@ public class ShipMan : MonoBehaviour, IDestructible
     private ShipAI m_shipAI = null!;
     private float m_burnDamageTime;
     private float m_updateBiomeTimer;
-    private float m_healthPercentage;
+    private float m_healthPercentage = 1f;
     private float m_healthRegenTimer;
     private Container m_container = null!;
     public List<Transform> m_burnObjects = new();
     private readonly List<GameObject> m_fireEffects = new();
     private bool m_isBurning;
     private VisualType m_visual = VisualType.New;
-    private enum VisualType
-    {
-        New, Worn, Broken
-    }
+    private string m_name = "$enemy_raidership";
+    private enum VisualType { New, Worn, Broken }
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
@@ -51,15 +50,24 @@ public class ShipMan : MonoBehaviour, IDestructible
         m_nview.Register<float>(nameof(RPC_HealthChanged), RPC_HealthChanged);
         m_nview.Register(nameof(RPC_CreateFragments), RPC_CreateFragments);
         m_nview.Register<float, bool>(nameof(RPC_Heal), RPC_Heal);
+        m_health = SettlersPlugin._shipHealth.Value;
         m_health += Game.m_worldLevel * Game.instance.m_worldLevelPieceHPMultiplier;
         SetHealth(m_health);
         m_biome = Heightmap.FindBiome(transform.position);
         m_container = GetComponentInChildren<Container>();
         Transform customize = gameObject.transform.Find("ship/visual/Customize");
-        foreach (Transform child in customize.Find("storage"))
+        if (customize)
         {
-            m_burnObjects.Add(child);
+            foreach (Transform child in customize.Find("storage"))
+            {
+                m_burnObjects.Add(child);
+            }
         }
+
+        Transform chest = Utils.FindChild(transform, "piece_chest");
+        Transform front = Utils.FindChild(transform, "front");
+        m_burnObjects.Add(chest);
+        m_burnObjects.Add(front);
         
         m_instances.Add(this);
     }
@@ -77,16 +85,9 @@ public class ShipMan : MonoBehaviour, IDestructible
         };
     }
 
-    public void EventSpawnSetAggravated()
-    {
-        Invoke(nameof(SetAggravated), 10f);
-    }
+    public void EventSpawnSetAggravated() => Invoke(nameof(SetAggravated), 10f);
+    private void SetAggravated() => SetSailorAggravated(BaseAI.AggravatedReason.Damage);
     
-    private void SetAggravated()
-    {
-        SetSailorAggravated(BaseAI.AggravatedReason.Damage);
-    }
-
     public void SetSailorAggravated(BaseAI.AggravatedReason reason)
     {
         if (!m_shipAI) return;
@@ -168,11 +169,8 @@ public class ShipMan : MonoBehaviour, IDestructible
         DamageText.instance.ShowText(DamageText.TextType.Heal, m_shipAI.m_body.worldCenterOfMass, hp);
     }
 
-    private float GetMaxHealth()
-    {
-        return 5000f;
-    }
-
+    private float GetMaxHealth() => SettlersPlugin._shipHealth.Value;
+    
     private void ClearFireEffects()
     {
         foreach (var effect in m_fireEffects)
@@ -216,10 +214,7 @@ public class ShipMan : MonoBehaviour, IDestructible
 
     public Heightmap.Biome GetCurrentBiome() => m_biome;
 
-    public void OnDestroy()
-    {
-        m_instances.Remove(this);
-    }
+    public void OnDestroy() => m_instances.Remove(this);
     
     public bool IsUnderWater() => Floating.IsUnderWater(transform.position, ref m_previousWaterVolume);
 
@@ -336,21 +331,23 @@ public class ShipMan : MonoBehaviour, IDestructible
 
     public float GetHealthPercentage() => !m_nview.IsValid() ? 1f : m_healthPercentage;
     
-    public void RPC_CreateFragments(long sender)
-    {
-        Destructible.CreateFragments(gameObject);
-    }
-
+    public void RPC_CreateFragments(long sender) => Destructible.CreateFragments(gameObject);
+    
     public void Damage(HitData hit)
     {
         if (!m_nview.IsValid()) return;
         m_nview.InvokeRPC(nameof(RPC_Damage), hit);
     }
 
-    public string GetHoverName()
+    public string GetHoverText()
     {
-        return "Raider Ship";
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.Append(GetHoverName());
+        stringBuilder.AppendFormat(" ({0}% $se_health)", (int)(GetHealthPercentage() * 100f));
+        return Localization.instance.Localize(stringBuilder.ToString());
     }
+
+    public string GetHoverName() => m_name;
 
     public DestructibleType GetDestructibleType() => DestructibleType.Default;
 }

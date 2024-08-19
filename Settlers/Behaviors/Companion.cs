@@ -17,7 +17,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     private static readonly int m_ownerKey = "VikingSettlerOwner".GetStableHashCode();
     private static readonly int m_ownerNameKey = "VikingSettlerOwnerName".GetStableHashCode();
     public static readonly List<Companion> m_instances = new();
-    private static readonly int Consume = Animator.StringToHash("consume");
+    private static readonly int Consume = Animator.StringToHash("eat");
     private static readonly int m_raider = "VikingRaider".GetStableHashCode();
     private static readonly int m_elf = "VikingElf".GetStableHashCode();
     
@@ -70,6 +70,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public bool m_renameable;
     private readonly int m_rename = "VikingRename".GetStableHashCode();
     private bool m_teleporting;
+    private readonly int m_sailor = "VikingSailor".GetStableHashCode();
+    private static readonly int Blocking = Animator.StringToHash("blocking");
     public override void Awake()
     {
         base.Awake();
@@ -220,10 +222,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
 
     public bool IsRaider() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_raider);
 
-    public void SetRenameable(bool enable)
-    {
-        m_nview.GetZDO().Set(m_rename, enable);
-    }
+    public void SetRenameable(bool enable) => m_nview.GetZDO().Set(m_rename, enable);
 
     public bool IsRenameable() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_rename);
     public void SetRaider(bool enable)
@@ -231,9 +230,6 @@ public class Companion : Humanoid, Interactable, TextReceiver
         m_nview.GetZDO().Set(m_raider, enable);
         if (enable) m_defeatSetGlobalKey = "defeated_vikingraider";
     }
-
-    private readonly int m_sailor = "VikingSailor".GetStableHashCode();
-    private static readonly int Blocking = Animator.StringToHash("blocking");
 
     public bool IsSailor() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_sailor);
 
@@ -258,123 +254,6 @@ public class Companion : Humanoid, Interactable, TextReceiver
         {
             m_defaultItems = raiderItems;
         }
-        else
-        {
-            List<GameObject> items = new();
-            List<string> itemNames = new();
-            var biome = m_currentBiome;
-            if (IsSailor())
-            {
-                biome = Heightmap.Biome.BlackForest;
-            }
-            switch (biome)
-            {
-                case Heightmap.Biome.BlackForest:
-                    List<List<string>> BFArmors = new()
-                    {
-                        new() { "HelmetBronze", "ArmorBronzeChest", "ArmorBronzeLegs" },
-                        new() { "HelmetTrollLeather", "ArmorTrollLeatherChest", "ArmorTrollLeatherLegs" }
-                    };
-                    List<string> BFMelee = new List<string>() { "AtgeirBronze", "SwordBronze", "KnifeCopper", "MaceBronze" };
-                    List<string> BFShields = new() { "ShieldBronzeBuckler", "ShieldBoneTower" };
-                    itemNames.Add(BFMelee[Random.Range(0, BFMelee.Count)]);
-                    itemNames.Add("FineWoodBow");
-                    itemNames.Add("CapeTrollHide");
-                    itemNames.AddRange(BFArmors[Random.Range(0, BFArmors.Count)]);
-                    itemNames.Add(BFShields[Random.Range(0, BFShields.Count)]);
-                    break;
-                case Heightmap.Biome.Swamp:
-                    List<List<string>> swampArmors = new()
-                    {
-                        new() { "HelmetIron", "ArmorIronChest", "ArmorIronLegs" },
-                        new() { "HelmetRoot", "ArmorRootChest", "ArmorRootLegs" }
-                    };
-                    List<string> swampMelee = new List<string>() { "SledgeIron", "SwordIron", "MaceIron", "Battleaxe", };
-                    List<string> swampShields = new() { "ShieldIronBuckler", "ShieldBanded", "ShieldIronTower" };
-                    itemNames.Add(swampMelee[Random.Range(0, swampMelee.Count)]);
-                    itemNames.Add("BowHuntsman");
-                    itemNames.Add("CapeTrollHide");
-                    itemNames.Add(swampShields[Random.Range(0, swampShields.Count)]);
-                    itemNames.AddRange(swampArmors[Random.Range(0, swampArmors.Count)]);
-                    break;
-                case Heightmap.Biome.Mountain:
-                    List<List<string>> mountArmors = new()
-                    {
-                        new() { "HelmetDrake", "ArmorWolfChest", "ArmorWolfLegs" },
-                        new() { "HelmetFenring", "ArmorFenringChest", "ArmorFenringLegs" }
-                    };
-                    List<string> mountMelee = new List<string>() { "SwordSilver", "MaceSilver", "FistFenrirClaw", "BattleaxeCrystal" };
-                    List<string> mountShields = new() { "ShieldSilver", "ShieldSerpentscale" };
-                    itemNames.AddRange(mountArmors[Random.Range(0, mountArmors.Count)]);
-                    itemNames.Add("CapeWolf");
-                    itemNames.Add("BowDraugrFang");
-                    itemNames.Add(mountMelee[Random.Range(0, mountMelee.Count)]);
-                    itemNames.Add(mountShields[Random.Range(0, mountShields.Count)]);
-                    break;
-                case Heightmap.Biome.Plains:
-                    List<string> plainArmor = new() { "HelmetPadded", "ArmorPaddedCuirass", "ArmorPaddedGreaves" };
-                    List<string> plainCapes = new() { "CapeLox", "CapeLinen" };
-                    List<string> plainMelee = new List<string>() { "SwordBlackmetal", "KnifeBlackmetal", "AtgeirBlackmetal", "AxeBlackMetal", "MaceNeedle" };
-                    List<string> plainShields = new() { "ShieldBlackmetal", "ShieldBlackmetalTower" };
-                    itemNames.Add(plainMelee[Random.Range(0, plainMelee.Count)]);
-                    itemNames.Add("BowDraugrFang");
-                    itemNames.Add(plainShields[Random.Range(0, plainShields.Count)]);
-                    itemNames.Add(plainCapes[Random.Range(0, plainCapes.Count)]);
-                    itemNames.AddRange(plainArmor);
-                    break;
-                case Heightmap.Biome.Mistlands:
-                    List<List<string>> mistArmors = new()
-                    {
-                        new() { "HelmetCarapace", "ArmorCarapaceChest", "ArmorCarapaceLegs" },
-                        new() { "HelmetMage", "ArmorMageChest", "ArmorMageLegs" }
-                    };
-                    List<string> mistMelee = new List<string>() { "SwordMistwalker", "AtgeirHimminAfl", "SledgeDemolisher", "KnifeSkollAndHati", "THSwordKrom" };
-                    List<string> mistRanged = new List<string>() { "BowSpineSnap", "StaffFireball", "CrossbowArbalest", "StaffShield" };
-                    List<string> mistShields = new() { "ShieldCarapaceBuckler", "ShieldCarapace" };
-                    itemNames.Add(mistRanged[Random.Range(0, mistRanged.Count)]);
-                    itemNames.Add(mistMelee[Random.Range(0, mistMelee.Count)]);
-                    itemNames.AddRange(mistArmors[Random.Range(0, mistArmors.Count)]);
-                    itemNames.Add("CapeFeather");
-                    itemNames.Add(mistShields[Random.Range(0, mistShields.Count)]);
-                    itemNames.Add("Demister");
-                    break;
-                case Heightmap.Biome.AshLands or Heightmap.Biome.DeepNorth:
-                    List<List<string>> endArmors = new()
-                    {
-                        new() { "HelmetFlametal", "ArmorFlametalChest", "ArmorFlametalLegs" },
-                        new() { "HelmetMage_Ashlands", "ArmorMageChest_Ashlands", "ArmorMageLegs_Ashlands" },
-                        new() { "HelmetAshlandsMediumHood", "ArmorAshlandsMediumChest", "ArmorAshlandsMediumlegs" }
-                    };
-                    List<string> endCapes = new() { "CapeAsh", "CapeAskvin" };
-                    List<string> endMelee = new List<string>() { "AxeBerzerkr", "THSwordSlayer", };
-                    List<string> endRanged = new List<string>() { "StaffClusterbomb", "StaffLightning", "StaffGreenRoots", "BowAshlands" };
-                    List<string> endShields = new() { "ShieldFlametal", "ShieldFlametalTower" };
-                    itemNames.Add(endRanged[Random.Range(0, endRanged.Count)]);
-                    itemNames.Add(endMelee[Random.Range(0, endMelee.Count)]);
-                    itemNames.AddRange(endArmors[Random.Range(0, endArmors.Count)]);
-                    itemNames.Add(endCapes[Random.Range(0, endCapes.Count)]);
-                    itemNames.Add(endShields[Random.Range(0, endShields.Count)]);
-                    break;
-                default:
-                    List<string> startArmors = new() {"HelmetLeather", "ArmorLeatherChest", "ArmorLeatherLegs", "CapeDeerHide"};
-                    List<string> startMelee = new List<string>() { "KnifeFlint", "SpearFlint", "AxeFlint" };
-                    List<string> startShields = new() { "ShieldWoodTower", "ShieldWood" };
-                    itemNames.AddRange(startArmors);
-                    itemNames.Add(startMelee[Random.Range(0, startMelee.Count)]);
-                    itemNames.Add(startShields[Random.Range(0, startShields.Count)]);
-                    itemNames.Add("Bow");
-                    break;
-            }
-            
-            foreach (string itemName in itemNames)
-            {
-                GameObject prefab = ZNetScene.instance.GetPrefab(itemName);
-                if (prefab == null) continue;
-                items.Add(prefab);
-            }
-            m_defaultItems = items.ToArray();
-        }
-            
     }
     private void UpdateEncumbered()
     {
@@ -458,16 +337,13 @@ public class Companion : Humanoid, Interactable, TextReceiver
         {
             if (!collider.attachedRigidbody) continue;
             collider.attachedRigidbody.TryGetComponent(out ItemDrop component);
-            // ItemDrop component = collider.attachedRigidbody.GetComponent<ItemDrop>();
             collider.attachedRigidbody.gameObject.TryGetComponent(out FloatingTerrainDummy floatingTerrainDummy);
-            // FloatingTerrainDummy? floatingTerrainDummy = collider.attachedRigidbody.gameObject.GetComponent<FloatingTerrainDummy>();
             if (component == null && floatingTerrainDummy != null)
             {
                 if (floatingTerrainDummy.m_parent.gameObject.TryGetComponent(out ItemDrop floatingItemDrop))
                 {
                     component = floatingItemDrop;
                 }
-                // component = floatingTerrainDummy.m_parent.gameObject.GetComponent<ItemDrop>();
             }
             if (component == null || !component.m_autoPickup || !component.m_nview.IsValid()) continue;
             if (component.m_itemData.GetWeight() + GetWeight() > GetMaxCarryWeight()) continue;
@@ -550,7 +426,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         ItemDrop.ItemData currentWeapon = GetCurrentWeapon();
         if (currentWeapon == null || (!currentWeapon.HaveSecondaryAttack() && !currentWeapon.HavePrimaryAttack())) return false;
 
-        bool secondary = currentWeapon.HavePrimaryAttack() && currentWeapon.HaveSecondaryAttack() && Random.value > 0.5 || currentWeapon.HaveSecondaryAttack();
+        bool secondary = currentWeapon.HaveSecondaryAttack() && Random.value > 0.5;
         if (currentWeapon.m_shared.m_skillType is Skills.SkillType.Spears) secondary = false;
         
         if (m_currentAttack != null)
@@ -655,33 +531,9 @@ public class Companion : Humanoid, Interactable, TextReceiver
         }
     }
 
-    // public override void DamageArmorDurability(HitData hit)
-    // {
-    //     if (IsRaider() || IsElf()) return;
-    //     try
-    //     {
-    //         List<ItemDrop.ItemData> itemDataList = new();
-    //         if (m_chestItem != null) itemDataList.Add(m_chestItem);
-    //         if (m_legItem != null) itemDataList.Add(m_leftItem);
-    //         if (m_helmetItem != null) itemDataList.Add(m_helmetItem);
-    //         if (m_shoulderItem != null) itemDataList.Add(m_shoulderItem);
-    //         if (itemDataList.Count == 0) return;
-    //         float num = hit.GetTotalPhysicalDamage() + hit.GetTotalElementalDamage();
-    //         if (num <= 0.0) return;
-    //         int index = Random.Range(0, itemDataList.Count);
-    //         var itemData = itemDataList[index];
-    //         itemData.m_durability = Mathf.Max(0.0f, itemData.m_durability - num);
-    //     }
-    //     catch
-    //     {
-    //         //
-    //     }
-    // }
-
     public override bool ToggleEquipped(ItemDrop.ItemData item)
     {
         if (!item.IsEquipable()) return false;
-        // if (InAttack()) return true;
         if (item.m_shared.m_equipDuration <= 0.0)
         {
             if (IsItemEquiped(item)) UnequipItem(item);
@@ -995,6 +847,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         }
 
         if (item.m_itemData.m_shared.m_food > 0.0) EatFood(item.m_itemData);
+        m_companionTalk.QueueSay(FoodSay.GetConsumeSay(item.m_itemData.m_shared.m_name),"eat", null);
     }
 
     private void UpdateFood(float dt, bool forceUpdate)
@@ -1067,6 +920,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
                 m_fedDuration = item.m_shared.m_foodBurnTime;
                 ResetFeedingTimer();
                 m_animator.SetTrigger(Consume);
+                m_companionTalk.QueueSay(FoodSay.GetConsumeSay(consumedItem.m_shared.m_name),"eat", null);
                 break;
             }
         }
@@ -1302,10 +1156,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
     }
 
     private float GetEitr() => m_eitr;
-    public override float GetMaxEitr()
-    {
-        return IsRaider() || IsElf() || IsSailor() ? 9999f : m_maxEitr;
-    }
+    public override float GetMaxEitr() => IsRaider() || IsElf() || IsSailor() ? 9999f : m_maxEitr;
+    
     public override void UseEitr(float eitr)
     {
         if (IsRaider() || IsElf()) return;
@@ -1568,6 +1420,15 @@ public class Companion : Humanoid, Interactable, TextReceiver
         }
         UpdateAttach();
         ResetCloth();
+
+        if (m_attachedToShip)
+        {
+            m_companionTalk.QueueSay(new List<string>()
+            {
+                "$npc_attach_ship_say_1", "$npc_attach_ship_say_2", "$npc_attach_ship_say_3", "$npc_attach_ship_say_4", "$npc_attach_ship_say_5",
+                "$npc_attach_ship_say_6", "$npc_attach_ship_say_7", "$npc_attach_ship_say_8", "$npc_attach_ship_say_9", "$npc_attach_ship_say_10"
+            }, "", null);
+        }
     }
 
     // public override bool IsDead()
@@ -1638,7 +1499,6 @@ public class Companion : Humanoid, Interactable, TextReceiver
         {
             if (CompanionAI.m_occupiedSaddles.ContainsKey(m_attachedSadle))
             {
-                // m_attachedSadle.m_tambable.m_commandable = false;
                 m_attachedSadle.m_monsterAI.SetFollowTarget(null);
                 m_attachedSadle.m_monsterAI.SetPatrolPoint();
                 if (m_attachedSadle.m_monsterAI.m_nview.IsOwner())
@@ -2098,13 +1958,11 @@ public class Companion : Humanoid, Interactable, TextReceiver
         private static void Postfix(Player __instance)
         {
             if (__instance.m_guardianSE == null) return;
-            int count = 0;
             foreach (Companion companion in m_instances)
             {
                 if (!companion.IsTamed()) continue;
                 if (Vector3.Distance(__instance.transform.position, companion.transform.position) > 10f) continue;
                 companion.GetSEMan().AddStatusEffect(__instance.m_guardianSE.NameHash(), true);
-                ++count;
             }
         }
     }
@@ -2113,7 +1971,6 @@ public class Companion : Humanoid, Interactable, TextReceiver
     {
         public ActionType m_type;
         public ItemDrop.ItemData? m_item;
-        // public string m_progressText = "";
         public float m_time;
         public float m_duration;
         public string m_animation = "";

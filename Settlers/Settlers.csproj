@@ -139,12 +139,14 @@
         <Compile Include="Managers\ItemManager.cs" />
         <Compile Include="Managers\LocalizationManager.cs" />
         <Compile Include="Managers\LocationManager.cs" />
+        <Compile Include="Managers\ZDOManager.cs" />
         <Compile Include="Plugin.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Settlers\BlockingAI.cs" />
         <Compile Include="Settlers\CreateAssets.cs" />
         <Compile Include="Settlers\Commands.cs" />
         <Compile Include="Settlers\Emoting.cs" />
+        <Compile Include="Settlers\FoodSay.cs" />
         <Compile Include="Settlers\GlobalSpawn.cs" />
         <Compile Include="Settlers\HairColors.cs" />
         <Compile Include="Settlers\Harpooning.cs" />

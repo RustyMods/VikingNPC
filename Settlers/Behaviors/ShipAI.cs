@@ -68,7 +68,11 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         m_sailObject = Utils.FindChild(transform, "Sail").gameObject;
         m_mastObject = Utils.FindChild(transform, "Mast").gameObject;
         m_rudderObject = Utils.FindChild(transform, "rudder").gameObject;
-        m_oarsObject = Utils.FindChild(transform, "oars").gameObject;
+        var oars = Utils.FindChild(transform, "oars");
+        if (oars != null)
+        {
+            m_oarsObject = oars.gameObject;
+        }
         m_floatCollider = transform.Find("FloatCollider").GetComponent<BoxCollider>();
 
         m_nview = GetComponent<ZNetView>();

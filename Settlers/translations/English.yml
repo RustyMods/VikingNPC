@@ -9,27 +9,28 @@ hud_follow: 'Follow'
 hud_stay: 'Stay'
 name_vikingsettler: 'Viking Settler'
 purchase_settler_desc: 'Purchase tamed viking settler'
+enemy_raidership: "Raider Ship"
 
 msg_settlerfollows: "warriors have heeded your call!"
 msg_repairship: "Not enough material to fix ship"
 
-npc_settler_random_talk_1: 'Hail, traveler!'
-npc_settler_random_talk_2: 'The mist of the fjords cloaks us like a shroud'
-npc_settler_random_talk_3: 'Another dawn in Midgard, land of mortals'
-npc_settler_random_talk_4: 'Beware the lurking fulings, creatures of the dark'
-npc_settler_random_talk_5: 'Hast thou witnessed that marvel?'
-npc_settler_random_talk_6: 'A fleet-footed deer flees to the woods'
-npc_settler_random_talk_7: 'Approach, wayfarer from distant lands'
-npc_settler_random_talk_8: "Your hands are nimble as a troll's, friend"
+npc_settler_random_talk_1: 'Hail, traveler! Did you bring ale or just stories?'
+npc_settler_random_talk_2: 'The mist of the fjords cloaks us like a shroud... or maybe it is just the smell of troll sweat.'
+npc_settler_random_talk_3: 'Another dawn in Midgard, land of mortals... and mediocre mead.'
+npc_settler_random_talk_4: 'Beware the lurking fulings, creatures of the dark... and terrible table manners.'
+npc_settler_random_talk_5: 'Hast thou witnessed that marvel? The ale mug that never empties!'
+npc_settler_random_talk_6: 'A fleet-footed deer flees to the woods... probably to avoid hearing my bawdy jokes.'
+npc_settler_random_talk_7: 'Approach, wayfarer from distant lands! Let us swap tales and insults.'
+npc_settler_random_talk_8: "Your hands are nimble as a troll's, friend... but can you hold your drink like one?"
   
-npc_settler_in_base_talk_1: 'Who dares enter these hallowed halls?'
-npc_settler_in_base_talk_2: 'Did I forget to extinguish the hearth fire?'
-npc_settler_in_base_talk_3: 'A scent of mischief lingers in the air'
-npc_settler_in_base_talk_4: "Is that where you'll rest your head, under this roof of shields?"
-npc_settler_in_base_talk_5: 'Behold, a stronghold fit for a warrior!'
-npc_settler_in_base_talk_6: 'What business have you within these walls?'
-npc_settler_in_base_talk_7: 'Pay me no mind, I merely observe the surroundings'
-npc_settler_in_base_talk_8: 'By the Norns, what curious artifact is this?'
+npc_settler_in_base_talk_1: 'Who dares enter these hallowed halls? Hope you brought more than just an appetite.'
+npc_settler_in_base_talk_2: 'Did I forget to extinguish the hearth fire? Or was it the heat from our last feast?'
+npc_settler_in_base_talk_3: 'A scent of mischief lingers in the air... or maybe it is just the smell of unwashed socks.'
+npc_settler_in_base_talk_4: "Is that where you'll rest your head, under this roof of shields? Watch out for the loose thatch, it's a hazard."
+npc_settler_in_base_talk_5: 'Behold, a stronghold fit for a warrior! Just mind the cobwebs and the occasional rat.'
+npc_settler_in_base_talk_6: 'What business have you within these walls? Looking for trouble or just lost your way to the outhouse?'
+npc_settler_in_base_talk_7: 'Pay me no mind, I merely observe the surroundings... and occasionally partake in questionable activities.'
+npc_settler_in_base_talk_8: 'By the Norns, what curious artifact is this? Or is it just a misplaced undergarment?'
 
 npc_settler_random_greet_1: 'Skal, fellow warrior'
 npc_settler_random_greet_2: 'Hail and well met, comrade'
@@ -79,3 +80,42 @@ npc_sailor_thief_7: "Jormungandr's fury awaits the one who absconds with our loo
 npc_sailor_thief_8: "Freyja's tears shall guide us to recover our stolen bounty!"
 npc_sailor_thief_9: "Even the gods tremble at the retribution of viking sailors scorned!"
 npc_sailor_thief_10: "A viking's oath: blood for blood, gold for gold - the thief shall pay!"
+
+npc_attach_ship_say_1: "Hold on tight, we're about to find out if I have sea legs or just a strong grip!"
+npc_attach_ship_say_2: "If we end up as serpent bait, I'll hunt you from Nilfheim to Asgard!"
+npc_attach_ship_say_3: "Hold fast, like Thor gripping Mjölnir in a storm!"
+npc_attach_ship_say_4: "If we meet sea monsters, I hope your battle cries are louder than your screams!"
+npc_attach_ship_say_5: "May Odin guide us through the waves, or at least send a friendly seagull as a sign!"
+npc_attach_ship_say_6: "If we reach distant shores, I'll carve our saga on the nearest rune stone... or at least draw a stick figure of us sailing!"
+npc_attach_ship_say_7: "By Freyja's cats, let's hope this ship doesn't leak like a mead barrel with a hole!"
+npc_attach_ship_say_8: "If we plunder riches, I call dibs on the shiniest loot... or at least a shiny seashell!"
+npc_attach_ship_say_9: "If we end up in Valhalla today, I hope they serve better ale than we brought!"
+npc_attach_ship_say_10: "May the winds be at our backs and the sea serpents asleep, for once!"
+
+npc_settler_shiptalk_1: "By the hammer of Thor, I think we took a wrong turn!"
+npc_settler_shiptalk_2: "Thor's goats! Did you see that sea serpent wink at us?"
+npc_settler_shiptalk_3: "Aye, the worst is having salt stuck between your cheeks... it's like sitting on a bed of nettles!"
+npc_settler_shiptalk_4: "Loki's mischief! I do not feel so good... maybe I shouldn't have eaten that questionable fish stew."
+npc_settler_shiptalk_5: "By the mead-soaked halls of Valhalla, I feel like a beached serpent!"
+npc_settler_shiptalk_6: "Skál! To the joys of seafaring and the perils of seasickness!"
+npc_settler_shiptalk_7: "May Freyja's grace guide us through these treacherous waters... or at least keep the sea monsters at bay!"
+npc_settler_shiptalk_8: "Hail, sea spray and salty air! Let's hope our ship doesn't decide to take a swim without us!"
+
+consume_say_1: "tastes better than a shieldmaiden's attention"
+consume_say_2: "smells as good as a roasting greydwarf"
+consume_say_3: "makes my entrails burn with joy"
+consume_say_4: "melts on my tongue like a surtling in water"
+consume_say_5: "is fit for a last meal"
+
+item_raspberries_say: "are tart as the winds of Valhalla"
+item_boar_meat_cooked_say: "a feast fit for a warrior"
+item_honey_say: "is sweet as the mead of Odin's hall"
+item_deer_meat_cooked_say: "is tough as a battle-worn shield"
+item_necktailgrilled_say: "tastes of the spoils of conquest"
+item_blueberries_say: "are a gift from the gods themselves"
+item_carrot_say: "is crunchy like the snow underfoot"
+item_deerstew_say: "is balanced like the scales of fate"
+item_boarjerky_say: "is dry as the desert of Niflheim"
+item_queensjam_say: "is fit for a shieldmaiden's table"
+item_fish_cooked_say: "is a bounty from the seas of Midgard"
+item_pukeberries_say: "is a taste that stirs the wrath of Thor"

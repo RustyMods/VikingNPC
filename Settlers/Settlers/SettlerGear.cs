@@ -111,8 +111,6 @@ public static class SettlerGear
         LoadFiles();
     }
     
-    private static void UpdateServerSettlerGear()
-    {
-        ServerSettlerGear.Value = m_settlerStartGear;
-    }
+    private static void UpdateServerSettlerGear() => ServerSettlerGear.Value = m_settlerStartGear;
+    
 }

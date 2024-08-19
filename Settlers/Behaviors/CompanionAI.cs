@@ -113,6 +113,7 @@ public class CompanionAI : MonsterAI
             return base.UpdateAI(dt);
         }
 
+        if (m_companion.InAttack()) return false;
         UpdateTarget(dt);
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
@@ -397,18 +398,24 @@ public class CompanionAI : MonsterAI
         if (m_searchAttachTimer < 5f) return false;
         m_searchAttachTimer = 0.0f;
         var follow = GetFollowTarget();
+        
         if (!m_companion.m_attached && follow != null)
         {
             Chair? chair = FindNearestChair();
 
             if (chair != null)
             {
-                if (!MoveTo(dt, chair.transform.position, 10f, true)) return true;
-                LookAt(chair.transform.position);
-                chair.Interact(m_companion, false, false);
-                return true;
+                if (MoveTo(dt, chair.transform.position, 10f, true))
+                {
+                    LookAt(chair.transform.position);
+                    chair.Interact(m_companion, false, false);
+                    return true;
+                }
             }
-
+        }
+        
+        if (!m_companion.m_attached && follow != null)
+        {
             if (SettlersPlugin._settlersCanRide.Value is SettlersPlugin.Toggle.Off) return false;
             Sadle? saddle = FindNearestSaddle();
             if (saddle == null) return false;
@@ -416,7 +423,6 @@ public class CompanionAI : MonsterAI
             LookAt(saddle.transform.position);
             saddle.Interact(m_companion, false, false);
             return true;
-            
         }
 
         if (m_companion.m_attached)
@@ -468,6 +474,7 @@ public class CompanionAI : MonsterAI
             if (!sadle) continue;
             if (m_occupiedSaddles.ContainsKey(sadle)) continue;
             if (!sadle.m_nview.GetZDO().GetBool(ZDOVars.s_haveSaddleHash)) continue;
+            if (sadle.HaveValidUser()) continue;
             var distance = Vector3.Distance(sadle.transform.position, transform.position);
             if (distance < num1 || closestSaddle == null)
             {
@@ -654,8 +661,9 @@ public class CompanionAI : MonsterAI
         {
             if (character is not Companion companion) return true;
             if (!__instance.m_character.IsTamed()) return false;
+            Debug.LogWarning("trying to interact with saddle as companion");
             if (!__instance.m_nview.GetZDO().GetBool(ZDOVars.s_haveSaddleHash)) return false;
-            
+            Debug.LogWarning("attach start");
             companion.AttachStart(__instance.m_attachPoint, __instance.m_character.gameObject, false, false, false, __instance.m_attachAnimation, __instance.m_detachOffset, null);
             m_occupiedSaddles[__instance] = companion;
             companion.m_attachedSadle = __instance;
@@ -684,18 +692,6 @@ public class CompanionAI : MonsterAI
             __instance.m_monsterAI.SetPatrolPoint();
             __instance.m_nview.GetZDO().Set(ZDOVars.s_follow, "");
             
-        }
-    }
-
-    [HarmonyPatch(typeof(Sadle), nameof(Sadle.RPC_RequestControl))]
-    private static class Sadle_RPC_RequestControl_Patch
-    {
-        private static void Prefix(Sadle __instance)
-        {
-            if (m_occupiedSaddles.TryGetValue(__instance, out Companion companion))
-            {
-                companion.AttachStop();
-            }
         }
     }
 
@@ -734,6 +730,19 @@ public class CompanionAI : MonsterAI
             {
                 __result = true;
             }
+        }
+    }
+
+    [HarmonyPatch(typeof(Sadle), nameof(Sadle.RPC_RequestRespons))]
+    private static class Sadle_RPC_RequestResponse_Patch
+    {
+        private static void Postfix(Sadle __instance, bool granted)
+        {
+            if (!granted) return;
+    
+            if (!m_occupiedSaddles.TryGetValue(__instance, out Companion companion)) return;
+            
+            companion.AttachStop();
         }
     }
 }

@@ -26,12 +26,8 @@ public static class GlobalSpawn
         private static bool Prefix(SpawnSystem.SpawnData critter, Vector3 spawnPoint, bool eventSpawner)
         {
             if (!critter.m_prefab.TryGetComponent(out ShipMan shipMan)) return true;
+            if (ShipMan.m_instances.Count > 1 && !eventSpawner) return false;
             spawnPoint.y = ZoneSystem.instance.m_waterLevel;
-            foreach (var ship in ShipMan.m_instances)
-            {
-                var distance = Vector3.Distance(ship.transform.position, spawnPoint);
-                if (distance < 50f) return false;
-            }
             if (!ZoneSystem.instance.IsZoneLoaded(spawnPoint)) return false;
             GameObject gameObject = Object.Instantiate(critter.m_prefab, spawnPoint, Quaternion.identity);
             if (Terminal.m_showTests && Terminal.m_testList.ContainsKey("spawns"))

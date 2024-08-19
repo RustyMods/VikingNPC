@@ -49,6 +49,7 @@ public static class AssetMan
                 m_registeredSettlerPurchase = true;
             }
             CreateBaseRaiderShip();
+            CreateAshlandRaiderShip();
         }
     }
 
@@ -65,7 +66,7 @@ public static class AssetMan
     
     private static void CreateSpawners()
     {
-        GameObject? prefab = ZNetScene.instance.GetPrefab("Spawner_Draugr");
+        GameObject? prefab = ZNetScene.instance.GetPrefab("Spawner_Skeleton_respawn_30");
         if (!prefab) return;
         CreateSpawner(prefab, "VikingRaider");
         CreateSpawner(prefab, "VikingSettler");
@@ -79,6 +80,7 @@ public static class AssetMan
         clone.name = $"Spawner_{creature}";
         if (!clone.TryGetComponent(out CreatureSpawner spawnArea)) return;
         spawnArea.m_creaturePrefab = prefab;
+        
         RegisterToZNetScene(clone);
     }
     
@@ -234,6 +236,113 @@ public static class AssetMan
         GlobalSpawn.AddToSpawnList(RaiderShip, "Raider Ship Spawn Settings", Heightmap.Biome.None, SettlersPlugin.Toggle.On, 4000f, 25f, 50f);
     }
     
+    private static void CreateAshlandRaiderShip()
+    {
+        GameObject VikingShip = ZNetScene.instance.GetPrefab("VikingShip_Ashlands");
+        if (!VikingShip) return;
+        if (!VikingShip.TryGetComponent(out Ship ship)) return;
+        GameObject RaiderShip = Object.Instantiate(VikingShip, SettlersPlugin._Root.transform, false);
+        RaiderShip.name = "RaiderShip_Ashlands";
+        
+        Object.Destroy(RaiderShip.GetComponent<Ship>());
+        Object.Destroy(RaiderShip.GetComponent<Piece>());
+
+        if (!RaiderShip.TryGetComponent(out WearNTear wearNTear)) return;
+        ShipMan ShipMan = RaiderShip.AddComponent<ShipMan>();
+        ShipMan.m_broken = wearNTear.m_broken;
+        ShipMan.m_new = wearNTear.m_new;
+        ShipMan.m_worn = wearNTear.m_worn;
+        ShipMan.m_destroyedEffect = wearNTear.m_destroyedEffect;
+        ShipMan.m_destroyNoise = wearNTear.m_destroyNoise;
+        ShipMan.m_hitEffect = wearNTear.m_hitEffect;
+        Object.Destroy(wearNTear);
+        Object.Destroy(RaiderShip.transform.Find("ControlGui").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/unused").gameObject);
+        
+        Object.Destroy(Utils.FindChild(RaiderShip.transform, "Sail").gameObject);
+        Transform sail = Utils.FindChild(RaiderShip.transform, "Sail");
+        sail.gameObject.SetActive(true);
+
+        Transform customize = RaiderShip.transform.Find("ship/visual/Customize");
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTen2_beam").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTen2 (1)").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentRight").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentHolders").gameObject);
+        Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentHolders (1)").gameObject);
+        customize.transform.position += new Vector3(0f, 1.427f, 0f);
+        customize.transform.localScale *= 2f;
+        customize.gameObject.SetActive(true);
+        
+        Transform storage = customize.transform.Find("storage");
+        foreach (Transform child in storage)
+        {
+            if (child.name.StartsWith("Shield"))
+            {
+                Object.Destroy(child.gameObject);
+            }
+        }
+        
+        ShipAI component = RaiderShip.AddComponent<ShipAI>();
+        component.m_waterImpactEffect = ship.m_waterImpactEffect;
+        component.m_rudderValue = ship.m_rudderValue;
+        
+        Transform interactive = RaiderShip.transform.Find("interactive");
+
+        Object.Destroy(interactive.Find("sit_box_ (4)/box").gameObject);
+
+        foreach (Chair chair in RaiderShip.GetComponentsInChildren<Chair>(true))
+        {
+            if (chair.name != "sit_box_ (4)")
+            {
+                component.m_attachPoints.Add(chair.m_attachPoint);
+            }
+            if (chair.TryGetComponent(out BoxCollider collider))
+            {
+                Object.Destroy(collider);
+            }
+            
+            Object.Destroy(chair);
+        }
+    
+        Object.Destroy(interactive.Find("sit_box (1)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (2)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (3)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (4)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (5)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (6)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (7)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (8)/box").gameObject);
+        Object.Destroy(interactive.Find("sit_box (9)/box").gameObject);
+        
+        Object.Destroy(interactive.Find("controls/box").gameObject);
+        Object.Destroy(interactive.Find("controls/rudder_button").gameObject);
+        
+        Object.Destroy(RaiderShip.transform.Find("Hides_Plane.004").gameObject);
+
+        ShipEffects shipEffects = RaiderShip.GetComponentInChildren<ShipEffects>();
+        RaiderShipEffects raiderShipEffects = shipEffects.gameObject.AddComponent<RaiderShipEffects>();
+        raiderShipEffects.m_shadow = shipEffects.m_shadow;
+        raiderShipEffects.m_offset = shipEffects.m_offset;
+        raiderShipEffects.m_minimumWakeVel = shipEffects.m_minimumWakeVel;
+        raiderShipEffects.m_speedWakeRoot = shipEffects.m_speedWakeRoot;
+        raiderShipEffects.m_wakeSoundRoot = shipEffects.m_wakeSoundRoot;
+        raiderShipEffects.m_inWaterSoundRoot = shipEffects.m_inWaterSoundRoot;
+        raiderShipEffects.m_audioFadeDuration = shipEffects.m_audioFadeDuration;
+        raiderShipEffects.m_sailSound = shipEffects.m_sailSound;
+        raiderShipEffects.m_sailFadeDuration = shipEffects.m_sailFadeDuration;
+        raiderShipEffects.m_splashEffects = shipEffects.m_splashEffects;
+        raiderShipEffects.m_wakeParticles = shipEffects.m_wakeParticles;
+        raiderShipEffects.m_sailBaseVol = shipEffects.m_sailBaseVol;
+
+        StatusEffect burning = ObjectDB.instance.GetStatusEffect(SEMan.s_statusEffectBurning);
+        ShipMan.m_fireEffect = burning.m_startEffects;
+        
+        Object.Destroy(shipEffects);
+        RegisterToZNetScene(RaiderShip);
+        // GlobalSpawn.AddToSpawnList(RaiderShip, "Ashland Raider Ship Spawn Settings", Heightmap.Biome.None, SettlersPlugin.Toggle.On, 4000f, 25f, 50f);
+    }
+    
     private static GameObject? CreateBaseRaider()
     {
         GameObject player = ZNetScene.instance.GetPrefab("Player");
@@ -281,10 +390,8 @@ public static class AssetMan
 
     private static void SetZNetView(GameObject prefab)
     {
-        if (prefab.TryGetComponent(out ZNetView zNetView))
-        {
-            zNetView.m_persistent = true;
-        }
+        if (!prefab.TryGetComponent(out ZNetView zNetView)) return;
+        zNetView.m_persistent = true;
     }
 
     private static void DestroyPlayerComponents(GameObject prefab)
@@ -432,7 +539,7 @@ public static class AssetMan
         raiderAI.m_pathAgentType = Pathfinding.AgentType.Humanoid;
         raiderAI.m_moveMinAngle = 90f;
         raiderAI.m_smoothMovement = true;
-        raiderAI.m_jumpInterval = 10f;
+        raiderAI.m_jumpInterval = 30f;
         raiderAI.m_randomCircleInterval = 2f;
         raiderAI.m_randomMoveInterval = 30f;
         raiderAI.m_randomMoveRange = 3f;
@@ -530,6 +637,18 @@ public static class AssetMan
             "$npc_settler_aggravated_7",
             "$npc_settler_aggravated_8",
         };
+        npcTalk.m_shipTalk = new List<string>()
+        {
+            "$npc_settler_shiptalk_1",
+            "$npc_settler_shiptalk_2",
+            "$npc_settler_shiptalk_3",
+            "$npc_settler_shiptalk_4",
+            "$npc_settler_shiptalk_5",
+            "$npc_settler_shiptalk_6",
+            "$npc_settler_shiptalk_7",
+            "$npc_settler_shiptalk_8",
+        };
+        
         npcTalk.m_randomGreetFX = new EffectList()
         {
             m_effectPrefabs = new[]

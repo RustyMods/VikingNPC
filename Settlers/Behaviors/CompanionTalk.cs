@@ -20,6 +20,7 @@ public class CompanionTalk : MonoBehaviour
     public List<string> m_randomGreets = new List<string>();
     public List<string> m_randomGoodbye = new List<string>();
     public List<string> m_aggravated = new List<string>();
+    public List<string> m_shipTalk = new();
     public EffectList m_randomTalkFX = new EffectList();
     public EffectList m_randomGreetFX = new EffectList();
     public EffectList m_randomGoodbyeFX = new EffectList();
@@ -33,10 +34,10 @@ public class CompanionTalk : MonoBehaviour
     public Player? m_targetPlayer;
     public bool m_seeTarget;
     public bool m_hearTarget;
+    public float m_shipTalkTimer;
+    private static float m_lastShipTalk;
     private readonly Queue<NpcTalk.QueuedSay> m_queuedTexts = new Queue<NpcTalk.QueuedSay>();
-
     private readonly List<string> m_greetEmotes = new() { "emote_wave", "emote_bow" };
-
     private readonly List<string> m_randomEmote = new()
     {
         "emote_dance", "emote_despair", "emote_cry", "emote_point", "emote_flex", "emote_challenge", "emote_cheer",
@@ -44,6 +45,7 @@ public class CompanionTalk : MonoBehaviour
     };
 
     private bool m_isSitting;
+    private static readonly int EmoteSit = Animator.StringToHash("emote_sit");
 
     public void Start()
     {
@@ -60,7 +62,7 @@ public class CompanionTalk : MonoBehaviour
     {
         if (m_companion.IsRaider() || m_companion.IsElf() || m_companion.IsSailor()) return true;
         return m_companionAI.m_treeTarget == null && m_companionAI.m_rockTarget == null &&
-               m_companionAI.m_fishTarget == null && !m_companion.m_attached && m_companionAI.m_repairPiece == null;
+               m_companionAI.m_fishTarget == null && m_companionAI.m_repairPiece == null;
     }
 
     public void LookTowardsTarget()
@@ -99,8 +101,22 @@ public class CompanionTalk : MonoBehaviour
             var followTarget = m_companionAI.GetFollowTarget();
             if (followTarget == null || Vector3.Distance(followTarget.transform.position, transform.position) > 10f)
             {
-                m_animator.ResetTrigger("emote_sit");
+                m_animator.ResetTrigger(EmoteSit);
                 m_isSitting = false;
+            }
+        }
+
+        if (m_companion.IsAttachedToShip())
+        {
+            m_shipTalkTimer += Time.deltaTime;
+            if (m_shipTalkTimer > 30f)
+            {
+                if (Time.time - m_lastShipTalk > 30f)
+                {
+                    m_shipTalkTimer = 0.0f;
+                    QueueSay(m_shipTalk, "", null);
+                    m_lastShipTalk = Time.time;
+                }
             }
         }
 
@@ -168,8 +184,6 @@ public class CompanionTalk : MonoBehaviour
         if (trigger == "emote_sit") m_isSitting = true;
     }
 
-    public bool InPlayerBase()
-    {
-        return EffectArea.IsPointInsideArea(transform.position, EffectArea.Type.PlayerBase, 30f);
-    }
+    public bool InPlayerBase() => EffectArea.IsPointInsideArea(transform.position, EffectArea.Type.PlayerBase, 30f);
+    
 }

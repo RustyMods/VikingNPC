@@ -13,7 +13,7 @@ namespace Settlers.Managers;
 public static class BlueprintManager
 {
     public static GameObject m_terrainObject = null!;
-    public static GameObject m_blueprintObject = null!;
+    private static GameObject m_blueprintObject = null!;
     private static readonly List<BlueprintData> m_data = new();
     
     public static List<BlueprintData> GetBiomeBlueprints(Heightmap.Biome biome)
@@ -256,7 +256,7 @@ public static class BlueprintManager
         }
         public class ContainerData
         {
-            public List<DropData> m_drops = new();
+            public readonly List<DropData> m_drops = new();
             public int m_min = 3;
             public int m_max = 8;
             public bool m_oneOfEach;
@@ -485,13 +485,18 @@ public static class BlueprintManager
         public Quaternion m_rotation = Quaternion.identity;
         public Vector3 m_scale = Vector3.one;
         public string m_data = "";
-
-        public ZPackage Deserialize()
-        {
-            ZPackage pkg = new ZPackage();
-            pkg.Write(m_data);
-            return pkg;
-        }
+        // public ZPackage? Deserialize() => m_data == "" ? null : new(m_data);
+        //
+        // public ZDO? GetZDO()
+        // {
+        //     var pkg = Deserialize();
+        //     if (pkg == null) return null;
+        //     // var data = new FakeZDO.ZDOData();
+        //     // data.Load(pkg);
+        //     var zdo = new ZDO();
+        //     zdo.Load(pkg, 1);
+        //     return zdo;
+        // }
     }
 
     public class SnapPoint

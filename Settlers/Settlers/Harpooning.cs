@@ -7,7 +7,6 @@ namespace Settlers.Settlers;
 public static class Harpooning
 {
     private static float m_pullTo = 1f;
-    private static float m_pullSpeed = 500f;
 
     [HarmonyPatch(typeof(SE_Harpooned), nameof(SE_Harpooned.UpdateStatusEffect))]
     private static class SE_Harpooned_UpdateStatusEffect_Patch

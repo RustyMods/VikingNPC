@@ -27,7 +27,7 @@ public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
     public Rigidbody m_body = null!;
     public ShipAI m_shipAI = null!;
 
-    public static List<IMonoUpdater> Instances = new();
+    public static readonly List<IMonoUpdater> Instances = new();
     public void Awake()
     {
         ZNetView componentInParent = GetComponentInParent<ZNetView>();
@@ -77,12 +77,12 @@ public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
 
     public void CustomFixedUpdate(float deltaTime)
     {
-        throw new System.NotImplementedException();
+        
     }
 
     public void CustomUpdate(float deltaTime, float time)
     {
-        throw new System.NotImplementedException();
+        
     }
 
     public void CustomLateUpdate(float deltaTime)

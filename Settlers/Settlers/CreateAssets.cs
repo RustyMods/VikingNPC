@@ -116,7 +116,7 @@ public static class AssetMan
         SetZNetView(human);
         Companion companion = human.AddComponent<Companion>();
         SetCompanionValues(human, ref companion, component);
-        companion.m_renameable = true;
+        companion.m_renamable = true;
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);

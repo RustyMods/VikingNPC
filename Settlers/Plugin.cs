@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.1.0";
+        internal const string ModVersion = "0.1.1";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -52,6 +52,11 @@ namespace Settlers
         public static ConfigEntry<string> _maleNames = null!;
         public static ConfigEntry<string> _femaleNames = null!;
         public static ConfigEntry<string> _lastNames = null!;
+
+        public static ConfigEntry<string> _elfMaleNames = null!;
+        public static ConfigEntry<string> _elfFemaleNames = null!;
+        public static ConfigEntry<string> _elfLastNames = null!;
+
         public static ConfigEntry<float> _baseMaxCarryWeight = null!;
         private static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
         private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
@@ -76,6 +81,8 @@ namespace Settlers
         public static ConfigEntry<string> _repairShipMat = null!;
         public static ConfigEntry<int> _repairShipValue = null!;
         public static ConfigEntry<float> _costModifier = null!;
+
+        public static ConfigEntry<Toggle> _elfTamable = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -98,6 +105,7 @@ namespace Settlers
             _makeAllUnfollowKey = config("5 - Settlers", "Make All Unfollow Key", KeyCode.None, "Set the key that will make all tamed settlers unfollow, if they are following");
             _addMinimapPin = config("5 - Settlers", "Add Pin", Toggle.On, "If on, when settler is following a pin will be added on the minimap to track them");
             _ownerLock = config("5 - Settlers", "Inventory Locked", Toggle.Off, "If on, only owner can access settler inventory");
+            _elfTamable = config("5 - Settlers", "Tamable Elves", Toggle.Off, "If on, elves are also tamable");
             
             _locationEnabled = config("3 - Locations", "Enabled", Toggle.On, "If on, blueprint locations will generate");
             _quantity = config("3 - Locations", "Quantity", 600, "Set amount of blueprint locations to generate");
@@ -150,14 +158,19 @@ namespace Settlers
             _maleNames = config("Names", "Male", string.Join(":", m_maleFirstNames), "List of first names seperated by :");
             _femaleNames = config("Names", "Female", string.Join(":", m_femaleFirstNames), "List out first names seperated by :");
             _lastNames = config("Names", "Last", string.Join(":", m_lastNames), "List of last names seperated by :");
+            
+            _elfMaleNames = config("Names", "Elf Male", string.Join(":", m_maleFirstNames), "List of first names seperated by :");
+            _elfFemaleNames = config("Names", "Elf Female", string.Join(":", m_femaleFirstNames), "List out first names seperated by :");
+            _elfLastNames = config("Names", "Elf Last", string.Join(":", m_lastNames), "List of last names seperated by :");
         }
 
         public void Awake()
         {
-            RaiderArmor.Setup();
+            RaiderLoadOut.Setup();
             RaiderDrops.Setup();
             SettlerGear.Setup();
             RaiderShipDrops.Setup();
+            ElfLoadOut.Setup();
             InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;

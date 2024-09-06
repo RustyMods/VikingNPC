@@ -44,15 +44,18 @@ public class RandomHuman : MonoBehaviour
     public Vector3 m_hairColor = Vector3.one;
     public Vector3 m_skinColor = Vector3.one;
     public bool m_isElf;
+
+    public Companion m_companion = null!;
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
-        if (!TryGetComponent(out Companion component)) return;
+        m_companion = GetComponent<Companion>();
+        if (!m_companion) return;
         if (!TryGetComponent(out VisEquipment visEquipment)) return;
         if (m_isElf) m_skinColor = new Vector3(0.4f, 0.6f, 0.57f);
         GetConfigNames();
-        Randomize(component, visEquipment, out bool female);
-        RandomName(component, female);
+        Randomize(m_companion, visEquipment, out bool female);
+        RandomName(m_companion, female);
         m_nview.GetZDO().Set("RandomHuman", true);
     }
 
@@ -71,6 +74,24 @@ public class RandomHuman : MonoBehaviour
         if (!SettlersPlugin._lastNames.Value.IsNullOrWhiteSpace())
         {
             m_lastNames = SettlersPlugin._lastNames.Value.Split(':').ToList();
+        }
+
+        if (m_companion.IsElf())
+        {
+            if (!SettlersPlugin._elfMaleNames.Value.IsNullOrWhiteSpace())
+            {
+                m_maleFirstNames = SettlersPlugin._elfMaleNames.Value.Split(':').ToList();
+            }
+
+            if (!SettlersPlugin._elfFemaleNames.Value.IsNullOrWhiteSpace())
+            {
+                m_femaleFirstNames = SettlersPlugin._elfFemaleNames.Value.Split(':').ToList();
+            }
+
+            if (!SettlersPlugin._elfLastNames.Value.IsNullOrWhiteSpace())
+            {
+                m_lastNames = SettlersPlugin._elfLastNames.Value.Split(':').ToList();
+            }
         }
     }
 

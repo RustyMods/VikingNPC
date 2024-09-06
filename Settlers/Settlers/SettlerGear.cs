@@ -12,7 +12,7 @@ public static class SettlerGear
 {
     private static readonly CustomSyncedValue<List<string>> ServerSettlerGear = new(SettlersPlugin.ConfigSync, "ServerSettlerGear", new());
     private static readonly string m_fileName = "VikingSettlerGear.yml";
-    private static readonly string m_filePath = RaiderArmor.m_folderPath + Path.DirectorySeparatorChar + m_fileName;
+    private static readonly string m_filePath = MyPaths.GetFolderPath() + Path.DirectorySeparatorChar + m_fileName;
 
     private static List<string> m_settlerStartGear = GetDefaultStartGear();
     private static GameObject[]? m_cachedSettlerGear;
@@ -44,7 +44,7 @@ public static class SettlerGear
 
     private static void LoadFiles()
     {
-        if (!Directory.Exists(RaiderArmor.m_folderPath)) Directory.CreateDirectory(RaiderArmor.m_folderPath);
+        if (!Directory.Exists(MyPaths.GetFolderPath())) Directory.CreateDirectory(MyPaths.GetFolderPath());
         var serializer = new SerializerBuilder().Build();
         if (!File.Exists(m_filePath))
         {
@@ -96,7 +96,7 @@ public static class SettlerGear
 
     private static void SetupFileWatcher()
     {
-        FileSystemWatcher watcher = new FileSystemWatcher(RaiderArmor.m_folderPath, m_fileName);
+        FileSystemWatcher watcher = new FileSystemWatcher(MyPaths.GetFolderPath(), m_fileName);
         watcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
         watcher.EnableRaisingEvents = true;
         watcher.Changed += OnFileChange;

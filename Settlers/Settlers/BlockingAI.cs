@@ -20,8 +20,7 @@ public static class BlockingAI
                 if (__instance.m_character is Companion viking && viking == companion) continue;
                 if (companion.IsSailor()) continue;
                 if (companion.IsBlocking()) continue;
-                float distance = Vector3.Distance(__instance.m_character.transform.position,
-                    companion.transform.position);
+                float distance = Vector3.Distance(__instance.m_character.transform.position, companion.transform.position);
                 companion.m_animator.SetBool(Blocking, distance < 5f);
                 companion.m_blocking = distance < 5f;
                 companion.m_blockTimer = 30f;

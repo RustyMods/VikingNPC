@@ -12,15 +12,18 @@ namespace Settlers.Behaviors;
 
 public class Companion : Humanoid, Interactable, TextReceiver
 {
-    private static readonly int Visible = Animator.StringToHash("visible");
+    public static readonly List<Companion> m_instances = new();
     private static Companion? m_currentCompanion;
+    private static readonly int Visible = Animator.StringToHash("visible");
     private static readonly int m_ownerKey = "VikingSettlerOwner".GetStableHashCode();
     private static readonly int m_ownerNameKey = "VikingSettlerOwnerName".GetStableHashCode();
-    public static readonly List<Companion> m_instances = new();
     private static readonly int Consume = Animator.StringToHash("eat");
     private static readonly int m_raider = "VikingRaider".GetStableHashCode();
     private static readonly int m_elf = "VikingElf".GetStableHashCode();
-    
+    private static readonly int m_rename = "VikingRename".GetStableHashCode();
+    private static readonly int m_sailor = "VikingSailor".GetStableHashCode();
+    private static readonly int Blocking = Animator.StringToHash("blocking");
+
     public CompanionAI m_companionAI = null!;
     public CompanionTalk m_companionTalk = null!;
     public bool m_inUse;
@@ -32,7 +35,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public float m_checkDistanceTimer;
     public string m_followTargetName = "";
     public float m_playerMaxDistance = 50f;
-    public float m_fedDuration = 30f;
+    public float m_fedDuration = 300f;
     public float m_baseHealth = 50f;
     public EffectList m_tamedEffect = new EffectList();
     public EffectList m_sootheEffect = new EffectList();
@@ -64,21 +67,18 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public bool m_startAsRaider;
     private Minimap.PinData? m_pin;
     private float m_pinTimer;
-    private float m_envStatusTimer;
     public bool m_startAsElf;
     public bool m_startAsSailor;
-    public bool m_renameable;
-    private readonly int m_rename = "VikingRename".GetStableHashCode();
+    public bool m_renamable;
     private bool m_teleporting;
-    private readonly int m_sailor = "VikingSailor".GetStableHashCode();
-    private static readonly int Blocking = Animator.StringToHash("blocking");
+
     public override void Awake()
     {
         base.Awake();
         if (m_startAsRaider) SetRaider(true);
         if (m_startAsElf) SetElf(true);
         if (m_startAsSailor) SetSailor(true);
-        if (m_renameable) SetRenameable(true);
+        if (m_renamable) SetRenameable(true);
         m_autoPickupMask = LayerMask.GetMask("item");
         m_companionAI = GetComponent<CompanionAI>();
         m_companionTalk = GetComponent<CompanionTalk>();
@@ -89,10 +89,17 @@ public class Companion : Humanoid, Interactable, TextReceiver
         m_nview.Register<long>(nameof(RPC_RequestStack), RPC_RequestStack);
         m_nview.Register<bool>(nameof(RPC_StackResponse), RPC_StackResponse);
         m_nview.Register<Vector3, Vector3>(nameof(RPC_Warp), RPC_Warp);
+        m_nview.Register<bool>(nameof(RPC_UpdateEquipment), RPC_UpdateEquipment);
         m_name = m_nview.GetZDO().GetString(ZDOVars.s_tamedName);
         m_instances.Add(this);
         m_visEquipment.m_isPlayer = true;
-        if (!IsTamed() && !IsRaider() && !IsElf() && !IsSailor()) InvokeRepeating(nameof(TamingUpdate), 3f, 3f);
+        if (!IsTamed() && !IsRaider() && !IsSailor())
+        {
+            if (!IsElf() || SettlersPlugin._elfTamable.Value is not SettlersPlugin.Toggle.Off)
+            {
+                InvokeRepeating(nameof(TamingUpdate), 3f, 3f);
+            }
+        }
         GetFollowTargetName();
         if (IsTamed())
         {
@@ -111,7 +118,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         bool isSailor = IsSailor();
         if (isRaider || isElf || isSailor)
         {
-            GetRaiderEquipment(isElf, isSailor);
+            GetLoadOut(isElf, isSailor);
             SetGearQuality(m_level);
             SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
             if (isRaider) m_faction = SettlersPlugin._raiderFaction.Value;
@@ -128,6 +135,11 @@ public class Companion : Humanoid, Interactable, TextReceiver
             }
             m_inventory.m_onChanged += SaveInventory;
         }
+
+        if (isElf && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.On)
+        {
+            m_inventory.m_onChanged += SaveInventory;
+        }
     }
 
     public void FixedUpdate()
@@ -139,12 +151,12 @@ public class Companion : Humanoid, Interactable, TextReceiver
         if (IsDead()) return;
         if (!m_companionAI.IsAlerted() && IsBlocking())
         {
-            m_animator.SetBool("blocking", false);
+            m_animator.SetBool(Blocking, false);
             m_blocking = false;
             m_nview.GetZDO().Set(ZDOVars.s_isBlockingHash, false);
         }
         bool isSailor = IsSailor();
-        if (IsRaider() || IsElf() || isSailor)
+        if (IsRaider() || isSailor)
         {
             if (!isSailor) AutoPickup(fixedDeltaTime);
             UpdateActionQueue(fixedDeltaTime);
@@ -156,7 +168,14 @@ public class Companion : Humanoid, Interactable, TextReceiver
         }
         else
         {
-            if (!IsTamed()) return;
+            if (!IsTamed())
+            {
+                if (!IsElf()) return;
+                AutoPickup(fixedDeltaTime);
+                UpdateActionQueue(fixedDeltaTime);
+                UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
+                return;
+            }
             if (UpdateAttach()) return;
             UpdateActionQueue(fixedDeltaTime);
             AutoPickup(fixedDeltaTime);
@@ -246,10 +265,10 @@ public class Companion : Humanoid, Interactable, TextReceiver
         m_nview.GetZDO().Set(m_elf, enable);
         if (enable) m_defeatSetGlobalKey = "defeated_vikingelf";
     }
-    private void GetRaiderEquipment(bool isElf, bool isSailor)
+    private void GetLoadOut(bool isElf, bool isSailor)
     {
         m_currentBiome = Heightmap.FindBiome(transform.position);
-        GameObject[]? raiderItems = RaiderArmor.GetRaiderEquipment(m_currentBiome, isElf, isSailor);
+        GameObject[]? raiderItems = isElf ? ElfLoadOut.GetElfEquipment(m_currentBiome) : RaiderLoadOut.GetRaiderEquipment(m_currentBiome, isSailor);
         if (raiderItems != null)
         {
             m_defaultItems = raiderItems;
@@ -709,7 +728,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
     {
         if (m_nview.GetZDO().DataRevision == m_lastRevision) return;
         string? data = m_nview.GetZDO().GetString(ZDOVars.s_items);
-        if (data.IsNullOrWhiteSpace() || m_lastDataString == data) return;
+        if (data.IsNullOrWhiteSpace()) return;
+        // if (data.IsNullOrWhiteSpace() || m_lastDataString == data) return;
         ZPackage pkg = new ZPackage(data);
         m_loading = true;
         m_inventory.Load(pkg);
@@ -727,6 +747,18 @@ public class Companion : Humanoid, Interactable, TextReceiver
     }
 
     private void UpdateEquipment(bool toggle = true)
+    {
+        if (m_nview.IsOwner())
+        {
+            RPC_UpdateEquipment(0L, toggle);
+        }
+        else
+        {
+            m_nview.InvokeRPC(nameof(RPC_UpdateEquipment), toggle);
+        }
+    }
+
+    private void RPC_UpdateEquipment(long sender, bool toggle = true)
     {
         m_inventoryChanged = false;
         if (m_companionAI != null)
@@ -838,7 +870,6 @@ public class Companion : Humanoid, Interactable, TextReceiver
     {
         if (m_companionAI == null) return;
         if (IsHungry()) m_sootheEffect.Create(m_companionAI.m_character.GetCenterPoint(), Quaternion.identity);
-        m_fedDuration = item.m_itemData.m_shared.m_foodBurnTime;
         ResetFeedingTimer();
         
         if (item.m_itemData.m_shared.m_consumeStatusEffect)
@@ -917,7 +948,6 @@ public class Companion : Humanoid, Interactable, TextReceiver
                 Transform transform1 = transform;
                 m_sootheEffect.Create(transform1.position, transform1.rotation);
                 consumedItem = item;
-                m_fedDuration = item.m_shared.m_foodBurnTime;
                 ResetFeedingTimer();
                 m_animator.SetTrigger(Consume);
                 m_companionTalk.QueueSay(FoodSay.GetConsumeSay(consumedItem.m_shared.m_name),"eat", null);
@@ -1019,7 +1049,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || IsTamed()) return;
         if (m_companionAI == null) return;
-        if (IsRaider() || IsElf() || IsSailor()) return;
+        if (IsRaider() || IsSailor()) return;
+        if (IsElf() && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.Off) return;
         m_companionAI.MakeTame();
         Transform transform1 = transform;
         Vector3 position = transform1.position;
@@ -1156,7 +1187,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     }
 
     private float GetEitr() => m_eitr;
-    public override float GetMaxEitr() => IsRaider() || IsElf() || IsSailor() ? 9999f : m_maxEitr;
+    public override float GetMaxEitr() => !IsTamed() ? 9999f : m_maxEitr;
     
     public override void UseEitr(float eitr)
     {
@@ -1169,7 +1200,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public override string GetHoverText()
     {
         if (!m_nview.IsValid()) return "";
-        if (IsRaider() || IsElf() || IsSailor()) return "";
+        if (IsRaider() || IsSailor()) return "";
+        if (IsElf() && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.Off) return "";
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.Append(m_name);
         if (IsTamed())
@@ -1594,7 +1626,10 @@ public class Companion : Humanoid, Interactable, TextReceiver
     private static void CloseCompanionInventory(bool updateEquipment = true)
     {
         if (m_currentCompanion == null) return;
-        if (updateEquipment) m_currentCompanion.UpdateEquipment();
+        if (updateEquipment)
+        {
+            m_currentCompanion.UpdateEquipment();
+        }
         m_currentCompanion.m_inUse = false;
         m_currentCompanion = null;
     }

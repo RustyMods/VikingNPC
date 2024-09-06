@@ -109,8 +109,7 @@ public class CompanionAI : MonsterAI
         if (m_companion.IsHungry())
         {
             ResetActions();
-            if (UpdateConsumeItem(m_character as Humanoid, dt)) return true;
-            return base.UpdateAI(dt);
+            return UpdateEatItem(m_companion, dt) || base.UpdateAI(dt);
         }
 
         if (m_companion.InAttack()) return false;
@@ -144,6 +143,32 @@ public class CompanionAI : MonsterAI
             m_repairPiece = null;
         }
         return false;
+    }
+
+    private bool UpdateEatItem(Companion companion, float dt)
+    {
+        if (m_consumeItems == null || m_consumeItems.Count == 0) return false;
+        if (!companion.IsHungry()) return false;
+        m_consumeSearchTimer += dt;
+        if (m_consumeSearchTimer > m_consumeSearchInterval)
+        {
+            m_consumeSearchTimer = 0.0f;
+            m_consumeTarget = FindClosestConsumableItem(m_consumeSearchRange);
+        }
+
+        if (!m_consumeTarget) return false;
+        if (MoveTo(dt, m_consumeTarget.transform.position, m_consumeRange, false))
+        {
+            LookAt(m_consumeTarget.transform.position);
+            if (IsLookingAt(m_consumeTarget.transform.position, 20f) && m_consumeTarget.RemoveOne())
+            {
+                if (m_onConsumedItem != null) m_onConsumedItem(m_consumeTarget);
+                companion.m_consumeItemEffects.Create(transform.position, Quaternion.identity);
+                m_animator.SetTrigger("eat");
+                m_consumeTarget = null;
+            }
+        }
+        return true;
     }
 
     private ItemDrop.ItemData? GetHammer() => m_companion.GetInventory().GetAllItems().FirstOrDefault(item => item.m_shared.m_name == "$item_hammer");

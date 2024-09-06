@@ -145,14 +145,16 @@
         <Compile Include="Settlers\BlockingAI.cs" />
         <Compile Include="Settlers\CreateAssets.cs" />
         <Compile Include="Settlers\Commands.cs" />
+        <Compile Include="Settlers\ElfLoadout.cs" />
         <Compile Include="Settlers\Emoting.cs" />
         <Compile Include="Settlers\FoodSay.cs" />
         <Compile Include="Settlers\GlobalSpawn.cs" />
         <Compile Include="Settlers\HairColors.cs" />
         <Compile Include="Settlers\Harpooning.cs" />
         <Compile Include="Settlers\LineAttachPatch.cs" />
+        <Compile Include="Settlers\MyPaths.cs" />
         <Compile Include="Settlers\PukePatches.cs" />
-        <Compile Include="Settlers\RaiderArmor.cs" />
+        <Compile Include="Settlers\RaiderLoadouts.cs" />
         <Compile Include="Settlers\RaiderDrops.cs" />
         <Compile Include="Settlers\RaiderSE.cs" />
         <Compile Include="Settlers\RaiderShipDrops.cs" />

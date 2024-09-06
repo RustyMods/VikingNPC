@@ -54,8 +54,7 @@ public class CompanionTalk : MonoBehaviour
         m_animator = GetComponentInChildren<Animator>();
         m_nview = GetComponent<ZNetView>();
         m_companionAI.m_onBecameAggravated += OnBecameAggravated;
-        InvokeRepeating(nameof(RandomTalk), Random.Range(m_randomTalkInterval / 5f, m_randomTalkInterval),
-            m_randomTalkInterval);
+        InvokeRepeating(nameof(RandomTalk), Random.Range(m_randomTalkInterval / 5f, m_randomTalkInterval), m_randomTalkInterval);
     }
 
     private bool ShouldUpdate()
@@ -106,7 +105,7 @@ public class CompanionTalk : MonoBehaviour
             }
         }
 
-        if (m_companion.IsAttachedToShip())
+        if (m_companion.IsTamed() && m_companion.IsAttachedToShip())
         {
             m_shipTalkTimer += Time.deltaTime;
             if (m_shipTalkTimer > 30f)

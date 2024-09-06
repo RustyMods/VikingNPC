@@ -18,12 +18,12 @@ public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
     public float m_audioFadeDuration = 2f;
     public AudioSource m_sailSound = null!;
     public float m_sailFadeDuration = 1f;
-    public GameObject m_splashEffects;
-    public ParticleSystem[] m_wakeParticles;
+    public GameObject m_splashEffects = null!;
+    public ParticleSystem[] m_wakeParticles = null!;
     public float m_sailBaseVol = 1f;
     public readonly List<KeyValuePair<AudioSource, float>> m_wakeSounds = new List<KeyValuePair<AudioSource, float>>();
     public readonly List<KeyValuePair<AudioSource, float>> m_inWaterSounds = new List<KeyValuePair<AudioSource, float>>();
-    public WaterVolume m_previousWaterVolume;
+    public WaterVolume m_previousWaterVolume = null!;
     public Rigidbody m_body = null!;
     public ShipAI m_shipAI = null!;
 
@@ -65,26 +65,10 @@ public class RaiderShipEffects : MonoBehaviour, IMonoUpdater
         }
     }
 
-    private void OnEnable()
-    {
-        Instances.Add(this);
-    }
-
-    private void OnDisable()
-    {
-        Instances.Remove(this);
-    }
-
-    public void CustomFixedUpdate(float deltaTime)
-    {
-        
-    }
-
-    public void CustomUpdate(float deltaTime, float time)
-    {
-        
-    }
-
+    private void OnEnable() => Instances.Add(this);
+    private void OnDisable() => Instances.Remove(this);
+    public void CustomFixedUpdate(float deltaTime) { }
+    public void CustomUpdate(float deltaTime, float time) { }
     public void CustomLateUpdate(float deltaTime)
     {
         if (!Floating.IsUnderWater(transform.position, ref m_previousWaterVolume))

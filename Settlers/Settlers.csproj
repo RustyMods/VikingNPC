@@ -78,6 +78,9 @@
         <Reference Include="BepInEx">
             <HintPath>$(BepInExPath)\core\BepInEx.dll</HintPath>
         </Reference>
+        <Reference Include="gui_framework">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\gui_framework.dll</HintPath>
+        </Reference>
         <Reference Include="ServerSync">
             <HintPath>Libs\ServerSync.dll</HintPath>
         </Reference>
@@ -151,6 +154,7 @@
         <Compile Include="Settlers\GlobalSpawn.cs" />
         <Compile Include="Settlers\HairColors.cs" />
         <Compile Include="Settlers\Harpooning.cs" />
+        <Compile Include="Settlers\InputCommands.cs" />
         <Compile Include="Settlers\LineAttachPatch.cs" />
         <Compile Include="Settlers\MyPaths.cs" />
         <Compile Include="Settlers\PukePatches.cs" />

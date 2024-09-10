@@ -27,8 +27,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public CompanionAI m_companionAI = null!;
     public CompanionTalk m_companionTalk = null!;
     public bool m_inUse;
-    private uint m_lastRevision;
-    private string m_lastDataString = "";
+    // private uint m_lastRevision;
+    // private string m_lastDataString = "";
     private bool m_loading;
     public float m_autoPickupRange = 2f;
     public int m_autoPickupMask;
@@ -116,7 +116,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         bool isRaider = IsRaider();
         bool isElf = IsElf();
         bool isSailor = IsSailor();
-        if (isRaider || isElf || isSailor)
+        if (isRaider || isSailor)
         {
             GetLoadOut(isElf, isSailor);
             SetGearQuality(m_level);
@@ -126,14 +126,24 @@ public class Companion : Humanoid, Interactable, TextReceiver
         }
         else
         {
-            LoadInventory();
-            if (m_inventory.GetAllItems().Count == 0)
+            if (isElf && !IsTamed())
             {
-                m_defaultItems = SettlerGear.GetSettlerGear();
-                GiveDefaultItems();
+                GetLoadOut(isElf, isSailor);
                 SetGearQuality(m_level);
+                SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
+                GiveDefaultItems();
             }
-            m_inventory.m_onChanged += SaveInventory;
+            else
+            {
+                LoadInventory();
+                if (m_inventory.GetAllItems().Count == 0)
+                {
+                    m_defaultItems = SettlerGear.GetSettlerGear();
+                    GiveDefaultItems();
+                    SetGearQuality(m_level);
+                }
+                m_inventory.m_onChanged += SaveInventory;
+            }
         }
 
         if (isElf && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.On)
@@ -390,9 +400,11 @@ public class Companion : Humanoid, Interactable, TextReceiver
     {
         Transform transform1 = transform;
         m_killedEffects.Create(transform1.position, transform1.rotation, transform1);
-        if (IsRaider() || IsElf())
+        var isRaider = IsRaider();
+        var isElf = IsElf();
+        if (isRaider || (isElf && !IsTamed()))
         {
-            ZoneSystem.instance.SetGlobalKey(IsRaider() ? "defeated_vikingraider" : "defeated_vikingelf");
+            ZoneSystem.instance.SetGlobalKey(IsRaider() ? "defeated_vikingraider" : IsElf() ? "defeated_vikingelf" : "defeated_viking");
             DropDefaultItems();
             if (TryGetComponent(out CharacterDrop characterDrop))
             {
@@ -400,7 +412,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
                 characterDrop.m_drops = RaiderDrops.GetRaiderDrops(m_currentBiome);
             }
         }
-        else
+        else if (IsTamed())
         {
             CreateTombStone();
         }
@@ -718,15 +730,15 @@ public class Companion : Humanoid, Interactable, TextReceiver
         m_inventory.Save(pkg);
         string? data = pkg.GetBase64();
         m_nview.GetZDO().Set(ZDOVars.s_items, data);
-        m_lastRevision = m_nview.GetZDO().DataRevision;
-        m_lastDataString = data;
+        // m_lastRevision = m_nview.GetZDO().DataRevision;
+        // m_lastDataString = data;
         m_nview.GetZDO().Set("InventoryChanged".GetStableHashCode(), true);
         m_inventoryChanged = true;
     }
 
     private void LoadInventory()
     {
-        if (m_nview.GetZDO().DataRevision == m_lastRevision) return;
+        // if (m_nview.GetZDO().DataRevision == m_lastRevision) return;
         string? data = m_nview.GetZDO().GetString(ZDOVars.s_items);
         if (data.IsNullOrWhiteSpace()) return;
         // if (data.IsNullOrWhiteSpace() || m_lastDataString == data) return;
@@ -734,8 +746,8 @@ public class Companion : Humanoid, Interactable, TextReceiver
         m_loading = true;
         m_inventory.Load(pkg);
         m_loading = false;
-        m_lastRevision = m_nview.GetZDO().DataRevision;
-        m_lastDataString = data;
+        // m_lastRevision = m_nview.GetZDO().DataRevision;
+        // m_lastDataString = data;
         UpdateEquipment(false);
     }
 
@@ -1180,7 +1192,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         return true;
     }
 
-    private string GetOwnerName()
+    public string GetOwnerName()
     {
         long ownerID = m_nview.GetZDO().GetLong(m_ownerKey);
         return ownerID == 0L ? "" : m_nview.GetZDO().GetString(m_ownerNameKey);

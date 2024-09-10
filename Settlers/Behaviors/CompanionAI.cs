@@ -2,6 +2,7 @@
 using System.Linq;
 using BepInEx;
 using HarmonyLib;
+using Settlers.Settlers;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -26,6 +27,8 @@ public class CompanionAI : MonsterAI
     public float m_lastFishTime;
     public Piece? m_repairPiece;
     public float m_repairTimer;
+    public int m_seekAttempts;
+
     public override void Awake()
     {
         base.Awake();
@@ -157,17 +160,15 @@ public class CompanionAI : MonsterAI
         }
 
         if (!m_consumeTarget) return false;
-        if (MoveTo(dt, m_consumeTarget.transform.position, m_consumeRange, false))
-        {
-            LookAt(m_consumeTarget.transform.position);
-            if (IsLookingAt(m_consumeTarget.transform.position, 20f) && m_consumeTarget.RemoveOne())
-            {
-                if (m_onConsumedItem != null) m_onConsumedItem(m_consumeTarget);
-                companion.m_consumeItemEffects.Create(transform.position, Quaternion.identity);
-                m_animator.SetTrigger("eat");
-                m_consumeTarget = null;
-            }
-        }
+        if (!MoveTo(dt, m_consumeTarget.transform.position, m_consumeRange, false)) return true;
+        LookAt(m_consumeTarget.transform.position);
+        if (!IsLookingAt(m_consumeTarget.transform.position, 20f) || !m_consumeTarget.RemoveOne()) return true;
+        
+        m_onConsumedItem?.Invoke(m_consumeTarget);
+        companion.m_consumeItemEffects.Create(transform.position, Quaternion.identity);
+        m_companionTalk.QueueSay(FoodSay.GetConsumeSay(m_consumeTarget.m_itemData.m_shared.m_name),"eat", null);
+        m_animator.SetTrigger("eat");
+        m_consumeTarget = null;
         return true;
     }
 
@@ -415,6 +416,41 @@ public class CompanionAI : MonsterAI
         m_pickaxe = bestPickaxe;
         return bestPickaxe != null;
     }
+
+    public bool SeekChair()
+    {
+        Chair? chair = FindNearestChair();
+        if (chair == null)
+        {
+            m_seekAttempts += 1;
+            return m_seekAttempts <= 3 && SeekChair();
+        }
+
+        chair.Interact(m_companion, false, false);
+        m_seekAttempts = 0;
+        return true;
+    }
+
+    public bool BreakSit()
+    {
+        if (!m_companion.IsAttached()) return false;
+        m_companion.AttachStop();
+        return true;
+    }
+
+    public bool SeekSaddle()
+    {
+        Sadle? sadle = FindNearestSaddle();
+        if (sadle == null)
+        {
+            m_seekAttempts += 1;
+            return m_seekAttempts <= 3 && SeekSaddle();
+        }
+
+        sadle.Interact(m_companion, false, false);
+        m_seekAttempts = 0;
+        return true;
+    }
     
     private bool UpdateAttach(float dt)
     {
@@ -422,46 +458,47 @@ public class CompanionAI : MonsterAI
         m_searchAttachTimer += dt;
         if (m_searchAttachTimer < 5f) return false;
         m_searchAttachTimer = 0.0f;
-        var follow = GetFollowTarget();
+        // var follow = GetFollowTarget();
         
-        if (!m_companion.m_attached && follow != null)
-        {
-            Chair? chair = FindNearestChair();
-
-            if (chair != null)
-            {
-                if (MoveTo(dt, chair.transform.position, 10f, true))
-                {
-                    LookAt(chair.transform.position);
-                    chair.Interact(m_companion, false, false);
-                    return true;
-                }
-            }
-        }
-        
-        if (!m_companion.m_attached && follow != null)
-        {
-            if (SettlersPlugin._settlersCanRide.Value is SettlersPlugin.Toggle.Off) return false;
-            Sadle? saddle = FindNearestSaddle();
-            if (saddle == null) return false;
-            if (!MoveTo(dt, saddle.transform.position, 10f, true)) return true;
-            LookAt(saddle.transform.position);
-            saddle.Interact(m_companion, false, false);
-            return true;
-        }
+        // if (!m_companion.m_attached && follow != null)
+        // {
+        //     Chair? chair = FindNearestChair();
+        //
+        //     if (chair != null)
+        //     {
+        //         if (MoveTo(dt, chair.transform.position, 10f, true))
+        //         {
+        //             LookAt(chair.transform.position);
+        //             chair.Interact(m_companion, false, false);
+        //             return true;
+        //         }
+        //     }
+        // }
+        //
+        // if (!m_companion.m_attached && follow != null)
+        // {
+        //     if (SettlersPlugin._settlersCanRide.Value is SettlersPlugin.Toggle.Off) return false;
+        //     Sadle? saddle = FindNearestSaddle();
+        //     if (saddle == null) return false;
+        //     if (!MoveTo(dt, saddle.transform.position, 10f, true)) return true;
+        //     LookAt(saddle.transform.position);
+        //     saddle.Interact(m_companion, false, false);
+        //     return true;
+        // }
 
         if (m_companion.m_attached)
         {
+            var follow = GetFollowTarget();
             if (follow != null && follow.TryGetComponent(out Player player))
             {
                 if (Vector3.Distance(follow.transform.position, transform.position) < 15f) return true;
                 m_companion.AttachStop();
                 m_companion.Warp(player);
             }
-            else
-            {
-                m_companion.AttachStop();
-            }
+            // else
+            // {
+            //     m_companion.AttachStop();
+            // }
             return true;
         }
 
@@ -686,9 +723,7 @@ public class CompanionAI : MonsterAI
         {
             if (character is not Companion companion) return true;
             if (!__instance.m_character.IsTamed()) return false;
-            Debug.LogWarning("trying to interact with saddle as companion");
             if (!__instance.m_nview.GetZDO().GetBool(ZDOVars.s_haveSaddleHash)) return false;
-            Debug.LogWarning("attach start");
             companion.AttachStart(__instance.m_attachPoint, __instance.m_character.gameObject, false, false, false, __instance.m_attachAnimation, __instance.m_detachOffset, null);
             m_occupiedSaddles[__instance] = companion;
             companion.m_attachedSadle = __instance;
@@ -726,34 +761,17 @@ public class CompanionAI : MonsterAI
         private static void Postfix(Character a, Character b, ref bool __result)
         {
             if (a is not Companion companionA || b is not Companion companionB) return;
-            if (companionA.IsRaider() && !companionB.IsRaider())
-            {
-                __result = true;
-            }
 
-            if (companionB.IsRaider() && !companionA.IsRaider())
-            {
-                __result = true;
-            }
+            if (companionA.IsRaider() != companionB.IsRaider()) __result = true;
 
-            if (companionA.IsElf() && companionB.IsRaider())
+            if (SettlersPlugin._pvp.Value is SettlersPlugin.Toggle.On)
             {
-                __result = true;
-            }
-
-            if (companionB.IsElf() && companionA.IsRaider())
-            {
-                __result = true;
-            }
-
-            if (companionA.IsSailor() && !companionB.IsSailor())
-            {
-                __result = true;
-            }
-
-            if (companionB.IsSailor() && !companionA.IsSailor())
-            {
-                __result = true;
+                if (companionA.IsTamed() && companionB.IsTamed())
+                {
+                    var owner1 = companionA.GetOwnerName();
+                    var owner2 = companionB.GetOwnerName();
+                    if (owner1 != owner2) __result = true;
+                }
             }
         }
     }

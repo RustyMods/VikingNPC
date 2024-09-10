@@ -102,7 +102,7 @@ public static class AssetMan
         human.AddComponent<RandomHuman>();
         AddRandomTalk(human);
         RegisterToZNetScene(human);
-        GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings", Heightmap.Biome.Meadows);
+        GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings", Heightmap.Biome.Meadows, minAltitude: 10);
     }
     
     private static void CreateBaseRenameHuman()
@@ -147,7 +147,7 @@ public static class AssetMan
         AddRandomTalk(human);
         RegisterToZNetScene(human);
         human.AddComponent<CharacterDrop>();
-        GlobalSpawn.AddToSpawnList(human, "Elf Spawn Settings", Heightmap.Biome.All);
+        GlobalSpawn.AddToSpawnList(human, "Elf Spawn Settings", Heightmap.Biome.All, minAltitude: 10);
     }
 
     private static void CreateBaseRaiderShip()
@@ -362,7 +362,7 @@ public static class AssetMan
         AddRandomTalk(raiderHuman);
         raiderHuman.AddComponent<CharacterDrop>();
         RegisterToZNetScene(raiderHuman);
-        GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings", Heightmap.Biome.All);
+        GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings", Heightmap.Biome.All, minAltitude: 10);
         return raiderHuman;
     }
     

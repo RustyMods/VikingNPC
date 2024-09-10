@@ -109,6 +109,7 @@ public static class RaiderLoadOut
         if (data.Misc.Count > 0) result.AddRange(GetPrefabs(data.Misc));
         if (data.Shields.Count > 0) result.AddRange(GetPrefabs(data.Shields));
         if (isSailor) result.Add(ZNetScene.instance.GetPrefab("SpearChitin"));
+        if (data.Sets.Count > 0) result.AddRange(GetPrefabs(data.Sets[Random.Range(0, data.Sets.Count)]));
         return result.ToArray();
     }
 
@@ -284,7 +285,7 @@ public static class RaiderLoadOut
         public List<string> Utility = new();
         public List<string> Shields = new();
         public List<string> Misc = new();
-        public List<string> Sets = new();
+        public List<List<string>> Sets = new();
     }
     
 }

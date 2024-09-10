@@ -99,6 +99,7 @@ public class ElfLoadOut
         }
         if (data.Misc.Count > 0) result.AddRange(GetPrefabs(data.Misc));
         if (data.Shields.Count > 0) result.AddRange(GetPrefabs(data.Shields));
+        if (data.Sets.Count > 0) result.AddRange(GetPrefabs(data.Sets[Random.Range(0, data.Sets.Count)]));
         result.Add(ZNetScene.instance.GetPrefab("ElvenEars"));
         return result.ToArray();
     }

@@ -44,7 +44,8 @@ public static class GlobalSpawn
         }
     }
 
-    public static void AddToSpawnList(GameObject prefab, string configKey, Heightmap.Biome biomeSetting, SettlersPlugin.Toggle isEnabled = SettlersPlugin.Toggle.On, float spawnInterval = 1000f, float spawnChance = 50f, float spawnDistance = 35f)
+    public static void AddToSpawnList(GameObject prefab, string configKey, 
+        Heightmap.Biome biomeSetting, SettlersPlugin.Toggle isEnabled = SettlersPlugin.Toggle.On, float spawnInterval = 1000f, float spawnChance = 50f, float spawnDistance = 35f, float minAltitude = -1000f, float maxAltitude = 1000f)
     {
         if (!SettlersPlugin._Root.TryGetComponent(out SpawnSystemList component))
         {
@@ -145,21 +146,21 @@ public static class GlobalSpawn
             if (info == null) return;
             info.m_spawnAtDay = spawnDay.Value;
         };
-        ConfigEntry<float> minAltitude = SettlersPlugin._Plugin.config(configKey, "Minimum Altitude", -1000f, "Set minimum altitude allowed to spawn");
-        data.m_minAltitude = minAltitude.Value;
-        minAltitude.SettingChanged += (sender, args) =>
+        ConfigEntry<float> minAltitudeConfig = SettlersPlugin._Plugin.config(configKey, "Minimum Altitude", minAltitude, "Set minimum altitude allowed to spawn");
+        data.m_minAltitude = minAltitudeConfig.Value;
+        minAltitudeConfig.SettingChanged += (sender, args) =>
         {
             var info = component.m_spawners.Find(x => x.m_name == data.m_name);
             if (info == null) return;
-            info.m_minAltitude = minAltitude.Value;
+            info.m_minAltitude = minAltitudeConfig.Value;
         };
-        ConfigEntry<float> maxAltitude = SettlersPlugin._Plugin.config(configKey, "Maximum Altitude", 1000f, "Set maximum altitude allowed to spawn");
-        data.m_maxAltitude = maxAltitude.Value;
-        maxAltitude.SettingChanged += (sender, args) =>
+        ConfigEntry<float> maxAltitudeConfig = SettlersPlugin._Plugin.config(configKey, "Maximum Altitude", maxAltitude, "Set maximum altitude allowed to spawn");
+        data.m_maxAltitude = maxAltitudeConfig.Value;
+        maxAltitudeConfig.SettingChanged += (sender, args) =>
         {
             var info = component.m_spawners.Find(x => x.m_name == data.m_name);
             if (info == null) return;
-            info.m_maxAltitude = maxAltitude.Value;
+            info.m_maxAltitude = maxAltitudeConfig.Value;
         };
         ConfigEntry<bool> inForest = SettlersPlugin._Plugin.config(configKey, "In Forest", true, "If can spawn in forest");
         data.m_inForest = inForest.Value;

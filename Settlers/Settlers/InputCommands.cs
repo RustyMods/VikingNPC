@@ -78,7 +78,6 @@ public static class InputCommands
     {
         private static void Postfix(string text)
         {
-            SettlersPlugin.SettlersLogger.LogWarning(text);
             if (!m_actions.TryGetValue(text, out Action command)) return;
             command();
         }

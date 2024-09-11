@@ -725,7 +725,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
 
     private void SaveInventory()
     {
-        if (m_loading || !IsOwner()) return;
+        if (m_loading) return;
         ZPackage pkg = new ZPackage();
         m_inventory.Save(pkg);
         string? data = pkg.GetBase64();

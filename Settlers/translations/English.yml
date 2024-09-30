@@ -13,6 +13,7 @@ enemy_raidership: "Raider Ship"
 
 msg_settlerfollows: "warriors have heeded your call!"
 msg_repairship: "Not enough material to fix ship"
+msg_setbehavior: "behavior set to: "
 
 npc_settler_random_talk_1: 'Hail, traveler! Did you bring ale or just stories?'
 npc_settler_random_talk_2: 'The mist of the fjords cloaks us like a shroud... or maybe it is just the smell of troll sweat.'

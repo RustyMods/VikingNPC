@@ -243,7 +243,7 @@ public class BluePrinter : MonoBehaviour
             m_dropMin = data.m_containerData.m_min,
             m_dropMax = data.m_containerData.m_max,
             m_oneOfEach = data.m_containerData.m_oneOfEach,
-            m_dropChance = data.m_containerData.m_chance
+            m_dropChance = data.m_containerData.m_chance * SettlersPlugin._locationLootChance.Value
         };
         List<DropTable.DropData> list = new();
         foreach (BlueprintManager.BlueprintData.DropData info in data.m_containerData.m_drops)

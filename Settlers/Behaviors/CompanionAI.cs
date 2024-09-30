@@ -4,6 +4,7 @@ using BepInEx;
 using HarmonyLib;
 using Settlers.Settlers;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Settlers.Behaviors;
 
@@ -28,6 +29,8 @@ public class CompanionAI : MonsterAI
     public Piece? m_repairPiece;
     public float m_repairTimer;
     public int m_seekAttempts;
+    public string m_behavior = "";
+    public static readonly List<string> m_acceptableBehaviors = new() { "mine", "lumber", "fish", "repair", "defend", "anything" };
 
     public override void Awake()
     {
@@ -35,6 +38,7 @@ public class CompanionAI : MonsterAI
         m_companion = GetComponent<Companion>();
         m_companionTalk = GetComponent<CompanionTalk>();
         m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "");
+        m_nview.Register<string>(nameof(RPC_SetBehavior), RPC_SetBehavior);
     }
 
     private bool UpdateSailorAI(float dt)
@@ -81,7 +85,7 @@ public class CompanionAI : MonsterAI
             return true;
         }
         if (UpdateAttach(dt)) return true;
-        if (GetFollowTarget() != null)
+        if (m_behavior.IsNullOrWhiteSpace() && GetFollowTarget() != null)
         {
             ResetActions();
             return base.UpdateAI(dt);
@@ -109,18 +113,23 @@ public class CompanionAI : MonsterAI
             ResetActions();
             return base.UpdateAI(dt);
         }
-        if (m_companion.IsHungry())
+        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry())
         {
             ResetActions();
             return UpdateEatItem(m_companion, dt) || base.UpdateAI(dt);
         }
 
         if (m_companion.InAttack()) return false;
-        UpdateTarget(dt);
+        UpdateActionTargets(dt);
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
         if (UpdateFishing(dt)) return true;
         if (UpdateRepair(dt)) return true;
+        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.Off && m_companion.IsHungry())
+        {
+            ResetActions();
+            return UpdateEatItem(m_companion, dt) || base.UpdateAI(dt);
+        }
         ResetActions();
         return base.UpdateAI(dt);
     }
@@ -170,6 +179,15 @@ public class CompanionAI : MonsterAI
         m_animator.SetTrigger("eat");
         m_consumeTarget = null;
         return true;
+    }
+
+    public void RPC_SetBehavior(long sender, string behavior)
+    {
+        if (m_behavior == behavior) return;
+        if (!m_acceptableBehaviors.Contains(behavior)) return;
+        Player.m_localPlayer.Message(MessageHud.MessageType.Center, $"{m_companion.m_name} $msg_setbehavior {behavior}");
+        m_behavior = behavior;
+        if (behavior == "anything") m_behavior = "";
     }
 
     private ItemDrop.ItemData? GetHammer() => m_companion.GetInventory().GetAllItems().FirstOrDefault(item => item.m_shared.m_name == "$item_hammer");
@@ -233,42 +251,62 @@ public class CompanionAI : MonsterAI
 
     public string GetCurrentAction() => m_action;
     
-    private void UpdateTarget(float dt)
+    private void UpdateActionTargets(float dt)
     {
         m_searchTargetTimer += dt;
         if (m_searchTargetTimer < Random.Range(0f, 2f)) return;
         m_searchTargetTimer = 0.0f;
-        if (m_treeTarget == null) m_treeTarget = FindClosestTree(m_searchRange);
-        if (m_rockTarget == null) m_rockTarget = FindClosestRock(m_searchRange);
-        if (m_fishTarget == null) m_fishTarget = GetNearestFish(100f);
-        if (m_treeTarget != null && m_rockTarget != null)
+
+        if (m_behavior.IsNullOrWhiteSpace())
         {
-            Vector3 position = transform.position;
-            float num1 = Vector3.Distance(position, m_treeTarget.transform.position);
-            float num2 = Vector3.Distance(position, m_rockTarget.transform.position);
-            if (num1 > num2)
+            if (m_treeTarget == null) m_treeTarget = FindClosestTree(m_searchRange);
+            if (m_rockTarget == null) m_rockTarget = FindClosestRock(m_searchRange);
+            if (m_fishTarget == null) m_fishTarget = GetNearestFish(100f);
+            if (m_treeTarget != null && m_rockTarget != null)
             {
-                m_rockTarget = null;
-                m_fishTarget = null;
-            }
-            else
-            {
-                m_treeTarget = null;
-                m_fishTarget = null;
+                Vector3 position = transform.position;
+                float num1 = Vector3.Distance(position, m_treeTarget.transform.position);
+                float num2 = Vector3.Distance(position, m_rockTarget.transform.position);
+                if (num1 > num2)
+                {
+                    m_rockTarget = null;
+                    m_fishTarget = null;
+                }
+                else
+                {
+                    m_treeTarget = null;
+                    m_fishTarget = null;
+                }
             }
         }
-
+        else
+        {
+            switch (m_behavior)
+            {
+                case "mine":
+                    if (m_rockTarget == null) m_rockTarget = FindClosestRock(m_searchRange);
+                    break;
+                case "lumber":
+                    if (m_treeTarget == null) m_treeTarget = FindClosestTree(m_searchRange);
+                    break;
+                case "fish":
+                    if (m_fishTarget == null) m_fishTarget = GetNearestFish(100f);
+                    break;
+            }
+        }
+        
         if (m_treeTarget == null && m_rockTarget == null && m_fishTarget == null)
         {
             m_action = "";
         }
+        
     }
 
     private bool UpdateFishing(float dt)
     {
         if (m_fishTarget == null) return false;
         if (Time.time - m_lastFishTime < 10f) return false;
-        if (m_companion.IsHungry()) return false;
+        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry()) return false;
         m_action = "fishing";
         if (!MoveTo(dt, m_fishTarget.transform.position, 30f, false)) return true;
         LookAt(m_fishTarget.transform.position);
@@ -308,7 +346,7 @@ public class CompanionAI : MonsterAI
     private bool UpdateLumber(float dt)
     {
         if (m_treeTarget == null) return false;
-        if (m_companion.IsHungry()) return false;
+        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry()) return false;
         m_action = "lumber";
         if (!MoveTo(dt, m_treeTarget.transform.position, 1.5f, false)) return true;
         StopMoving();
@@ -325,18 +363,39 @@ public class CompanionAI : MonsterAI
         return true;
     }
 
+    private MineRock5.HitArea GetRandomHitArea(MineRock5 component)
+    {
+        MineRock5.HitArea target = component.m_hitAreas[Random.Range(0, component.m_hitAreas.Count)];
+        return target.m_health > 0.0 ? target : GetRandomHitArea(component);
+    }
+
     private bool UpdateMining(float dt)
     {
         if (m_rockTarget == null) return false;
-        if (m_companion.IsHungry()) return false;
+        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry()) return false;
         m_action = "mining";
-        if (!MoveTo(dt, m_rockTarget.transform.position, 1.5f, false)) return true;
-        LookAt(m_rockTarget.transform.position);
-        if (!IsLookingAt(m_rockTarget.transform.position, 1f)) return true;
-        if (!DoPickaxe())
+        if (m_rockTarget.TryGetComponent(out MineRock5 component))
         {
-            RandomMovement(dt, m_rockTarget.transform.position);
-            return true;
+            var target = GetRandomHitArea(component);
+            var center = target.m_collider.bounds.center;
+            if (!MoveTo(dt, center, 1.5f, false)) return true;
+            LookAt(center);
+            if (!DoPickaxe())
+            {
+                RandomMovement(dt, center);
+                return true;
+            }
+        }
+        else
+        {
+            if (!MoveTo(dt, m_rockTarget.transform.position, 1.5f, false)) return true;
+            LookAt(m_rockTarget.transform.position);
+            if (!IsLookingAt(m_rockTarget.transform.position, 1f)) return true;
+            if (!DoPickaxe())
+            {
+                RandomMovement(dt, m_rockTarget.transform.position);
+                return true;
+            }
         }
         return true;
     }
@@ -356,6 +415,7 @@ public class CompanionAI : MonsterAI
     {
         m_companion.EquipItem(m_pickaxe);
         if (m_companion.m_rightItem == null) return false;
+        m_companion.m_rightItem.m_shared.m_attack.m_attackRayWidth = 1f;
         m_companion.m_rightItem.m_shared.m_attack.m_hitTerrain = false;
         if (!m_companion.StartAttack(null, false)) return false;
         m_timeSinceAttacking = 0.0f;
@@ -369,7 +429,9 @@ public class CompanionAI : MonsterAI
         ItemDrop.ItemData? bestAxe = null;
         foreach (ItemDrop.ItemData? item in m_companion.GetInventory().GetAllItems())
         {
-            if (!item.IsWeapon() || !m_companion.m_baseAI.CanUseAttack(item)) continue;
+            // if (!item.IsWeapon() || !m_companion.m_baseAI.CanUseAttack(item)) continue;
+            if (!item.IsWeapon()) continue;
+
             if (item.m_shared.m_damages.m_chop > 0f)
             {
                 if (bestAxe == null)
@@ -554,7 +616,8 @@ public class CompanionAI : MonsterAI
         if (m_axe == null) return null;
         GameObject? result = null;
         float num1 = maxRange;
-        Collider[] colliders = Physics.OverlapSphere(transform.position, maxRange, LayerMask.GetMask("Default"));
+
+        Collider[] colliders = Physics.OverlapSphere(transform.position, maxRange, LayerMask.GetMask("Default", "viewblock"));
         foreach (var collider in colliders)
         {
             Destructible destructible = collider.GetComponentInParent<Destructible>();

@@ -96,10 +96,9 @@ public static class Raids
         private static void Postfix(RandEventSystem __instance, ref List<SpawnSystem.SpawnData>? __result)
         {
             if (__result == null) return;
-            var currentEvent = __instance.GetCurrentRandomEvent();
-            if (currentEvent == null) return;
-            if (currentEvent.m_name != "VikingRaidEvent") return;
-            var biome = WorldGenerator.instance.GetBiome(currentEvent.m_pos);
+            RandomEvent currentEvent = __instance.GetCurrentRandomEvent();
+            if (currentEvent is not { m_name: "VikingRaidEvent" }) return;
+            Heightmap.Biome biome = WorldGenerator.instance.GetBiome(currentEvent.m_pos);
             if (biome is not Heightmap.Biome.Ocean) return;
             __result = new List<SpawnSystem.SpawnData>()
             {

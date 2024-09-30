@@ -13,6 +13,7 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
 using UnityEngine;
+using static Settlers.SettlersPlugin;
 
 namespace ItemManager;
 
@@ -158,11 +159,11 @@ public struct DropTarget
     public bool levelMultiplier;
 }
 
-public enum Toggle
-{
-    On = 1,
-    Off = 0,
-}
+// public enum Toggle
+// {
+//     On = 1,
+//     Off = 0,
+// }
 
 [PublicAPI]
 public class Item

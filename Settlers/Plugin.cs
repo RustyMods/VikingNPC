@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.1.3";
+        internal const string ModVersion = "0.1.4";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -52,6 +52,8 @@ namespace Settlers
         public static ConfigEntry<string> _maleNames = null!;
         public static ConfigEntry<string> _femaleNames = null!;
         public static ConfigEntry<string> _lastNames = null!;
+        public static ConfigEntry<float> _SettlerBaseHealth = null!;
+        public static ConfigEntry<Toggle> _SettlerRequireFood = null!;
 
         public static ConfigEntry<string> _elfMaleNames = null!;
         public static ConfigEntry<string> _elfFemaleNames = null!;
@@ -85,6 +87,7 @@ namespace Settlers
         public static ConfigEntry<Toggle> _elfTamable = null!;
 
         public static ConfigEntry<Toggle> _pvp = null!;
+        public static ConfigEntry<float> _locationLootChance = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
@@ -99,6 +102,8 @@ namespace Settlers
             _quantity = config("3 - Locations", "Quantity", 600, "Set amount of blueprint locations to generate");
             _biomes = config("3 - Locations", "Biomes", Heightmap.Biome.All, "Set biomes settler locations can generate");
             _centerFirst = config("3 - Locations", "Center First", true, "If true, locations will be placed center of map and expand");
+            _locationLootChance = config("3 - Locations", "Loot Chance", 1f,
+                new ConfigDescription("Set chance for treasure in locations", new AcceptableValueRange<float>(0f, 1f)));
             
             _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
             _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
@@ -118,6 +123,8 @@ namespace Settlers
             _ownerLock = config("5 - Settlers", "Inventory Locked", Toggle.Off, "If on, only owner can access settler inventory");
             _elfTamable = config("5 - Settlers", "Tamable Elves", Toggle.Off, "If on, elves are also tamable");
             _pvp = config("5 - Settlers", "PVP", Toggle.Off, "If on, settlers attack other settlers if tamed and not owned by same player");
+            _SettlerBaseHealth = config("5 - Settlers", "Base Health", 50f, "Set settlers base health");
+            _SettlerRequireFood = config("5 - Settlers", "Require Food", Toggle.On, "If on, settlers require food to perform tasks");
             
             _harpoonPullSpeed = config("6 - Raider Ships", "Harpoon pull speed", 25f, "Set the speed of harpoon pull+");
             _shipHealth = config("6 - Raider Ships", "Ship Health", 5000f, "Set the health of the raider ship");

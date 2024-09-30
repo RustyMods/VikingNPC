@@ -36,7 +36,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
     public string m_followTargetName = "";
     public float m_playerMaxDistance = 50f;
     public float m_fedDuration = 300f;
-    public float m_baseHealth = 50f;
+    // public float m_baseHealth = 50f;
     public EffectList m_tamedEffect = new EffectList();
     public EffectList m_sootheEffect = new EffectList();
     public EffectList m_petEffect = new EffectList();
@@ -107,7 +107,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
             m_faction = Faction.Players;
         }
 
-        SetMaxHealth(m_baseHealth * m_level);
+        SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level);
         GetSEMan().AddStatusEffect(nameof(RaiderSE).GetStableHashCode());
     }
     
@@ -135,6 +135,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
             }
             else
             {
+                SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level);
                 LoadInventory();
                 if (m_inventory.GetAllItems().Count == 0)
                 {
@@ -180,6 +181,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
         {
             if (!IsTamed())
             {
+                UpdateAggravated();
                 if (!IsElf()) return;
                 AutoPickup(fixedDeltaTime);
                 UpdateActionQueue(fixedDeltaTime);
@@ -195,6 +197,13 @@ public class Companion : Humanoid, Interactable, TextReceiver
             UpdateStats(fixedDeltaTime);
             UpdatePins(fixedDeltaTime);
         }
+    }
+
+    private void UpdateAggravated()
+    {
+        if (!m_companionAI.m_aggravated) return;
+        if (m_companionAI.IsAlerted()) return;
+        m_companionAI.SetAggravated(false, BaseAI.AggravatedReason.Damage);
     }
 
     public void SetGearQuality(int quality)
@@ -972,7 +981,7 @@ public class Companion : Humanoid, Interactable, TextReceiver
 
     private void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
     {
-        hp = m_baseHealth * m_level;
+        hp = SettlersPlugin._SettlerBaseHealth.Value * m_level;
         stamina = 50f;
         eitr = 0.0f;
         foreach (Player.Food? food in m_foods)

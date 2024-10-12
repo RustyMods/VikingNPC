@@ -7,6 +7,7 @@ hud_fishing: 'Fishing'
 hud_encumbered: 'Encumbered'
 hud_follow: 'Follow'
 hud_stay: 'Stay'
+hud_give: "Give item"
 name_vikingsettler: 'Viking Settler'
 purchase_settler_desc: 'Purchase tamed viking settler'
 enemy_raidership: "Raider Ship"
@@ -120,3 +121,19 @@ item_boarjerky_say: "is dry as the desert of Niflheim"
 item_queensjam_say: "is fit for a shieldmaiden's table"
 item_fish_cooked_say: "is a bounty from the seas of Midgard"
 item_pukeberries_say: "is a taste that stirs the wrath of Thor"
+
+item_type_say_swords: "- a blade worthy of a jarl! sharp enough to shave a troll’s back, if you dare."
+item_type_say_knives: "- for when you need to end a fight before they even notice you started it."
+item_type_say_clubs: "- nothing says 'hello' like leaving a crater in someone's skull. thor would be proud!"
+item_type_say_polearms: "- to reach out and touch someone… from across the battlefield."
+item_type_say_spears: "- throws straight and true, like odin’s spear. just, you know, aim better."
+item_type_say_blocking: "- stronger than the gates of valhalla! but maybe don’t test it against a dragon."
+item_type_say_axes: "- perfect for chopping down trees—or greylings. just depends on how bad your day’s going."
+item_type_say_bows: "- silent death from afar, because who wants to fight up close anyway?"
+item_type_say_elementalmagic: "- harness the fury of thor’s storms! or just set something on fire—either works."
+item_type_say_bloodmagic: "- a cursed power... but hey, it’ll mess up your enemies way more than it messes you up."
+item_type_say_unarmed: "- for when you really want to bond with your opponent—face to fist."
+item_type_say_pickaxes: "- strong enough to make even the mountains tremble. or at least slightly annoyed."
+item_type_say_woodcutting: "- the only thing standing between you and an axe-made mansion."
+item_type_say_crossbows: "- if you’re feeling lazy but still want to send enemies to valhalla."
+item_type_say_fishing: "- for when fighting the sea serpent is just too much work and you’d rather have a quiet day."

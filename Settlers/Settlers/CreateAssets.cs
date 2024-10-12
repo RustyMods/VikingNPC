@@ -17,7 +17,6 @@ public static class AssetMan
         private static void Postfix(ZNetScene __instance)
         {
             CreateBaseHuman();
-            CreateBaseRenameHuman();
             Raids.AddRaidEvent(RandEventSystem.m_instance, CreateBaseRaider());
             CreateBaseElf();
             CreateBaseSailor();
@@ -94,36 +93,17 @@ public static class AssetMan
         DestroyPlayerComponents(human);
         SetZNetView(human);
         Companion companion = human.AddComponent<Companion>();
+        TameableCompanion tameableCompanion = human.AddComponent<TameableCompanion>();
+        CompanionContainer container = human.AddComponent<CompanionContainer>();
         SetCompanionValues(human, ref companion, component);
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);
-        SetTameSettings(ref companion, "Boar");
-        human.AddComponent<RandomHuman>();
+        SetTameSettings(ref tameableCompanion, "Boar");
+        human.AddComponent<Randomizer>();
         AddRandomTalk(human);
         RegisterToZNetScene(human);
         GlobalSpawn.AddToSpawnList(human, "Settler Spawn Settings", Heightmap.Biome.Meadows, minAltitude: 10);
-    }
-    
-    private static void CreateBaseRenameHuman()
-    {
-        GameObject player = ZNetScene.instance.GetPrefab("Player");
-        if (!player) return;
-        if (!player.TryGetComponent(out Player component)) return;
-        GameObject human = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
-        human.name = "VikingSettler_Rename";
-        DestroyPlayerComponents(human);
-        SetZNetView(human);
-        Companion companion = human.AddComponent<Companion>();
-        SetCompanionValues(human, ref companion, component);
-        companion.m_renamable = true;
-        AddDeathEffects(ref companion);
-        AddDefaultItems(ref companion);
-        AddAI(human, true, false);
-        SetTameSettings(ref companion, "Boar");
-        human.AddComponent<RandomHuman>();
-        AddRandomTalk(human);
-        RegisterToZNetScene(human);
     }
     
     private static void CreateBaseElf()
@@ -136,14 +116,16 @@ public static class AssetMan
         DestroyPlayerComponents(human);
         SetZNetView(human);
         Companion companion = human.AddComponent<Companion>();
+        TameableCompanion tameableCompanion = human.AddComponent<TameableCompanion>();
+        human.AddComponent<CompanionContainer>();
         companion.m_startAsElf = true;
         SetCompanionValues(human, ref companion, component);
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);
-        SetTameSettings(ref companion, "Boar");
-        RandomHuman randomHuman = human.AddComponent<RandomHuman>();
-        randomHuman.m_isElf = true;
+        SetTameSettings(ref tameableCompanion, "Boar");
+        Randomizer randomizer = human.AddComponent<Randomizer>();
+        randomizer.m_isElf = true;
         AddRandomTalk(human);
         RegisterToZNetScene(human);
         human.AddComponent<CharacterDrop>();
@@ -270,8 +252,9 @@ public static class AssetMan
         Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentLeft").gameObject);
         Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentHolders").gameObject);
         Object.Destroy(RaiderShip.transform.Find("ship/visual/Customize/ShipTentHolders (1)").gameObject);
-        customize.transform.position += new Vector3(0f, 1.427f, 0f);
-        customize.transform.localScale *= 2f;
+        var transform = customize.transform;
+        transform.position += new Vector3(0f, 1.427f, 0f);
+        transform.localScale *= 2f;
         customize.gameObject.SetActive(true);
         
         Transform storage = customize.transform.Find("storage");
@@ -353,39 +336,41 @@ public static class AssetMan
         DestroyPlayerComponents(raiderHuman);
         SetZNetView(raiderHuman);
         Companion raider = raiderHuman.AddComponent<Companion>();
+        // Tamer tamer = raiderHuman.AddComponent<Tamer>();
+        
         SetCompanionValues(raiderHuman, ref raider, component, true);
         AddDeathEffects(ref raider);
         AddDefaultItems(ref raider);
         AddAI(raiderHuman, true, true);
-        SetTameSettings(ref raider, "Boar");
-        raiderHuman.AddComponent<RandomHuman>();
+        // SetTameSettings(ref tamer, "Boar");
+        raiderHuman.AddComponent<Randomizer>();
         AddRandomTalk(raiderHuman);
         raiderHuman.AddComponent<CharacterDrop>();
         RegisterToZNetScene(raiderHuman);
-        GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings", Heightmap.Biome.All, minAltitude: 10);
+        GlobalSpawn.AddToSpawnList(raiderHuman, "Raider Spawn Settings", Heightmap.Biome.Meadows | Heightmap.Biome.BlackForest | Heightmap.Biome.Swamp | Heightmap.Biome.Mountain | Heightmap.Biome.Plains | Heightmap.Biome.Mistlands | Heightmap.Biome.AshLands, minAltitude: 10);
         return raiderHuman;
     }
     
-    private static GameObject? CreateBaseSailor()
+    private static void CreateBaseSailor()
     {
         GameObject player = ZNetScene.instance.GetPrefab("Player");
-        if (!player) return null;
-        if (!player.TryGetComponent(out Player component)) return null;
+        if (!player) return;
+        if (!player.TryGetComponent(out Player component)) return;
         GameObject sailorHuman = Object.Instantiate(player, SettlersPlugin._Root.transform, false);
         sailorHuman.name = "VikingSailor";
         DestroyPlayerComponents(sailorHuman);
         SetZNetView(sailorHuman);
         Companion sailor = sailorHuman.AddComponent<Companion>();
+        // Tamer tamer = sailorHuman.AddComponent<Tamer>();
         SetCompanionValues(sailorHuman, ref sailor, component, false, true);
         AddDeathEffects(ref sailor);
         AddDefaultItems(ref sailor);
         AddAI(sailorHuman, true, true);
-        SetTameSettings(ref sailor, "Boar");
-        sailorHuman.AddComponent<RandomHuman>();
+        // SetTameSettings(ref tamer, "Boar");
+        sailorHuman.AddComponent<Randomizer>();
         AddRandomTalk(sailorHuman);
         sailorHuman.AddComponent<CharacterDrop>();
         RegisterToZNetScene(sailorHuman);
-        return sailorHuman;
     }
 
     private static void SetZNetView(GameObject prefab)
@@ -558,15 +543,14 @@ public static class AssetMan
         raiderAI.m_attackPlayerObjects = attackPlayerObjects;
     }
 
-    private static void SetTameSettings(ref Companion companion, string cloneFrom)
+    private static void SetTameSettings(ref TameableCompanion tameableCompanion, string cloneFrom)
     {
         GameObject boar = ZNetScene.instance.GetPrefab(cloneFrom);
         if (boar.TryGetComponent(out Tameable tame))
         {
-            companion.m_fedDuration = 600f;
-            companion.m_tamedEffect = tame.m_tamedEffect;
-            companion.m_sootheEffect = tame.m_sootheEffect;
-            companion.m_petEffect = tame.m_petEffect;
+            tameableCompanion.m_tamedEffect = tame.m_tamedEffect;
+            tameableCompanion.m_sootheEffect = tame.m_sootheEffect;
+            tameableCompanion.m_petEffect = tame.m_petEffect;
         }
     }
 

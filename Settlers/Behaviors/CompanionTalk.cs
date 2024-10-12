@@ -145,15 +145,16 @@ public class CompanionTalk : MonoBehaviour
         QueueSay(InPlayerBase() ? m_randomTalkInPlayerBase : m_randomTalk, m_randomEmote[Random.Range(0, m_randomEmote.Count)], m_randomTalkFX);
     }
 
-    public void QueueSay(List<string> texts, string trigger, EffectList? effect)
+    public bool QueueSay(List<string> texts, string trigger, EffectList? effect)
     {
-        if (texts.Count == 0 || m_queuedTexts.Count >= 3) return;
+        if (texts.Count == 0 || m_queuedTexts.Count >= 3) return false;
         m_queuedTexts.Enqueue(new NpcTalk.QueuedSay()
         {
             text = texts[Random.Range(0, texts.Count)],
             trigger = trigger,
             m_effect = effect
         });
+        return true;
     }
 
     public void QueueEmote(string trigger)

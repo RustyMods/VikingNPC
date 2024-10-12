@@ -19,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.1.4";
+        internal const string ModVersion = "0.1.5";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -180,6 +180,8 @@ namespace Settlers
             SettlerGear.Setup();
             RaiderShipDrops.Setup();
             ElfLoadOut.Setup();
+            Conversation.Setup();
+            
             InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;

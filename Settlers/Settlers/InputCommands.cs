@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using HarmonyLib;
 using Settlers.Behaviors;
+
 namespace Settlers.Settlers;
 
 public static class InputCommands
@@ -33,14 +34,16 @@ public static class InputCommands
         m_actions["follow"] = companion =>
         {
             if (companion.m_companionAI.GetFollowTarget() != null) return;
-            companion.Command(Player.m_localPlayer);
+            if (companion.tameableCompanion == null) return;
+            companion.tameableCompanion.Command(Player.m_localPlayer);
         };
         m_actions["stay"] = companion =>
         {
+            if (companion.tameableCompanion == null) return;
             var follow = companion.m_companionAI.GetFollowTarget();
             if (!follow.TryGetComponent(out Player player)) return;
             if (player != Player.m_localPlayer) return;
-            companion.Command(Player.m_localPlayer);
+            companion.tameableCompanion.Command(Player.m_localPlayer);
         };
         foreach (var behavior in CompanionAI.m_acceptableBehaviors)
         {
@@ -58,6 +61,70 @@ public static class InputCommands
             };
         }
     }
+    
+    private static bool HandleCommands(string text, string[] words)
+    {
+        Action<Companion>? command = null;
+        foreach (string word in words)
+        {
+            if (m_actions.TryGetValue(word, out command)) break;
+        }
+
+        if (command == null) return false;
+
+        foreach (Companion companion in Companion.m_instances)
+        {
+            if (!companion.IsTamed()) continue;
+            if (text.Contains("everyone"))
+            {
+                command(companion);
+            }
+            else
+            {
+                string[] names = companion.m_name.Split(' ');
+                if (IsNamePartOfSentence(text, names))
+                {
+                    command(companion);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static void HandleConversations(string text)
+    {
+        var companion = Companion.GetNearestCompanion();
+        if (companion == null) return;
+        List<string>? retorts = null;
+        foreach (var kvp in Conversation.m_speech)
+        {
+            var key = kvp.Key.ToLower();
+            if (text.ToLower().Contains(key))
+            {
+                retorts = kvp.Value;
+                break;
+            }
+        }
+
+        if (retorts == null) return;
+
+        companion.m_companionTalk.QueueSay(retorts, "", null);
+    }
+
+    private static bool IsNamePartOfSentence(string sentence, string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (IsNamePartContained(sentence, name)) return true;
+        }
+
+        return false;
+    }
+    private static bool IsNamePartContained(string sentence, string namePart)
+    {
+        return sentence.ToLower().Contains(namePart.ToLower());
+    }
 
     [HarmonyPatch(typeof(Terminal), nameof(Terminal.Awake))]
     private static class Terminal_Awake_Patch
@@ -71,44 +138,9 @@ public static class InputCommands
         private static void Postfix(string text)
         {
             string[] words = text.Split(' ');
-            Action<Companion>? command = null;
-            foreach (string word in words)
-            {
-                if (m_actions.TryGetValue(word, out command)) break;
-            }
-
-            if (command == null) return;
-
-            foreach (Companion companion in Companion.m_instances)
-            {
-                if (!companion.IsTamed()) continue;
-                if (text.Contains("everyone"))
-                {
-                    command(companion);
-                }
-                else
-                {
-                    string[] names = companion.m_name.Split(' ');
-                    if (IsNamePartOfSentence(text, names))
-                    {
-                        command(companion);
-                    }
-                }
-            }
+            if (HandleCommands(text, words)) return;
+            HandleConversations(text);
         }
-
-        private static bool IsNamePartOfSentence(string sentence, string[] names)
-        {
-            foreach (var name in names)
-            {
-                if (IsNamePartContained(sentence, name)) return true;
-            }
-
-            return false;
-        }
-        private static bool IsNamePartContained(string sentence, string namePart)
-        {
-            return sentence.ToLower().Contains(namePart.ToLower());
-        }
+        
     }
 }

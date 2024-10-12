@@ -19,7 +19,8 @@ public static class StorePatches
                 var pos = Player.m_localPlayer.transform.position + new Vector3(random.x, 0f, random.y);
                 var clone = Object.Instantiate(prefab, pos, Quaternion.identity);
                 if (!clone.TryGetComponent(out Companion component)) return false;
-                component.Tame();
+                if (!clone.TryGetComponent(out TameableCompanion tameableCompanion)) return false;
+                tameableCompanion.Tame();
                 component.SetLevel(Random.Range(0, 3));
                 Player.m_localPlayer.GetInventory().RemoveItem(__instance.m_coinPrefab.m_itemData.m_shared.m_name, __instance.m_selectedItem.m_price);
                 __instance.m_buyEffects.Create(__instance.transform.position, Quaternion.identity);

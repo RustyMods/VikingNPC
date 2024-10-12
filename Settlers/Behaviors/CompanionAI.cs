@@ -4,7 +4,6 @@ using BepInEx;
 using HarmonyLib;
 using Settlers.Settlers;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Settlers.Behaviors;
 
@@ -14,6 +13,7 @@ public class CompanionAI : MonsterAI
     public static readonly Dictionary<Sadle, Companion> m_occupiedSaddles = new();
     private Companion m_companion = null!;
     private CompanionTalk m_companionTalk = null!;
+    private CompanionContainer m_container = null!;
     private ItemDrop.ItemData? m_axe;
     private ItemDrop.ItemData? m_pickaxe;
     private readonly float m_searchRange = 10f;
@@ -30,14 +30,16 @@ public class CompanionAI : MonsterAI
     public float m_repairTimer;
     public int m_seekAttempts;
     public string m_behavior = "";
-    public static readonly List<string> m_acceptableBehaviors = new() { "mine", "lumber", "fish", "repair", "defend", "anything" };
+    public static readonly List<string> m_acceptableBehaviors = new() { "mine", "lumber", "fish", "defend", "anything" };
 
     public override void Awake()
     {
         base.Awake();
         m_companion = GetComponent<Companion>();
         m_companionTalk = GetComponent<CompanionTalk>();
-        m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "");
+        m_container = GetComponent<CompanionContainer>();
+        m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "")
+            .Where(item => !item.m_itemData.m_shared.m_consumeStatusEffect).ToList();;
         m_nview.Register<string>(nameof(RPC_SetBehavior), RPC_SetBehavior);
     }
 
@@ -73,7 +75,7 @@ public class CompanionAI : MonsterAI
             if (UpdateSailorAI(dt)) return true;
         }
         if (!m_companion.IsTamed()) return base.UpdateAI(dt);
-        if (m_companion.m_inUse)
+        if (m_container != null && m_container.m_inUse)
         {
             StopMoving();
             return true;
@@ -124,7 +126,7 @@ public class CompanionAI : MonsterAI
         if (UpdateLumber(dt)) return true;
         if (UpdateMining(dt)) return true;
         if (UpdateFishing(dt)) return true;
-        if (UpdateRepair(dt)) return true;
+        // if (UpdateRepair(dt)) return true;
         if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.Off && m_companion.IsHungry())
         {
             ResetActions();
@@ -133,29 +135,30 @@ public class CompanionAI : MonsterAI
         ResetActions();
         return base.UpdateAI(dt);
     }
-    private bool UpdateRepair(float dt)
-    {
-        ItemDrop.ItemData? hammer = GetHammer();
-        if (hammer == null) return false;
-        m_repairTimer += dt;
-        if (m_repairTimer < 5f) return false;
-        m_repairTimer = 0.0f;
-        m_repairPiece = FindRepairPiece();
-        if (m_repairPiece == null) return false;
-
-        if (m_repairPiece.TryGetComponent(out WearNTear component))
-        {
-            if (!MoveTo(dt, m_repairPiece.transform.position, 10f, false)) return true;
-            LookAt(m_repairPiece.transform.position);
-            if (!IsLookingAt(m_repairPiece.transform.position, 50f)) return true;
-            if (m_companion.GetCurrentWeapon() != hammer) m_companion.EquipItem(hammer);
-            m_animator.SetTrigger(hammer.m_shared.m_attack.m_attackAnimation);
-            component.Repair();
-            m_repairPiece.m_placeEffect.Create(m_repairPiece.transform.position, Quaternion.identity);
-            m_repairPiece = null;
-        }
-        return false;
-    }
+    // private bool UpdateRepair(float dt)
+    // {
+    //     ItemDrop.ItemData? hammer = GetHammer();
+    //     if (hammer == null) return false;
+    //     m_repairTimer += dt;
+    //     if (m_repairTimer < 5f) return false;
+    //     m_repairTimer = 0.0f;
+    //     m_repairPiece = FindRepairPiece();
+    //     if (m_repairPiece == null) return false;
+    //
+    //     if (m_repairPiece.TryGetComponent(out WearNTear component))
+    //     {
+    //         if (!MoveTo(dt, m_repairPiece.transform.position, 10f, false)) return true;
+    //         LookAt(m_repairPiece.transform.position);
+    //         if (!IsLookingAt(m_repairPiece.transform.position, 50f)) return true;
+    //         if (m_companion.GetCurrentWeapon() != hammer) m_companion.EquipItem(hammer);
+    //         m_animator.SetTrigger(hammer.m_shared.m_attack.m_attackAnimation);
+    //         component.Repair();
+    //         m_repairPiece.m_placeEffect.Create(m_repairPiece.transform.position, Quaternion.identity);
+    //         m_repairPiece = null;
+    //         return true;
+    //     }
+    //     return false;
+    // }
 
     private bool UpdateEatItem(Companion companion, float dt)
     {
@@ -175,8 +178,7 @@ public class CompanionAI : MonsterAI
         
         m_onConsumedItem?.Invoke(m_consumeTarget);
         companion.m_consumeItemEffects.Create(transform.position, Quaternion.identity);
-        m_companionTalk.QueueSay(FoodSay.GetConsumeSay(m_consumeTarget.m_itemData.m_shared.m_name),"eat", null);
-        m_animator.SetTrigger("eat");
+
         m_consumeTarget = null;
         return true;
     }
@@ -190,33 +192,36 @@ public class CompanionAI : MonsterAI
         if (behavior == "anything") m_behavior = "";
     }
 
-    private ItemDrop.ItemData? GetHammer() => m_companion.GetInventory().GetAllItems().FirstOrDefault(item => item.m_shared.m_name == "$item_hammer");
-    private Piece? FindRepairPiece()
-    {
-        if (GetHammer() == null)
-        {
-            m_repairPiece = null;
-            return null;
-        }
-        if (m_repairPiece != null) return m_repairPiece;
-        Piece? result = null;
-        float num1 = m_searchRange;
-        foreach (var collider in Physics.OverlapSphere(transform.position, m_searchRange, LayerMask.GetMask("piece")))
-        {
-            Piece piece = collider.GetComponentInParent<Piece>();
-            if (piece == null) continue;
-            if (!piece.TryGetComponent(out WearNTear component)) continue;
-            if (component.GetHealthPercentage() > 0.5f) continue;
-            float distance = Vector3.Distance(transform.position, piece.transform.position);
-            if (result == null || num1 < distance)
-            {
-                result = piece;
-                num1 = distance;
-            }
-        }
-
-        return result;
-    }
+    // private ItemDrop.ItemData? GetHammer() => m_companion.GetInventory().GetAllItems().FirstOrDefault(item => item.m_shared.m_name == "$item_hammer");
+    // private Piece? FindRepairPiece()
+    // {
+    //     if (GetHammer() == null)
+    //     {
+    //         m_repairPiece = null;
+    //         return null;
+    //     }
+    //     if (m_repairPiece != null) return m_repairPiece;
+    //
+    //     return TargetFinder.FindNearestPiece(transform.position, m_searchRange);
+    //     
+    //     Piece? result = null;
+    //     float num1 = m_searchRange;
+    //     foreach (var collider in Physics.OverlapSphere(transform.position, m_searchRange, LayerMask.GetMask("piece")))
+    //     {
+    //         Piece piece = collider.GetComponentInParent<Piece>();
+    //         if (piece == null) continue;
+    //         if (!piece.TryGetComponent(out WearNTear component)) continue;
+    //         if (component.GetHealthPercentage() > 0.5f) continue;
+    //         float distance = Vector3.Distance(transform.position, piece.transform.position);
+    //         if (result == null || num1 < distance)
+    //         {
+    //             result = piece;
+    //             num1 = distance;
+    //         }
+    //     }
+    //
+    //     return result;
+    // }
 
     private void ResetActions()
     {
@@ -325,22 +330,7 @@ public class CompanionAI : MonsterAI
     private GameObject? GetNearestFish(float searchRange)
     {
         if (!HasFishingRodAndBait()) return null;
-        GameObject? result = null;
-        float num1 = 200f;
-        foreach (Collider collider in Physics.OverlapSphere(transform.position, searchRange, LayerMask.GetMask("character")))
-        {
-            Fish component = collider.GetComponentInParent<Fish>();
-            if (component == null) continue;
-            if (component.gameObject.tag != "spawned") continue;
-            var distance = Vector3.Distance(transform.position, component.gameObject.transform.position);
-            if (num1 > distance)
-            {
-                result = component.gameObject;
-                num1 = distance;
-            }
-        }
-
-        return result;
+        return TargetFinder.FindNearestFish(transform.position, searchRange);
     }
 
     private bool UpdateLumber(float dt)
@@ -429,7 +419,6 @@ public class CompanionAI : MonsterAI
         ItemDrop.ItemData? bestAxe = null;
         foreach (ItemDrop.ItemData? item in m_companion.GetInventory().GetAllItems())
         {
-            // if (!item.IsWeapon() || !m_companion.m_baseAI.CanUseAttack(item)) continue;
             if (!item.IsWeapon()) continue;
 
             if (item.m_shared.m_damages.m_chop > 0f)
@@ -520,34 +509,7 @@ public class CompanionAI : MonsterAI
         m_searchAttachTimer += dt;
         if (m_searchAttachTimer < 5f) return false;
         m_searchAttachTimer = 0.0f;
-        // var follow = GetFollowTarget();
         
-        // if (!m_companion.m_attached && follow != null)
-        // {
-        //     Chair? chair = FindNearestChair();
-        //
-        //     if (chair != null)
-        //     {
-        //         if (MoveTo(dt, chair.transform.position, 10f, true))
-        //         {
-        //             LookAt(chair.transform.position);
-        //             chair.Interact(m_companion, false, false);
-        //             return true;
-        //         }
-        //     }
-        // }
-        //
-        // if (!m_companion.m_attached && follow != null)
-        // {
-        //     if (SettlersPlugin._settlersCanRide.Value is SettlersPlugin.Toggle.Off) return false;
-        //     Sadle? saddle = FindNearestSaddle();
-        //     if (saddle == null) return false;
-        //     if (!MoveTo(dt, saddle.transform.position, 10f, true)) return true;
-        //     LookAt(saddle.transform.position);
-        //     saddle.Interact(m_companion, false, false);
-        //     return true;
-        // }
-
         if (m_companion.m_attached)
         {
             var follow = GetFollowTarget();
@@ -557,10 +519,6 @@ public class CompanionAI : MonsterAI
                 m_companion.AttachStop();
                 m_companion.Warp(player);
             }
-            // else
-            // {
-            //     m_companion.AttachStop();
-            // }
             return true;
         }
 
@@ -614,46 +572,8 @@ public class CompanionAI : MonsterAI
         if (SettlersPlugin._SettlersCanLumber.Value is SettlersPlugin.Toggle.Off) return null;
         if (!HasAxe()) return null;
         if (m_axe == null) return null;
-        GameObject? result = null;
-        float num1 = maxRange;
 
-        Collider[] colliders = Physics.OverlapSphere(transform.position, maxRange, LayerMask.GetMask("Default", "viewblock"));
-        foreach (var collider in colliders)
-        {
-            Destructible destructible = collider.GetComponentInParent<Destructible>();
-            if (destructible)
-            {
-                if (destructible.m_destructibleType is not DestructibleType.Tree) continue;
-                if (destructible.m_minToolTier > m_axe.m_shared.m_toolTier) continue;
-                float num2 = Vector3.Distance(transform.position, destructible.gameObject.transform.position);
-                if (num2 > num1) continue;
-                result = destructible.gameObject;
-                num1 = num2;
-                continue;
-            }
-
-            TreeLog treeLog = collider.GetComponentInParent<TreeLog>();
-            if (treeLog)
-            {
-                if (treeLog.m_minToolTier > m_axe.m_shared.m_toolTier) continue;
-                float num2 = Vector3.Distance(transform.position, treeLog.gameObject.transform.position);
-                if (num2 > num1) continue;
-                result = treeLog.gameObject;
-                num1 = num2;
-                continue;
-            }
-
-            TreeBase treeBase = collider.GetComponentInParent<TreeBase>();
-            if (treeBase)
-            {
-                if (treeBase.m_minToolTier > m_axe.m_shared.m_toolTier) continue;
-                float num2 = Vector3.Distance(transform.position, treeBase.gameObject.transform.position);
-                if (num2 > num1) continue;
-                result = treeBase.gameObject;
-                num1 = num2;
-            }
-        }
-        return result;
+        return TargetFinder.FindNearestTreeTarget(transform.position, m_axe.m_shared.m_toolTier, maxRange);
     }
     
     private GameObject? FindClosestRock(float maxRange)
@@ -661,70 +581,11 @@ public class CompanionAI : MonsterAI
         if (SettlersPlugin._SettlersCanMine.Value is SettlersPlugin.Toggle.Off) return null;
         if (!HasPickaxe()) return null;
         if (m_pickaxe == null) return null;
-        GameObject? result = null;
-        float num1 = maxRange;
-        Collider[] colliders = Physics.OverlapSphere(transform.position, maxRange, LayerMask.GetMask("Default", "static_solid", "Default_small"));
-        foreach (var collider in colliders)
-        {
-            MineRock mineRock = collider.GetComponentInParent<MineRock>();
-            if (mineRock)
-            {
-                if (mineRock.m_minToolTier > m_pickaxe.m_shared.m_toolTier) continue;
-                if (!mineRock.m_dropItems.m_drops.Exists(x =>
-                        x.m_item.name.EndsWith("Ore") || x.m_item.name.EndsWith("Scrap"))) continue;
-                float num2 = Vector3.Distance(transform.position, mineRock.gameObject.transform.position);
-                if (num2 > num1) continue;
-                result = mineRock.gameObject;
-                num1 = num2;
-                continue;
-            }
 
-            MineRock5 mineRock5 = collider.GetComponentInParent<MineRock5>();
-            if (mineRock5)
-            {
-                if (mineRock5.m_minToolTier > m_pickaxe.m_shared.m_toolTier) continue;
-                if (!mineRock5.m_dropItems.m_drops.Exists(x =>
-                        x.m_item.name.EndsWith("Ore") || x.m_item.name.EndsWith("Scrap"))) continue;
-                float num2 = Vector3.Distance(transform.position, mineRock5.gameObject.transform.position);
-                if (num2 > num1) continue;
-                result = mineRock5.gameObject;
-                num1 = num2;
-                continue;
-            }
-
-            Destructible destructible = collider.GetComponentInParent<Destructible>();
-            if (destructible)
-            {
-                if (destructible.m_destructibleType is DestructibleType.Tree) continue;
-                if (destructible.m_minToolTier > m_pickaxe.m_shared.m_toolTier) continue;
-                float num2 = Vector3.Distance(transform.position, destructible.gameObject.transform.position);
-                if (destructible.m_spawnWhenDestroyed)
-                {
-                    MineRock5? spawnRock = destructible.m_spawnWhenDestroyed.GetComponent<MineRock5>();
-                    if (spawnRock)
-                    {
-                        if (!spawnRock.m_dropItems.m_drops.Exists(x =>
-                                x.m_item.name.EndsWith("Ore") || x.m_item.name.EndsWith("Scrap"))) continue;
-                        if (num2 > num1) continue;
-                        result = destructible.gameObject;
-                        num1 = num2;
-                        continue;
-                    }
-                }
-
-                DropOnDestroyed dropOnDestroyed = destructible.GetComponent<DropOnDestroyed>();
-                if (!dropOnDestroyed) continue;
-                if (!dropOnDestroyed.m_dropWhenDestroyed.m_drops.Exists(x =>
-                        x.m_item.name.EndsWith("Ore") || x.m_item.name.EndsWith("Scrap"))) continue;
-                if (num2 > num1) continue;
-                result = destructible.gameObject;
-                num1 = num2;
-            }
-        }
-        return result;
+        return TargetFinder.FindNearestRock(transform.position, m_pickaxe.m_shared.m_toolTier, maxRange);
     }
 
-    public bool IsFemale() => m_nview.IsValid() && m_nview.GetZDO().GetInt("ModelIndex") == 1;
+    public bool IsFemale() => m_nview.IsValid() && m_nview.GetZDO().GetInt(ZDOVars.s_modelIndex) == 1;
     
     [HarmonyPatch(typeof(BaseAI), nameof(UpdateRegeneration))]
     private static class BaseAI_UpdateRegeneration_Patch

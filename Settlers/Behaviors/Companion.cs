@@ -32,7 +32,6 @@ public class Companion : Humanoid
     public float m_checkDistanceTimer;
     public string m_followTargetName = "";
     public float m_playerMaxDistance = 50f;
-    public float m_fedDuration = 300f;
 
     public EffectList m_warpEffect = new EffectList();
     public EffectList m_equipStartEffects = new();
@@ -971,7 +970,6 @@ public class Companion : Humanoid
             if (m_foods.Count >= 3) break;
             if (item.m_shared.m_itemType is not ItemDrop.ItemData.ItemType.Consumable) continue;
             
-            tameableCompanion.OnConsumedItemData(item);
             if (EatFood(item))
             {
                 consumedItem = item;
@@ -979,7 +977,11 @@ public class Companion : Humanoid
             }
         }
 
-        if (consumedItem != null) GetInventory().RemoveOneItem(consumedItem);
+        if (consumedItem != null)
+        {
+            tameableCompanion.OnConsumedItemData(consumedItem);
+            GetInventory().RemoveOneItem(consumedItem);
+        }
     }
 
     private void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
@@ -993,17 +995,6 @@ public class Companion : Humanoid
             stamina += food.m_stamina;
             eitr += food.m_eitr;
         }
-    }
-
-    private bool ShouldEatFood(ItemDrop.ItemData item)
-    {
-        var effect = item.m_shared.m_consumeStatusEffect;
-        if (effect != null)
-        {
-            
-        }
-
-        return true;
     }
 
     public bool EatFood(ItemDrop.ItemData item)
@@ -1062,7 +1053,7 @@ public class Companion : Humanoid
         return result;
     }
 
-    private bool CanEat(ItemDrop.ItemData item)
+    public bool CanEat(ItemDrop.ItemData item)
     {
         foreach (Player.Food food in m_foods)
         {
@@ -1125,15 +1116,7 @@ public class Companion : Humanoid
         }
         player.Message(MessageHud.MessageType.Center, count + " $msg_settlerfollows");
     }
-
-    public bool IsHungry()
-    {
-        if (m_nview == null) return false;
-        if (!m_nview.IsValid()) return false;
-        DateTime dateTime = new DateTime(m_nview.GetZDO().GetLong(ZDOVars.s_tameLastFeeding));
-        return (ZNet.instance.GetTime() - dateTime).TotalSeconds > m_fedDuration;
-    }
-
+    
     public string GetOwnerName()
     {
         long ownerID = m_nview.GetZDO().GetLong(m_ownerKey);
@@ -1172,7 +1155,7 @@ public class Companion : Humanoid
             }
 
             stringBuilder.Append("\n[<color=yellow><b>L.Alt + $KEY_Use</b></color>] $hud_rename");
-            
+            stringBuilder.Append("\n[<color=yellow>1-8</color>] $hud_give");
             stringBuilder.AppendFormat("\n$se_health: {0}/{1}", (int)GetHealth(), (int)GetMaxHealth());
             stringBuilder.AppendFormat("\n$item_armor: {0}", (int)GetBodyArmor());
             if (GetMaxEitr() > 0) stringBuilder.AppendFormat("\n$se_eitr: <color=#E6E6FA>{0}</color>/<color=#B19CD9>{1}</color>", (int)GetEitr(), (int)GetMaxEitr());
@@ -1188,6 +1171,8 @@ public class Companion : Humanoid
             {
                 stringBuilder.AppendFormat(" ( $hud_tameness {0}%, {1} )", tameness.ToString(), tameableCompanion.GetStatus());
             }
+
+            stringBuilder.Append("\n[<color=yellow>1-8</color>] $hud_give");
         }
 
         return Localization.instance.Localize(stringBuilder.ToString());

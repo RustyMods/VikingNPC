@@ -13,6 +13,7 @@ public class CompanionAI : MonsterAI
     public static readonly Dictionary<Sadle, Companion> m_occupiedSaddles = new();
     private Companion m_companion = null!;
     private CompanionTalk m_companionTalk = null!;
+    private TameableCompanion m_tameableCompanion = null!;
     private CompanionContainer m_container = null!;
     private ItemDrop.ItemData? m_axe;
     private ItemDrop.ItemData? m_pickaxe;
@@ -27,7 +28,7 @@ public class CompanionAI : MonsterAI
     public string m_action = "";
     public float m_lastFishTime;
     public Piece? m_repairPiece;
-    public float m_repairTimer;
+    // public float m_repairTimer;
     public int m_seekAttempts;
     public string m_behavior = "";
     public static readonly List<string> m_acceptableBehaviors = new() { "mine", "lumber", "fish", "defend", "anything" };
@@ -38,6 +39,7 @@ public class CompanionAI : MonsterAI
         m_companion = GetComponent<Companion>();
         m_companionTalk = GetComponent<CompanionTalk>();
         m_container = GetComponent<CompanionContainer>();
+        m_tameableCompanion = GetComponent<TameableCompanion>();
         m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "")
             .Where(item => !item.m_itemData.m_shared.m_consumeStatusEffect).ToList();;
         m_nview.Register<string>(nameof(RPC_SetBehavior), RPC_SetBehavior);
@@ -115,7 +117,7 @@ public class CompanionAI : MonsterAI
             ResetActions();
             return base.UpdateAI(dt);
         }
-        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry())
+        if (m_tameableCompanion != null && SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_tameableCompanion.IsHungry())
         {
             ResetActions();
             return UpdateEatItem(m_companion, dt) || base.UpdateAI(dt);
@@ -127,7 +129,7 @@ public class CompanionAI : MonsterAI
         if (UpdateMining(dt)) return true;
         if (UpdateFishing(dt)) return true;
         // if (UpdateRepair(dt)) return true;
-        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.Off && m_companion.IsHungry())
+        if (m_tameableCompanion != null && SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.Off && m_tameableCompanion.IsHungry())
         {
             ResetActions();
             return UpdateEatItem(m_companion, dt) || base.UpdateAI(dt);
@@ -162,16 +164,19 @@ public class CompanionAI : MonsterAI
 
     private bool UpdateEatItem(Companion companion, float dt)
     {
+        if (m_tameableCompanion == null) return false;
         if (m_consumeItems == null || m_consumeItems.Count == 0) return false;
-        if (!companion.IsHungry()) return false;
+        if (!companion.tameableCompanion.IsHungry()) return false;
         m_consumeSearchTimer += dt;
         if (m_consumeSearchTimer > m_consumeSearchInterval)
         {
             m_consumeSearchTimer = 0.0f;
             m_consumeTarget = FindClosestConsumableItem(m_consumeSearchRange);
         }
-
         if (!m_consumeTarget) return false;
+
+        if (!companion.CanEat(m_consumeTarget.m_itemData)) return false;
+
         if (!MoveTo(dt, m_consumeTarget.transform.position, m_consumeRange, false)) return true;
         LookAt(m_consumeTarget.transform.position);
         if (!IsLookingAt(m_consumeTarget.transform.position, 20f) || !m_consumeTarget.RemoveOne()) return true;
@@ -311,7 +316,7 @@ public class CompanionAI : MonsterAI
     {
         if (m_fishTarget == null) return false;
         if (Time.time - m_lastFishTime < 10f) return false;
-        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry()) return false;
+        if (m_tameableCompanion != null && SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_tameableCompanion.IsHungry()) return false;
         m_action = "fishing";
         if (!MoveTo(dt, m_fishTarget.transform.position, 30f, false)) return true;
         LookAt(m_fishTarget.transform.position);
@@ -336,7 +341,7 @@ public class CompanionAI : MonsterAI
     private bool UpdateLumber(float dt)
     {
         if (m_treeTarget == null) return false;
-        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry()) return false;
+        if (m_tameableCompanion != null && SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_tameableCompanion.IsHungry()) return false;
         m_action = "lumber";
         if (!MoveTo(dt, m_treeTarget.transform.position, 1.5f, false)) return true;
         StopMoving();
@@ -362,7 +367,7 @@ public class CompanionAI : MonsterAI
     private bool UpdateMining(float dt)
     {
         if (m_rockTarget == null) return false;
-        if (SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_companion.IsHungry()) return false;
+        if (m_tameableCompanion != null && SettlersPlugin._SettlerRequireFood.Value is SettlersPlugin.Toggle.On && m_tameableCompanion.IsHungry()) return false;
         m_action = "mining";
         if (m_rockTarget.TryGetComponent(out MineRock5 component))
         {
@@ -596,7 +601,7 @@ public class CompanionAI : MonsterAI
             component.m_regenTimer += dt;
             if (component.m_regenTimer <= 10.0) return false;
             component.m_regenTimer = 0.0f;
-            if (!component.m_companion.IsTamed() && component.m_companion.IsHungry()) return false;
+            if (!component.m_companion.IsTamed() && (component.m_tameableCompanion != null && component.m_tameableCompanion.IsHungry())) return false;
             float worldTimeDelta = component.GetWorldTimeDelta();
             float amount = component.m_companion.GetMaxHealth() / 3600f * worldTimeDelta;
             foreach (Player.Food? food in component.m_companion.m_foods)
@@ -710,6 +715,18 @@ public class CompanionAI : MonsterAI
             if (!m_occupiedSaddles.TryGetValue(__instance, out Companion companion)) return;
             
             companion.AttachStop();
+        }
+    }
+
+    [HarmonyPatch(typeof(MonsterAI), nameof(UpdateConsumeItem))]
+    private static class MonsterAI_UpdateConsumeItem_Patch
+    {
+        private static bool Prefix(MonsterAI __instance, float dt, ref bool __result)
+        {
+            if (!__instance) return true;
+            if (__instance is not CompanionAI companionAI) return true;
+            __result = companionAI.UpdateEatItem(companionAI.m_companion, dt);
+            return false;
         }
     }
 }

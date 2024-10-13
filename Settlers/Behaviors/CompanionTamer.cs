@@ -13,8 +13,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     public EffectList m_unSummonEffect = new EffectList();
     
     public float m_fedDuration = 300f;
-
-
+    
     public ZNetView m_nview = null!;
     public Companion m_companion = null!;
     public CompanionAI m_companionAI = null!;
@@ -95,8 +94,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     }
     
     private float GetRemainingTamingTime() => !m_nview.IsValid() ? 0.0f : m_nview.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, SettlersPlugin._settlerTamingTime.Value);
-
-
+    
     public void RPC_SetName(long sender, string input, string authorId)
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || !m_companion.IsTamed()) return;
@@ -107,7 +105,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     public void SetName()
     {
         if (!m_companion.IsTamed()) return;
-        TextInput.instance.RequestText( this, "$hud_rename", 100);
+        TextInput.instance.RequestText(this, "$hud_rename", 100);
     }
     
     public void Command(Humanoid user, bool message = true)
@@ -166,11 +164,6 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     {
         if (m_nview == null) return false;
         if (!m_nview.IsValid()) return false;
-
-        // if (m_companion.IsTamed())
-        // {
-        //     return m_companion.m_foods.Count < 3;
-        // }
         DateTime dateTime = new DateTime(m_nview.GetZDO().GetLong(ZDOVars.s_tameLastFeeding));
         return (ZNet.instance.GetTime() - dateTime).TotalSeconds > m_fedDuration;
     }

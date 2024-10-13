@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using BepInEx;
@@ -127,15 +126,8 @@ public class Companion : Humanoid
                     GiveDefaultItems();
                     SetGearQuality(m_level);
                 }
-                // m_inventory.m_onChanged += SaveInventory;
             }
         }
-        //
-        // if (isElf && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.On)
-        // {
-        //     m_inventory.m_onChanged += SaveInventory;
-        // }
-        
         m_inventory.m_onChanged += SaveInventory;
     }
 
@@ -391,8 +383,8 @@ public class Companion : Humanoid
     {
         Transform transform1 = transform;
         m_killedEffects.Create(transform1.position, transform1.rotation, transform1);
-        var isRaider = IsRaider();
-        var isElf = IsElf();
+        bool isRaider = IsRaider();
+        bool isElf = IsElf();
         if (isRaider || (isElf && !IsTamed()))
         {
             ZoneSystem.instance.SetGlobalKey(IsRaider() ? "defeated_vikingraider" : IsElf() ? "defeated_vikingelf" : "defeated_viking");
@@ -403,12 +395,8 @@ public class Companion : Humanoid
                 characterDrop.m_drops = RaiderDrops.GetRaiderDrops(m_currentBiome);
             }
         }
-        else if (IsTamed())
-        {
-            CreateTombStone();
-        }
+        else if (IsTamed()) CreateTombStone();
         RemovePins();
-
         base.OnDeath();
     }
 
@@ -977,11 +965,9 @@ public class Companion : Humanoid
             }
         }
 
-        if (consumedItem != null)
-        {
-            tameableCompanion.OnConsumedItemData(consumedItem);
-            GetInventory().RemoveOneItem(consumedItem);
-        }
+        if (consumedItem == null) return;
+        tameableCompanion.OnConsumedItemData(consumedItem);
+        GetInventory().RemoveOneItem(consumedItem);
     }
 
     private void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
@@ -1083,6 +1069,7 @@ public class Companion : Humanoid
         foreach (Companion companion in m_instances)
         {
             if (Vector3.Distance(companion.transform.position, point) > radius) continue;
+            if (companion.tameableCompanion == null) continue;
             companion.tameableCompanion.Tame();
         }
     }
@@ -1163,14 +1150,10 @@ public class Companion : Humanoid
         else
         {
             int tameness = tameableCompanion.GetTameness();
-            if (tameness <= 0)
-            {
-                stringBuilder.AppendFormat(" ( $hud_wild, {0} )", tameableCompanion.GetStatus());
-            }
-            else
-            {
-                stringBuilder.AppendFormat(" ( $hud_tameness {0}%, {1} )", tameness.ToString(), tameableCompanion.GetStatus());
-            }
+
+            stringBuilder.AppendFormat("\n({0}, {1})", 
+                tameness <= 0 ? "$hud_wild" : "$hud_tameness",
+                tameableCompanion.GetStatus() + (tameness <= 0 ? "" : "%"));
 
             stringBuilder.Append("\n[<color=yellow>1-8</color>] $hud_give");
         }
@@ -1324,8 +1307,10 @@ public class Companion : Humanoid
             AttachStop();
             return false;
         }
-        transform.position = m_attachPoint.position;
-        transform.rotation = m_attachPoint.rotation;
+
+        var transform1 = transform;
+        transform1.position = m_attachPoint.position;
+        transform1.rotation = m_attachPoint.rotation;
         Rigidbody component = m_attachPoint.GetComponentInParent<Rigidbody>();
         m_body.useGravity = false;
         m_body.velocity = component ? component.GetPointVelocity(transform.position) : Vector3.zero;

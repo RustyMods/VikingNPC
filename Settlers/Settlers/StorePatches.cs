@@ -14,10 +14,10 @@ public static class StorePatches
             if (__instance.m_selectedItem == null || !__instance.CanAfford(__instance.m_selectedItem)) return true;
             if (__instance.m_selectedItem.m_prefab.m_itemData.m_shared.m_name == "$name_vikingsettler")
             {
-                var prefab = ZNetScene.instance.GetPrefab("VikingSettler");
-                var random = Random.insideUnitCircle * 5f;
-                var pos = Player.m_localPlayer.transform.position + new Vector3(random.x, 0f, random.y);
-                var clone = Object.Instantiate(prefab, pos, Quaternion.identity);
+                GameObject prefab = ZNetScene.instance.GetPrefab("VikingSettler");
+                Vector2 random = Random.insideUnitCircle * 5f;
+                Vector3 pos = Player.m_localPlayer.transform.position + new Vector3(random.x, 0f, random.y);
+                GameObject clone = Object.Instantiate(prefab, pos, Quaternion.identity);
                 if (!clone.TryGetComponent(out Companion component)) return false;
                 if (!clone.TryGetComponent(out TameableCompanion tameableCompanion)) return false;
                 tameableCompanion.Tame();

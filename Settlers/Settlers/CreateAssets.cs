@@ -94,7 +94,7 @@ public static class AssetMan
         SetZNetView(human);
         Companion companion = human.AddComponent<Companion>();
         TameableCompanion tameableCompanion = human.AddComponent<TameableCompanion>();
-        CompanionContainer container = human.AddComponent<CompanionContainer>();
+        human.AddComponent<CompanionContainer>();
         SetCompanionValues(human, ref companion, component);
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);

@@ -108,6 +108,8 @@ public static class TargetFinder
         TreeBase? treeBase = null;
         foreach (var instance in m_treeBases)
         {
+            if (instance == null) continue;
+            if (instance.m_nview == null) continue;
             if (!instance.m_nview.IsValid()) continue;
             toStay.Add(instance);
             if (instance.m_minToolTier > toolTier) continue;
@@ -130,6 +132,8 @@ public static class TargetFinder
         TreeLog? treeLog = null;
         foreach (var instance in m_treeLogs)
         {
+            if (instance == null) continue;
+            if (instance.m_nview == null) continue;
             if (!instance.m_nview.IsValid()) continue;
             toStay.Add(instance);
             if (instance.m_minToolTier > toolTier) continue;
@@ -153,6 +157,8 @@ public static class TargetFinder
         Destructible? destructible = null;
         foreach (var instance in m_destructible)
         {
+            if (instance == null) continue;
+            if (instance.m_nview == null) continue;
             if (!instance.m_nview.IsValid()) continue;
             toStay.Add(instance);
             switch (tree)
@@ -189,6 +195,8 @@ public static class TargetFinder
         MineRock? mineRock = null;
         foreach (var instance in m_mineRocks)
         {
+            if (instance == null) continue;
+            if (instance.m_nview == null) continue;
             if (!instance.m_nview.IsValid()) continue;
             toStay.Add(instance);
             if (instance.m_minToolTier > toolTier) continue;
@@ -211,6 +219,8 @@ public static class TargetFinder
         MineRock5? mineRock = null;
         foreach (var instance in m_mineRock5s)
         {
+            if (instance == null) continue;
+            if (instance.m_nview == null) continue;
             if (!instance.m_nview.IsValid()) continue;
             toStay.Add(instance);
             if (instance.m_minToolTier > toolTier) continue;

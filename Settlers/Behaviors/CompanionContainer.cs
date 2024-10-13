@@ -110,6 +110,18 @@ public class CompanionContainer : MonoBehaviour
         }
     }
     
+    private static void CloseCompanionInventory(bool updateEquipment = true)
+    {
+        if (m_currentCompanion == null) return;
+        m_currentCompanion.m_companion.SaveInventory();
+        if (updateEquipment)
+        {
+            m_currentCompanion.m_companion.UpdateEquipment();
+        }
+        m_currentCompanion.m_inUse = false;
+        m_currentCompanion = null;
+    }
+    
     [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.UpdateContainer))]
     private static class Companion_ContainerOverride
     {
@@ -186,18 +198,6 @@ public class CompanionContainer : MonoBehaviour
 
             return false;
         }
-    }
-    
-    private static void CloseCompanionInventory(bool updateEquipment = true)
-    {
-        if (m_currentCompanion == null) return;
-        m_currentCompanion.m_companion.SaveInventory();
-        if (updateEquipment)
-        {
-            m_currentCompanion.m_companion.UpdateEquipment();
-        }
-        m_currentCompanion.m_inUse = false;
-        m_currentCompanion = null;
     }
 
     [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.Hide))]

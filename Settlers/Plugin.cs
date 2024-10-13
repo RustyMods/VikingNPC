@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
@@ -19,7 +18,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.1.6";
+        internal const string ModVersion = "0.1.7";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -73,7 +72,6 @@ namespace Settlers
         public static ConfigEntry<float> _onDamagedModifier = null!;
         private static ConfigEntry<bool> _centerFirst = null!;
         public static ConfigEntry<Toggle> _colorfulHair = null!;
-        // public static ConfigEntry<Toggle> _settlersCanRide = null!;
         public static ConfigEntry<int> _settlerPurchasePrice = null!;
         
         public static ConfigEntry<float> _harpoonPullSpeed = null!;
@@ -113,7 +111,6 @@ namespace Settlers
             _SettlersCanLumber = config("5 - Settlers", "Can Lumber", Toggle.On, "If on, settlers will lumber trees, logs and stumps, if has axe");
             _SettlersCanMine = config("5 - Settlers", "Can Mine", Toggle.On, "If on, settlers will mine any rocks that drop ore or scraps if has pickaxe");
             _SettlerCanFish = config("5 - Settlers", "Can Fish", Toggle.On, "If on, settlers will fish if has rod and bait");
-            // _settlersCanRide = config("5 - Settlers", "Can Ride", Toggle.On, "If on, settlers will ride nearest rideable tame, and will make tame follow user");
             _settlerPurchasePrice = config("5 - Settlers", "Purchase Price", 999, "Set price to purchase tamed settler from haldor");
             _settlerTamingTime = config("5 - Settlers", "Tame Duration", 1800f, "Set amount of time required to tame settler");
             _baseMaxCarryWeight = config("5 - Settlers", "Base Carry Weight", 300f, "Set base carry weight for settlers");
@@ -134,43 +131,13 @@ namespace Settlers
             _repairShipValue = config("7 - Player Ships", "Material Amount", 1, "Set the amount of material needed to repair ship, multiplied by ship health");
             _costModifier = config("7 - Player Ships", "Cost Modifier", 2f, new ConfigDescription("Set the divider of the total cost amount, larger number makes it cheaper", new AcceptableValueRange<float>(1, 10)));
             
-            List<string> m_maleFirstNames = new()
-            {
-                "Bjorn", "Harald", "Bo", "Frode", 
-                "Birger", "Arne", "Erik", "Kare", 
-                "Loki", "Thor", "Odin", "Ragnar", 
-                "Sigurd", "Ivar", "Gunnar", "Sven",
-                "Hakon", "Leif", "Magnus", "Rolf", 
-                "Ulf", "Vidar", "Ingvar"
-            };
-
-            List<string> m_femaleFirstNames = new()
-            {
-                "Gudrun", "Hilda", "Ingrid", "Freya", 
-                "Astrid", "Sigrid", "Thora", "Runa", 
-                "Ylva", "Sif", "Helga", "Eira", 
-                "Brynja", "Ragnhild", "Solveig", "Bodil", 
-                "Signy", "Frida", "Alva", "Liv", 
-                "Estrid", "Jorunn", "Aslaug", "Torunn"
-            };
-            List<string> m_lastNames = new List<string>()
-            {
-                "Ironside", "Fairhair", "Thunderfist", "Bloodaxe",
-                "Longsword", "Ravenheart", "Dragonslayer", "Stormborn",
-                "Shadowblade", "Thunderstruck", "Allfather", "Lothbrok",
-                "Snake-in-the-Eye", "the Boneless", "Ironhand", "Forkbeard",
-                "the Good", "the Lucky", "the Strong", "the Walker",
-                "Ironbeard", "the Silent", "the Fearless", "Shieldmaiden",
-                "Bloodfury", "Snowdrift", "Wildheart", "Battleborn",
-                "Stormshield", "Frosthammer", "Moonshadow", "Wolfsbane"
-            };
-            _maleNames = config("Names", "Male", string.Join(":", m_maleFirstNames), "List of first names seperated by :");
-            _femaleNames = config("Names", "Female", string.Join(":", m_femaleFirstNames), "List out first names seperated by :");
-            _lastNames = config("Names", "Last", string.Join(":", m_lastNames), "List of last names seperated by :");
+            _maleNames = config("Names", "Male", string.Join(":", Randomizer.m_maleFirstNames), "List of first names seperated by :");
+            _femaleNames = config("Names", "Female", string.Join(":", Randomizer.m_femaleFirstNames), "List out first names seperated by :");
+            _lastNames = config("Names", "Last", string.Join(":", Randomizer.m_lastNames), "List of last names seperated by :");
             
-            _elfMaleNames = config("Names", "Elf Male", string.Join(":", m_maleFirstNames), "List of first names seperated by :");
-            _elfFemaleNames = config("Names", "Elf Female", string.Join(":", m_femaleFirstNames), "List out first names seperated by :");
-            _elfLastNames = config("Names", "Elf Last", string.Join(":", m_lastNames), "List of last names seperated by :");
+            _elfMaleNames = config("Names", "Elf Male", string.Join(":", Randomizer.m_maleFirstNames), "List of first names seperated by :");
+            _elfFemaleNames = config("Names", "Elf Female", string.Join(":", Randomizer.m_femaleFirstNames), "List out first names seperated by :");
+            _elfLastNames = config("Names", "Elf Last", string.Join(":", Randomizer.m_lastNames), "List of last names seperated by :");
         }
 
         public void Awake()

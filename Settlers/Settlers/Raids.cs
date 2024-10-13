@@ -11,6 +11,7 @@ public static class Raids
     public static void AddRaidEvent(RandEventSystem __instance, GameObject? critter)
     {
         if (critter == null) return;
+        
         ConfigEntry<bool> enabled = SettlersPlugin._Plugin.config("Raid Event", "Enabled", true, "If true, raiders randomly raid player");
         ConfigEntry<float> duration = SettlersPlugin._Plugin.config("Raid Event", "Duration", 60f, "Set length of raid");
         ConfigEntry<bool> nearBaseOnly = SettlersPlugin._Plugin.config("Raid Event", "Near Base Only", false, "If true, viking raid only happens near bases");
@@ -26,7 +27,7 @@ public static class Raids
         ConfigEntry<string> music = SettlersPlugin._Plugin.config("Raid Event", "Force Music", "", "Set the music");
         ConfigEntry<string> environment = SettlersPlugin._Plugin.config("Raid Event", "Force Environment", "", "Set the environment");
         ConfigEntry<int> spawnMax = SettlersPlugin._Plugin.config("Raid Event", "Spawn Max", 5, "Set the max amount spawned at a time");
-
+        
         SpawnSystem.SpawnData data = new SpawnSystem.SpawnData()
         {
             m_biome = Heightmap.Biome.All,
@@ -49,7 +50,7 @@ public static class Raids
             m_minLevel = 1,
             m_maxLevel = 3
         };
-
+        
         spawnMax.SettingChanged += (sender, args) => data.m_maxSpawned = spawnMax.Value;
         
         RandomEvent raidEvent = new RandomEvent()
@@ -72,7 +73,7 @@ public static class Raids
             m_pauseIfNoPlayerInArea = pause.Value,
             m_spawnerDelay = spawnDelay.Value
         };
-
+        
         enabled.SettingChanged += (sender, args) => raidEvent.m_enabled = enabled.Value;
         duration.SettingChanged += (sender, args) => raidEvent.m_duration = duration.Value;
         nearBaseOnly.SettingChanged += (sender, args) => raidEvent.m_nearBaseOnly = nearBaseOnly.Value;
@@ -87,6 +88,7 @@ public static class Raids
         stopMessage.SettingChanged += (sender, args) => raidEvent.m_endMessage = stopMessage.Value;
         music.SettingChanged += (sender, args) => raidEvent.m_forceMusic = music.Value;
         environment.SettingChanged += (sender, args) => raidEvent.m_forceEnvironment = environment.Value;
+        
         __instance.m_events.Add(raidEvent);
     }
 

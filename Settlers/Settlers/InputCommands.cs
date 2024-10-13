@@ -22,6 +22,11 @@ public static class InputCommands
             companion.m_companionAI.m_seekAttempts = 0;
             companion.m_companionAI.SeekChair();
         };
+        m_actions["board"] = companion =>
+        {
+            companion.m_companionAI.m_seekAttempts = 0;
+            companion.m_companionAI.SeekChair();
+        };
         m_actions["standup"] = companion =>
         {
             companion.m_companionAI.BreakSit();
@@ -45,6 +50,11 @@ public static class InputCommands
             if (player != Player.m_localPlayer) return;
             companion.tameableCompanion.Command(Player.m_localPlayer);
         };
+        m_actions["come"] = companion =>
+        {
+            if (!companion.IsTamed() || !Player.m_localPlayer) return;
+            companion.Warp(Player.m_localPlayer);
+        };
         foreach (var behavior in CompanionAI.m_acceptableBehaviors)
         {
             m_actions[behavior] = companion =>
@@ -60,6 +70,41 @@ public static class InputCommands
                 companion.m_companionTalk.QueueEmote(emote);
             };
         }
+    }
+
+    private static void HandleBarberShop(string text)
+    {
+        string[] words = text.Split(' ');
+        int index = GetNumberInString(words);
+        if (index is 0 or > 20) return;
+        foreach (var companion in Companion.m_instances)
+        {
+            string[] names = companion.m_name.Split(' ');
+            if (!IsNamePartOfSentence(text, names)) continue;
+            
+            if (text.ToLower().Contains("hair"))
+            {
+                companion.m_visEquipment.SetHairItem("Hair" + index);
+                companion.m_hairItem = "Hair" + index;
+                companion.m_nview.GetZDO().Set("HairIndex".GetStableHashCode(), index);
+            }
+            else if (text.ToLower().Contains("beard"))
+            {
+                companion.m_visEquipment.SetBeardItem("Beard" + index);
+                companion.m_beardItem = "Beard" + index;
+                companion.m_nview.GetZDO().Set("BeardIndex".GetStableHashCode(), index);
+            }
+        }
+    }
+
+    private static int GetNumberInString(string[] words)
+    {
+        foreach (string word in words)
+        {
+            if (int.TryParse(word, out int number)) return number;
+        }
+
+        return 0;
     }
     
     private static bool HandleCommands(string text, string[] words)
@@ -140,6 +185,7 @@ public static class InputCommands
             string[] words = text.Split(' ');
             if (HandleCommands(text, words)) return;
             HandleConversations(text);
+            HandleBarberShop(text);
         }
         
     }

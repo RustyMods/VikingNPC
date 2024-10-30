@@ -18,7 +18,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.1.7";
+        internal const string ModVersion = "0.1.8";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -63,7 +63,7 @@ namespace Settlers
         private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
         public static ConfigEntry<Toggle> _replaceSpawns = null!;
         public static ConfigEntry<float> _raiderDropChance = null!;
-        public static ConfigEntry<Character.Faction> _raiderFaction = null!;
+        // public static ConfigEntry<Character.Faction> _raiderFaction = null!;
         public static ConfigEntry<float> _raiderBaseHealth = null!;
         public static ConfigEntry<Toggle> _addMinimapPin = null!;
         public static ConfigEntry<float> _settlerTamingTime = null!;
@@ -104,7 +104,7 @@ namespace Settlers
                 new ConfigDescription("Set chance for treasure in locations", new AcceptableValueRange<float>(0f, 1f)));
             
             _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
-            _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
+            // _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
             _replaceSpawns = config("4 - Raiders", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
             _raiderDropChance = config("4 - Raiders", "Raider Gear Drop Chance", 0.2f, new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
             
@@ -148,7 +148,7 @@ namespace Settlers
             RaiderShipDrops.Setup();
             ElfLoadOut.Setup();
             Conversation.Setup();
-            
+            CompanionSkill.Setup();
             InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;
@@ -157,7 +157,6 @@ namespace Settlers
             DontDestroyOnLoad(_Root);
             _Root.SetActive(false);
             LoadMockLocation();
-            AssetMan.RegisterElfEars();
             Commands.LoadServerLocationChange();
             BlueprintManager.LoadBlueprints();
             Localizer.Load();

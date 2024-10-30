@@ -67,7 +67,7 @@ public static class RepairableShips
             var transform = hoveringPiece.transform;
             hoveringPiece.m_placeEffect.Create(transform.position, transform.rotation);
             __instance.Message(MessageHud.MessageType.TopLeft, Localization.instance.Localize("$msg_repaired", hoveringPiece.m_name));
-            __instance.UseStamina(toolItem.m_shared.m_attack.m_attackStamina, true);
+            __instance.UseStamina(toolItem.m_shared.m_attack.m_attackStamina);
             __instance.UseEitr(toolItem.m_shared.m_attack.m_attackEitr);
             if (!toolItem.m_shared.m_useDurability) return false;
             toolItem.m_durability -= toolItem.m_shared.m_useDurabilityDrain;

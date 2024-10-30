@@ -38,7 +38,7 @@ public class BluePrinter : MonoBehaviour
         if (!ZoneSystem.instance || !m_nview.IsValid()) return;
         if (IsGenerated()) return;
         SettlersPlugin.SettlersLogger.LogDebug("Trying to generate location: " + data.m_blueprint.m_name);
-        if (!ZoneSystem.instance.m_zones.ContainsKey(ZoneSystem.instance.GetZone(transform.position)))
+        if (!ZoneSystem.instance.m_zones.ContainsKey(ZoneSystem.GetZone(transform.position)))
         {
             Invoke(nameof(TryGenerate), 1f);
         }

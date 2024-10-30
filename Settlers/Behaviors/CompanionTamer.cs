@@ -1,16 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using BepInEx;
 using Settlers.Settlers;
+using SkillManager;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
 
 public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
 {
+    public static List<TameableCompanion> m_instances = new();
     public EffectList m_tamedEffect = new EffectList();
     public EffectList m_sootheEffect = new EffectList();
     public EffectList m_petEffect = new EffectList();
-    public EffectList m_unSummonEffect = new EffectList();
     
     public float m_fedDuration = 300f;
     
@@ -21,7 +24,6 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     public CompanionContainer m_companionContainer = null!;
     
     public float m_lastPetTime;
-    public float m_unsummonTime;
 
     public void Awake()
     {
@@ -34,7 +36,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         m_companionAI.m_onConsumedItem += OnConsumedItem;
 
         if (!m_nview.IsValid()) return;
-        
+        m_instances.Add(this);
         m_nview.Register<ZDOID, bool>(nameof(RPC_Command), RPC_Command);
         m_nview.Register<string, string>(nameof(RPC_SetName), RPC_SetName);
         
@@ -44,9 +46,13 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         {
             m_companion.SetTamed(true);
         }
-
     }
-    
+
+    public void OnDestroy()
+    {
+        m_instances.Remove(this);
+    }
+
     public void TamingUpdate()
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || m_companion.IsTamed() || IsHungry()) return;
@@ -54,7 +60,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         if (m_companionAI.IsAlerted()) return;
         m_companionAI.SetDespawnInDay(false);
         m_companionAI.SetEventCreature(false);
-        DecreaseRemainingTime(3f);
+        DecreaseRemainingTime(3f * GetSkillTimeModifier());
         if (GetRemainingTamingTime() <= 0.0)
         {
             Tame();
@@ -65,6 +71,15 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
             Transform transform1 = transform;
             m_sootheEffect.Create(transform1.position, transform1.rotation);
         }
+    }
+
+    public float GetSkillTimeModifier()
+    {
+        if (Player.GetClosestPlayer(transform.position, 10f) is not { } player) return 1f;
+        var skill = Skill.fromName("Companion");
+        var level = player.GetSkillLevel(skill);
+        if (UnityEngine.Random.value < 0.1f) player.RaiseSkill(skill);
+        return 1f + level / 100f;
     }
     
     public void Tame()
@@ -78,11 +93,19 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         Vector3 position = transform1.position;
         m_tamedEffect.Create(position, transform1.rotation);
         Player closest = Player.GetClosestPlayer(position, 30f);
+        SetSkillModifier(closest);
         m_companionAI.m_aggravatable = false;
         if (!closest) return;
         closest.Message(MessageHud.MessageType.Center, $"{m_companion.m_name} $hud_tamedone");
         m_companion.SetOwner(closest);
-        m_companion.m_faction = Character.Faction.Players;
+        // m_companion.m_faction = Character.Faction.Players;
+    }
+
+    private void SetSkillModifier(Player player)
+    {
+        Skills.SkillType skill = Skill.fromName("Companion");
+        player.RaiseSkill(skill);
+        m_companion.SetSkillModifier(1f + player.GetSkillLevel(skill) / 100f);
     }
     
     public void DecreaseRemainingTime(float time)
@@ -162,8 +185,8 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     
     public bool IsHungry()
     {
-        if (m_nview == null) return false;
-        if (!m_nview.IsValid()) return false;
+        if (m_nview is not { } view) return false;
+        if (!view.IsValid()) return false;
         DateTime dateTime = new DateTime(m_nview.GetZDO().GetLong(ZDOVars.s_tameLastFeeding));
         return (ZNet.instance.GetTime() - dateTime).TotalSeconds > m_fedDuration;
     }
@@ -237,7 +260,11 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
             case ItemDrop.ItemData.ItemType.Consumable:
                 if (m_companion.IsTamed())
                 {
-                    if (!m_companion.EatFood(item)) return false;
+                    if (!m_companion.EatFood(item))
+                    {
+                        user.Message(MessageHud.MessageType.Center, "$msg_cannotuseitem");
+                        return true;
+                    }
                     OnConsumedItemData(item);
                 }
                 else
@@ -262,7 +289,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         if (m_companionAI.IsAlerted()) return "$hud_tamefrightened";
         if (IsHungry()) return "$hud_tamehungry";
         if (m_companion.IsEncumbered()) return "$hud_encumbered";
-        if (m_companionAI != null && m_companionAI.m_resting) return "$hud_tametired";
+        if (m_companionAI is { m_resting: true }) return "$hud_tametired";
         if (m_companionAI != null && !m_companionAI.GetCurrentAction().IsNullOrWhiteSpace())
             return $"$hud_{m_companionAI.GetCurrentAction()}";
         return m_companion.IsTamed() ? "$hud_tamehappy" : "$hud_tameinprogress";
@@ -283,6 +310,4 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     }
     
     public int GetTameness() => (int)((1.0 - Mathf.Clamp01(GetRemainingTamingTime() / SettlersPlugin._settlerTamingTime.Value)) * 100.0);
-
-    
 }

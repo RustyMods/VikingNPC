@@ -4,6 +4,7 @@ using System.Text;
 using BepInEx;
 using HarmonyLib;
 using Settlers.Settlers;
+using SkillManager;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -66,6 +67,7 @@ public class Companion : Humanoid
 
     public override void Awake()
     {
+        
         base.Awake();
         m_equipmentModifierValues = new float[Player.s_equipmentModifierSources.Length];
         if (m_startAsRaider) SetRaider(true);
@@ -87,13 +89,12 @@ public class Companion : Humanoid
         if (IsTamed())
         {
             m_companionAI.m_aggravatable = false;
-            m_faction = Faction.Players;
+            // m_faction = Faction.Players;
         }
-
-        SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level);
+        
+        SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level * GetSkillModifier());
         GetSEMan().AddStatusEffect(nameof(RaiderSE).GetStableHashCode());
     }
-    
     public override void Start()
     {
         bool isRaider = IsRaider();
@@ -103,8 +104,8 @@ public class Companion : Humanoid
         {
             GetLoadOut(isElf, isSailor);
             SetGearQuality(m_level);
-            SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
-            if (isRaider) m_faction = SettlersPlugin._raiderFaction.Value;
+            SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level * GetSkillModifier());
+            // if (isRaider) m_faction = SettlersPlugin._raiderFaction.Value;
             GiveDefaultItems();
         }
         else
@@ -113,12 +114,12 @@ public class Companion : Humanoid
             {
                 GetLoadOut(isElf, isSailor);
                 SetGearQuality(m_level);
-                SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level);
+                SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level * GetSkillModifier());
                 GiveDefaultItems();
             }
             else
             {
-                SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level);
+                SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level * GetSkillModifier());
                 LoadInventory();
                 if (m_inventory.GetAllItems().Count == 0)
                 {
@@ -176,6 +177,15 @@ public class Companion : Humanoid
             UpdatePins(fixedDeltaTime);
         }
     }
+    
+    public void SetSkillModifier(float modifier)
+    {
+        if (modifier <= 0f) modifier = 1f;
+        m_nview.ClaimOwnership();
+        m_nview.GetZDO().Set("SkillModifier".GetStableHashCode(), modifier);
+    }
+
+    public float GetSkillModifier() => m_nview.GetZDO().GetFloat("SkillModifier".GetStableHashCode(), 1f);
 
     private void UpdateAggravated()
     {
@@ -197,13 +207,13 @@ public class Companion : Humanoid
     {
         if (!m_nview.IsOwner())
         {
+            // Tells everyone in the area to run this command, only the owner of the companion will successfully teleport
             m_nview.InvokeRPC(nameof(RPC_TeleportTo), pos, rot, distantTeleport);
             return false;
         }
         Teleport(pos, rot, distantTeleport);
         return true;
     }
-
     public void Teleport(Vector3 pos, Quaternion rot, bool distantTeleport)
     {
         m_teleporting = true;
@@ -418,7 +428,7 @@ public class Companion : Humanoid
     
     public void RemovePins()
     {
-        if (m_pin == null) return;
+        if (m_pin == null || !Minimap.instance) return;
         Minimap.instance.RemovePin(m_pin);
     }
 
@@ -739,14 +749,8 @@ public class Companion : Humanoid
 
     public void UpdateEquipment(bool toggle = true)
     {
-        if (m_nview.IsOwner())
-        {
-            RPC_UpdateEquipment(0L, toggle);
-        }
-        else
-        {
-            m_nview.InvokeRPC(nameof(RPC_UpdateEquipment), toggle);
-        }
+        if (m_nview.IsOwner()) RPC_UpdateEquipment(0L, toggle);
+        else m_nview.InvokeRPC(nameof(RPC_UpdateEquipment), toggle);
     }
 
     private void RPC_UpdateEquipment(long sender, bool toggle = true)
@@ -767,6 +771,8 @@ public class Companion : Humanoid
         CheckEquipment(m_rightItem, items);
         CheckEquipment(m_leftItem, items);
         CheckEquipment(m_utilityItem, items);
+        CheckEquipment(m_hiddenLeftItem, items);
+        CheckEquipment(m_hiddenRightItem, items);
         foreach (ItemDrop.ItemData? item in items.OrderBy(x => x.m_shared.m_armor).ToList())
         {
             if (!item.IsEquipable()) continue;
@@ -972,7 +978,7 @@ public class Companion : Humanoid
 
     private void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
     {
-        hp = SettlersPlugin._SettlerBaseHealth.Value * m_level;
+        hp = SettlersPlugin._SettlerBaseHealth.Value * m_level * GetSkillModifier();
         stamina = 50f;
         eitr = 0.0f;
         foreach (Player.Food? food in m_foods)
@@ -1041,6 +1047,10 @@ public class Companion : Humanoid
 
     public bool CanEat(ItemDrop.ItemData item)
     {
+        if (item.m_shared.m_consumeStatusEffect is { } statusEffect)
+        {
+            if (GetSEMan().HaveStatusEffect(statusEffect.m_nameHash)) return false;
+        }
         foreach (Player.Food food in m_foods)
         {
             if (food.m_item.m_shared.m_name == item.m_shared.m_name)
@@ -1082,8 +1092,9 @@ public class Companion : Humanoid
             foreach (Companion companion in m_instances)
             {
                 if (!companion.IsTamed()) continue;
-                if (companion.m_companionAI == null) continue;
-                if (companion.m_companionAI.GetFollowTarget() != null) continue;
+                if (companion.m_companionAI is not { } companionAI) continue;
+                // if (companion.m_companionAI == null) continue;
+                if (companionAI.GetFollowTarget() is null) continue;
                 if (Vector3.Distance(player.transform.position, companion.transform.position) > radius) continue;
                 companion.tameableCompanion.Command(player, false);
                 ++count;
@@ -1094,8 +1105,9 @@ public class Companion : Humanoid
             foreach (Companion companion in m_instances)
             {
                 if (!companion.IsTamed()) continue;
-                if (companion.m_companionAI == null) continue;
-                if (companion.m_companionAI.GetFollowTarget() == null) continue;
+                if (companion.m_companionAI is not { } companionAI) continue;
+                // if (companion.m_companionAI == null) continue;
+                if (companionAI.GetFollowTarget() is null) continue;
                 if (companion.m_followTargetName != player.GetPlayerName()) continue;
                 companion.tameableCompanion.Command(player, false);
                 ++count;
@@ -1219,12 +1231,11 @@ public class Companion : Humanoid
     public override void RaiseSkill(Skills.SkillType skill, float value = 1)
     {
         if (m_companionAI == null) return;
-        GameObject followTarget = m_companionAI.GetFollowTarget();
-        if (followTarget == null) return;
+        if (m_companionAI.GetFollowTarget() is not { } followTarget) return;
         if (!followTarget.TryGetComponent(out Character component)) return;
         Skills skills = component.GetSkills();
         if (skills == null) return;
-        skills.RaiseSkill(Skills.SkillType.BloodMagic, value * 0.5f);
+        skills.RaiseSkill(Skill.fromName("Companion"), value * 0.5f);
     }
     
     public override void AttachStart(Transform attachPoint, GameObject? colliderRoot, bool hideWeapons, bool isBed, bool onShip,
@@ -1302,6 +1313,7 @@ public class Companion : Humanoid
             if (IsSailor()) OnDeath();
             return false;
         }
+        
         if (m_attachPoint == null)
         {
             AttachStop();
@@ -1333,12 +1345,8 @@ public class Companion : Humanoid
         {
             foreach (Collider collider in m_attachColliders)
             {
-                if (collider)
-                {
-                    Physics.IgnoreCollision(m_collider, collider, false);
-                }
+                if (collider) Physics.IgnoreCollision(m_collider, collider, false);
             }
-
             m_attachColliders = null;
         }
 
@@ -1367,7 +1375,7 @@ public class Companion : Humanoid
                 }
                 CompanionAI.m_occupiedSaddles.Remove(m_attachedSadle);
             }
-
+        
             m_attachedSadle = null;
         }
         ResetCloth();

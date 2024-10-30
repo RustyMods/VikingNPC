@@ -11,7 +11,7 @@ public class CompanionAI : MonsterAI
 {
     public static readonly Dictionary<Chair, Companion> m_occupiedChairs = new();
     public static readonly Dictionary<Sadle, Companion> m_occupiedSaddles = new();
-    private Companion m_companion = null!;
+    public Companion m_companion = null!;
     private CompanionTalk m_companionTalk = null!;
     private TameableCompanion m_tameableCompanion = null!;
     private CompanionContainer m_container = null!;
@@ -31,7 +31,7 @@ public class CompanionAI : MonsterAI
     // public float m_repairTimer;
     public int m_seekAttempts;
     public string m_behavior = "";
-    public static readonly List<string> m_acceptableBehaviors = new() { "mine", "lumber", "fish", "defend", "anything" };
+    public static readonly List<string> m_acceptableBehaviors = new() { "mine", "lumber", "fish", "defend", "anything", "guard" };
 
     public override void Awake()
     {
@@ -137,6 +137,7 @@ public class CompanionAI : MonsterAI
         ResetActions();
         return base.UpdateAI(dt);
     }
+    
     // private bool UpdateRepair(float dt)
     // {
     //     ItemDrop.ItemData? hammer = GetHammer();
@@ -186,6 +187,24 @@ public class CompanionAI : MonsterAI
 
         m_consumeTarget = null;
         return true;
+    }
+
+    private static void UpdateHealthRegeneration(CompanionAI component, float dt)
+    {
+        component.m_regenTimer += dt;
+        if (component.m_regenTimer <= 10.0) return;
+        component.m_regenTimer = 0.0f;
+
+        if (!component.m_companion.IsTamed()) return;
+        if (component.m_tameableCompanion != null && component.m_tameableCompanion.IsHungry()) return;
+        
+        float worldTimeDelta = component.GetWorldTimeDelta();
+        float amount = component.m_companion.GetMaxHealth() / 3600f * worldTimeDelta;
+        foreach (Player.Food? food in component.m_companion.m_foods) amount += food.m_item.m_shared.m_foodRegen;
+
+        float regenMultiplier = 1f;
+        component.m_companion.m_seman.ModifyHealthRegen(ref regenMultiplier);
+        component.m_companion.Heal(amount * regenMultiplier);
     }
 
     public void RPC_SetBehavior(long sender, string behavior)
@@ -598,17 +617,7 @@ public class CompanionAI : MonsterAI
         private static bool Prefix(BaseAI __instance, float dt)
         {
             if (__instance is not CompanionAI component) return true;
-            component.m_regenTimer += dt;
-            if (component.m_regenTimer <= 10.0) return false;
-            component.m_regenTimer = 0.0f;
-            if (!component.m_companion.IsTamed() && (component.m_tameableCompanion != null && component.m_tameableCompanion.IsHungry())) return false;
-            float worldTimeDelta = component.GetWorldTimeDelta();
-            float amount = component.m_companion.GetMaxHealth() / 3600f * worldTimeDelta;
-            foreach (Player.Food? food in component.m_companion.m_foods)
-            {
-                amount += food.m_item.m_shared.m_foodRegen;
-            }
-            component.m_companion.Heal(amount, true);
+            UpdateHealthRegeneration(component, dt);
             return false;
         }
     }
@@ -681,27 +690,6 @@ public class CompanionAI : MonsterAI
             __instance.m_monsterAI.SetPatrolPoint();
             __instance.m_nview.GetZDO().Set(ZDOVars.s_follow, "");
             
-        }
-    }
-
-    [HarmonyPatch(typeof(BaseAI), nameof(IsEnemy), typeof(Character),typeof(Character))]
-    private static class BaseAI_IsEnemy_Patch
-    {
-        private static void Postfix(Character a, Character b, ref bool __result)
-        {
-            if (a is not Companion companionA || b is not Companion companionB) return;
-
-            if (companionA.IsRaider() != companionB.IsRaider()) __result = true;
-
-            if (SettlersPlugin._pvp.Value is SettlersPlugin.Toggle.On)
-            {
-                if (companionA.IsTamed() && companionB.IsTamed())
-                {
-                    var owner1 = companionA.GetOwnerName();
-                    var owner2 = companionB.GetOwnerName();
-                    if (owner1 != owner2) __result = true;
-                }
-            }
         }
     }
 

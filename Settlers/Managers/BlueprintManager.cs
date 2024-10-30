@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -208,12 +209,11 @@ public static class BlueprintManager
         {
             m_blueprint = RegisterBlueprint(fileName);
             m_biome = biome;
+            
             m_data.Add(this);
         }
         public void SetAdjustment(Vector3 vector) => m_adjustments = vector;
-
         public void SetRandomDamage(bool enable) => m_randomDamage = enable;
-
         public void SetCritter(string creatureName, float levelUpChance = 10f)
         {
             m_creature.m_creatureName = creatureName;

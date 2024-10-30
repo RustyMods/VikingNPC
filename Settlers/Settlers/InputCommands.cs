@@ -55,6 +55,12 @@ public static class InputCommands
             if (!companion.IsTamed() || !Player.m_localPlayer) return;
             companion.Warp(Player.m_localPlayer);
         };
+
+        m_actions["hide"] = companion =>
+        {
+            if (!companion.IsTamed() || !Player.m_localPlayer) return;
+            companion.HideHandItems();
+        };
         foreach (var behavior in CompanionAI.m_acceptableBehaviors)
         {
             m_actions[behavior] = companion =>
@@ -145,11 +151,9 @@ public static class InputCommands
         foreach (var kvp in Conversation.m_speech)
         {
             var key = kvp.Key.ToLower();
-            if (text.ToLower().Contains(key))
-            {
-                retorts = kvp.Value;
-                break;
-            }
+            if (!text.ToLower().Contains(key)) continue;
+            retorts = kvp.Value;
+            break;
         }
 
         if (retorts == null) return;

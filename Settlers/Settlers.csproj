@@ -84,6 +84,9 @@
         <Reference Include="ServerSync">
             <HintPath>Libs\ServerSync.dll</HintPath>
         </Reference>
+        <Reference Include="SkillManager">
+          <HintPath>Libs\SkillManager.dll</HintPath>
+        </Reference>
         <Reference Include="SoftReferenceableAssets">
           <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\SoftReferenceableAssets_publicized.dll</HintPath>
         </Reference>
@@ -108,6 +111,9 @@
         </Reference>
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>$(CorlibPath)\UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.ImageConversionModule">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.IMGUIModule">
             <HintPath>$(CorlibPath)\UnityEngine.IMGUIModule.dll</HintPath>
@@ -134,6 +140,7 @@
         <Compile Include="Behaviors\CompanionAI.cs" />
         <Compile Include="Behaviors\CompanionContainer.cs" />
         <Compile Include="Behaviors\CompanionTalk.cs" />
+        <Compile Include="Behaviors\CustomFactions.cs" />
         <Compile Include="Behaviors\RaiderShipEffects.cs" />
         <Compile Include="Behaviors\RandomHuman.cs" />
         <Compile Include="Behaviors\ShipAI.cs" />
@@ -148,6 +155,7 @@
         <Compile Include="Plugin.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Settlers\BlockingAI.cs" />
+        <Compile Include="Settlers\CompanionSkill.cs" />
         <Compile Include="Settlers\Conversation.cs" />
         <Compile Include="Settlers\CreateAssets.cs" />
         <Compile Include="Settlers\Commands.cs" />
@@ -198,11 +206,13 @@
         <EmbeddedResource Include="blueprints\PlainsRaiderTower1.blueprint" />
         <EmbeddedResource Include="blueprints\SettlerRuins_Ashlands1.blueprint" />
         <Content Include="environment.props" />
+        <EmbeddedResource Include="icons\companionicon.png" />
         <Content Include="ILRepack.targets" />
         <Content Include="Libs\ServerSync.dll">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
         <EmbeddedResource Include="translations\English.yml" />
+        <Content Include="Libs\SkillManager.dll" />
         <Content Include="UpdateManifest.ps1" />
     </ItemGroup>
     <ItemGroup>

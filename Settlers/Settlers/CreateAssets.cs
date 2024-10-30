@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using HarmonyLib;
-using ItemManager;
 using Settlers.Behaviors;
 using Settlers.Managers;
 using UnityEngine;
@@ -34,6 +33,7 @@ public static class AssetMan
         private static void Postfix(ObjectDB __instance)
         {
             if (!__instance || !ZNetScene.instance) return;
+            RegisterElfEars();
             RaiderSE status = ScriptableObject.CreateInstance<RaiderSE>();
             status.name = nameof(RaiderSE);
             status.m_name = "Vikings";
@@ -54,13 +54,20 @@ public static class AssetMan
 
     public static void RegisterElfEars()
     {
-        Item ElvenEars = new Item(SettlersPlugin._elfBundle, "ElvenEars");
-        ElvenEars.Name.English("Elf Ears");
-        ElvenEars.Description.English("");
-        ElvenEars.Trade.Trader = ItemManager.Trader.Hildir;
-        ElvenEars.Trade.Price = 999;
-        ElvenEars.Trade.Stack = 1;
-        ElvenEars.Configurable = Configurability.Disabled;
+        // Item ElvenEars = new Item(SettlersPlugin._elfBundle, "ElvenEars");
+        // ElvenEars.Name.English("Elf Ears");
+        // ElvenEars.Description.English("");
+        // ElvenEars.Trade.Trader = ItemManager.Trader.Hildir;
+        // ElvenEars.Trade.Price = 999;
+        // ElvenEars.Trade.Stack = 1;
+        // ElvenEars.Configurable = Configurability.Disabled;
+        GameObject elfEars = SettlersPlugin._elfBundle.LoadAsset<GameObject>("ElvenEars");
+        if (elfEars.TryGetComponent(out ItemDrop component))
+        {
+            component.m_itemData.m_shared.m_name = "Elf Ears";
+        }
+        RegisterToZNetScene(elfEars);
+        RegisterToDatabase(elfEars);
     }
     
     private static void CreateSpawners()
@@ -119,7 +126,7 @@ public static class AssetMan
         TameableCompanion tameableCompanion = human.AddComponent<TameableCompanion>();
         human.AddComponent<CompanionContainer>();
         companion.m_startAsElf = true;
-        SetCompanionValues(human, ref companion, component);
+        SetCompanionValues(human, ref companion, component, startAsElf: true);
         AddDeathEffects(ref companion);
         AddDefaultItems(ref companion);
         AddAI(human, true, false);
@@ -387,14 +394,18 @@ public static class AssetMan
         Object.Destroy(prefab.GetComponent<Skills>());
     }
 
-    private static void SetCompanionValues(GameObject prefab, ref Companion companion, Player player, bool startAsRaider = false, bool startAsSailor = false)
+    private static void SetCompanionValues(GameObject prefab, ref Companion companion, Player player, bool startAsRaider = false, bool startAsSailor = false, bool startAsElf = false)
     {
         companion.m_startAsRaider = startAsRaider;
         companion.m_startAsSailor = startAsSailor;
         companion.name = prefab.name;
         companion.m_name = "Viking";
-        companion.m_group = "Humans";
-        companion.m_faction = startAsRaider ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
+        companion.m_group = startAsRaider || startAsSailor ? "Raiders" : "Settlers";
+        // companion.m_faction = startAsRaider ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
+        string factionName = startAsRaider || startAsSailor ? "Raider" : startAsElf ? "Elf" : "Settler";
+        bool friendly = !startAsRaider && !startAsSailor;
+        CustomFactions.CustomFaction customFaction = new(factionName, friendly);
+        companion.m_faction = customFaction.m_faction;
         companion.m_crouchSpeed = player.m_crouchSpeed;
         companion.m_walkSpeed = player.m_walkSpeed;
         companion.m_speed = player.m_speed;
@@ -546,12 +557,10 @@ public static class AssetMan
     private static void SetTameSettings(ref TameableCompanion tameableCompanion, string cloneFrom)
     {
         GameObject boar = ZNetScene.instance.GetPrefab(cloneFrom);
-        if (boar.TryGetComponent(out Tameable tame))
-        {
-            tameableCompanion.m_tamedEffect = tame.m_tamedEffect;
-            tameableCompanion.m_sootheEffect = tame.m_sootheEffect;
-            tameableCompanion.m_petEffect = tame.m_petEffect;
-        }
+        if (!boar.TryGetComponent(out Tameable tame)) return;
+        tameableCompanion.m_tamedEffect = tame.m_tamedEffect;
+        tameableCompanion.m_sootheEffect = tame.m_sootheEffect;
+        tameableCompanion.m_petEffect = tame.m_petEffect;
     }
 
     private static void AddRandomTalk(GameObject prefab)

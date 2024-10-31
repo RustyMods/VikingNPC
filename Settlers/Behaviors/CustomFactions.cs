@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
+using UnityEngine;
 
 namespace Settlers.Behaviors;
 
 public static class CustomFactions
 {
     private static readonly Dictionary<Character.Faction, CustomFaction> m_customs = new();
-    
     public class CustomFaction
     {
         public readonly string m_name;
@@ -114,10 +114,10 @@ public static class CustomFactions
 
     private static bool IsEnemyToCreatures(Companion companion, Character character)
     {
-        var faction = character.GetFaction();
-        var baseAI = character.GetBaseAI();
+        Character.Faction faction = character.GetFaction();
+        BaseAI baseAI = character.GetBaseAI();
         if (!m_customs.TryGetValue(companion.GetFaction(), out CustomFaction data)) return true;
-        if (data.m_friendly && character.m_tameable) return false;
+        if (data.m_friendly && character.GetComponent<Tameable>()) return false;
         if (!data.m_friendly && faction is Character.Faction.Boss) return false;
         if (baseAI.m_aggravatable && !baseAI.IsAggravated()) return false;
         return true;
@@ -125,15 +125,16 @@ public static class CustomFactions
 
     private static bool HandleTamedCompanion(Companion companion, Character character)
     {
+        if (!IsEnemyToCreatures(companion, character)) return false;
         switch (companion.m_companionAI.m_behavior)
         {
             case "guard":
                 if (companion.m_companionAI.GetFollowTarget() is not { } followTarget) return false;
                 if (!followTarget.TryGetComponent(out Player player)) return false;
                 return player.GetHealth() < player.GetMaxHealth() || player.InAttack();
-            default:
-                return IsEnemyToCreatures(companion, character);
         }
+
+        return true;
     }
 
     private static bool IsEnemyToPlayers(Companion a)

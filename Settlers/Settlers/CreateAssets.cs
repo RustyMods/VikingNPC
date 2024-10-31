@@ -48,11 +48,11 @@ public static class AssetMan
                 m_registeredSettlerPurchase = true;
             }
             CreateBaseRaiderShip();
-            CreateAshlandRaiderShip();
+            // CreateAshlandRaiderShip();
         }
     }
 
-    public static void RegisterElfEars()
+    private static void RegisterElfEars()
     {
         // Item ElvenEars = new Item(SettlersPlugin._elfBundle, "ElvenEars");
         // ElvenEars.Name.English("Elf Ears");
@@ -343,13 +343,10 @@ public static class AssetMan
         DestroyPlayerComponents(raiderHuman);
         SetZNetView(raiderHuman);
         Companion raider = raiderHuman.AddComponent<Companion>();
-        // Tamer tamer = raiderHuman.AddComponent<Tamer>();
-        
         SetCompanionValues(raiderHuman, ref raider, component, true);
         AddDeathEffects(ref raider);
         AddDefaultItems(ref raider);
         AddAI(raiderHuman, true, true);
-        // SetTameSettings(ref tamer, "Boar");
         raiderHuman.AddComponent<Randomizer>();
         AddRandomTalk(raiderHuman);
         raiderHuman.AddComponent<CharacterDrop>();
@@ -368,12 +365,10 @@ public static class AssetMan
         DestroyPlayerComponents(sailorHuman);
         SetZNetView(sailorHuman);
         Companion sailor = sailorHuman.AddComponent<Companion>();
-        // Tamer tamer = sailorHuman.AddComponent<Tamer>();
         SetCompanionValues(sailorHuman, ref sailor, component, false, true);
         AddDeathEffects(ref sailor);
         AddDefaultItems(ref sailor);
         AddAI(sailorHuman, true, true);
-        // SetTameSettings(ref tamer, "Boar");
         sailorHuman.AddComponent<Randomizer>();
         AddRandomTalk(sailorHuman);
         sailorHuman.AddComponent<CharacterDrop>();
@@ -401,7 +396,6 @@ public static class AssetMan
         companion.name = prefab.name;
         companion.m_name = "Viking";
         companion.m_group = startAsRaider || startAsSailor ? "Raiders" : "Settlers";
-        // companion.m_faction = startAsRaider ? SettlersPlugin._raiderFaction.Value : Character.Faction.Dverger;
         string factionName = startAsRaider || startAsSailor ? "Raider" : startAsElf ? "Elf" : "Settler";
         bool friendly = !startAsRaider && !startAsSailor;
         CustomFactions.CustomFaction customFaction = new(factionName, friendly);

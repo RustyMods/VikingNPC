@@ -187,10 +187,10 @@
         <EmbeddedResource Include="..\..\..\bundles_2024\blueprintlocationbundle">
           <Link>assets\blueprintlocationbundle</Link>
         </EmbeddedResource>
-        <EmbeddedResource Include="..\..\..\4_11_2024_rip\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\elfassets">
+        <EmbeddedResource Include="..\..\..\VALHEIM RIPPED\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\elfassets">
           <Link>assets\elfassets</Link>
         </EmbeddedResource>
-        <EmbeddedResource Include="..\..\..\4_11_2024_rip\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\oarsbundle">
+        <EmbeddedResource Include="..\..\..\VALHEIM RIPPED\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\oarsbundle">
           <Link>assets\oarsbundle</Link>
         </EmbeddedResource>
         <Content Include=".gitignore" />

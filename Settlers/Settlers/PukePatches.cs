@@ -6,13 +6,21 @@ namespace Settlers.Settlers;
 
 public static class PukePatches
 {
+    private static EffectList PukeEffect = new EffectList();
+
+    [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
+    private static class ZNetScene_Awake_Patch
+    {
+        private static void Postfix() => PukeEffect = GetPukeEffects();
+    }
+    
     [HarmonyPatch(typeof(SE_Puke), nameof(SE_Puke.Setup))]
     private static class SE_Puke_Setup_Patch
     {
         private static void Postfix(SE_Puke __instance)
         {
             if (__instance.m_character is not Companion companion) return;
-            companion.m_companionTalk.QueueSay(GetPukeTalk(), "emote_despair", GetPukeEffects());
+            companion.m_companionTalk.QueueSay(GetPukeTalk(), "emote_despair", PukeEffect);
         }
     }
 

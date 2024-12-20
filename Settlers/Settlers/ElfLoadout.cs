@@ -11,7 +11,7 @@ using Random = UnityEngine.Random;
 
 namespace Settlers.Settlers;
 
-public class ElfLoadOut
+public static class ElfLoadOut
 {
     private static readonly CustomSyncedValue<string> ServerRaiderEquipment = new(SettlersPlugin.ConfigSync, "ServerElfEquipment", "");
     private static readonly string m_fileName = "VikingElfEquipment.yml";
@@ -59,9 +59,9 @@ public class ElfLoadOut
         };
     }
 
-    public static GameObject[]? GetElfEquipment(Heightmap.Biome biome)
+    public static GameObject[] GetElfEquipment(Heightmap.Biome biome)
     {
-        if (!ZNetScene.instance) return null;
+        if (!ZNetScene.instance) return new GameObject[]{};
         List<GameObject> result = new();
         RaiderLoadOut.Loadout data = GetEquipment(biome);
         if (data.Armors.Count > 0)

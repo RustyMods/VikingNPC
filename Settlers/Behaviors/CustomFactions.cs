@@ -117,7 +117,7 @@ public static class CustomFactions
         Character.Faction faction = character.GetFaction();
         BaseAI baseAI = character.GetBaseAI();
         if (!m_customs.TryGetValue(companion.GetFaction(), out CustomFaction data)) return true;
-        if (data.m_friendly && character.GetComponent<Tameable>()) return false;
+        if (data.m_friendly && character.IsTamed()) return false;
         if (!data.m_friendly && faction is Character.Faction.Boss) return false;
         if (baseAI.m_aggravatable && !baseAI.IsAggravated()) return false;
         return true;
@@ -158,6 +158,6 @@ public static class CustomFactions
     private static bool IsEnemyToElf(Companion companion, Companion elf)
     {
         if (elf.m_companionAI.IsAggravated()) return true;
-        return companion.IsRaider();
+        return companion is Raider or Sailor;
     }
 }

@@ -26,7 +26,7 @@ public static class Commands
             m_locations = m_locationPositions.Value;
         };
     }
-
+    
     private static void UpdateServerLocationData()
     {
         if (!ZNet.instance || !ZNet.instance.IsServer()) return;

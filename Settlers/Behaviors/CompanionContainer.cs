@@ -3,22 +3,22 @@ using UnityEngine;
 
 namespace Settlers.Behaviors;
 
-public class CompanionContainer : MonoBehaviour
+public class SettlerContainer : MonoBehaviour
 {
-    private static CompanionContainer? m_currentCompanion;
+    private static SettlerContainer? m_currentCompanion;
 
     private static readonly int m_ownerKey = "VikingSettlerOwner".GetStableHashCode();
     private static readonly int Visible = Animator.StringToHash("visible");
 
     public ZNetView m_nview = null!;
-    public Companion m_companion = null!;
+    public Settler m_settler = null!;
     
     public bool m_inUse;
 
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
-        m_companion = GetComponent<Companion>();
+        m_settler = GetComponent<Settler>();
 
         if (!m_nview.IsValid()) return;
         
@@ -36,7 +36,7 @@ public class CompanionContainer : MonoBehaviour
     
     public bool CheckAccess(long playerID)
     {
-        if (SettlersPlugin._ownerLock.Value is SettlersPlugin.Toggle.Off) return true;
+        if (m_settler.configs.Locked?.Value is SettlersPlugin.Toggle.Off) return true;
         var owner = m_nview.GetZDO().GetLong(m_ownerKey);
         if (owner == 0L) return true;
         return playerID == owner;
@@ -100,9 +100,9 @@ public class CompanionContainer : MonoBehaviour
         if (!Player.m_localPlayer) return;
         if (granted)
         {
-            if (m_companion.GetInventory().StackAll(Player.m_localPlayer.GetInventory(), true) <= 0) return;
+            if (m_settler.GetInventory().StackAll(Player.m_localPlayer.GetInventory(), true) <= 0) return;
             InventoryGui.instance.m_moveItemEffects.Create(transform.position, Quaternion.identity);
-            m_companion.UpdateEquipment();
+            m_settler.UpdateEquipment();
         }
         else
         {
@@ -113,10 +113,10 @@ public class CompanionContainer : MonoBehaviour
     private static void CloseCompanionInventory(bool updateEquipment = true)
     {
         if (m_currentCompanion == null) return;
-        m_currentCompanion.m_companion.SaveInventory();
+        m_currentCompanion.m_settler.SaveInventory();
         if (updateEquipment)
         {
-            m_currentCompanion.m_companion.UpdateEquipment();
+            m_currentCompanion.m_settler.UpdateEquipment();
         }
         m_currentCompanion.m_inUse = false;
         m_currentCompanion = null;
@@ -135,12 +135,12 @@ public class CompanionContainer : MonoBehaviour
             }
 
             if (m_currentCompanion == null) return true;
-            if (m_currentCompanion.m_companion.IsOwner())
+            if (m_currentCompanion.m_settler.IsOwner())
             {
                 m_currentCompanion.m_inUse = true;
                 __instance.m_container.gameObject.SetActive(true);
-                __instance.m_containerGrid.UpdateInventory(m_currentCompanion.m_companion.GetInventory(), null, __instance.m_dragItem);
-                __instance.m_containerName.text = m_currentCompanion.m_companion.GetHoverName();
+                __instance.m_containerGrid.UpdateInventory(m_currentCompanion.m_settler.GetInventory(), null, __instance.m_dragItem);
+                __instance.m_containerName.text = m_currentCompanion.m_settler.GetHoverName();
                 if (__instance.m_firstContainerUpdate)
                 {
                     __instance.m_containerGrid.ResetView();
@@ -157,7 +157,7 @@ public class CompanionContainer : MonoBehaviour
                     {
                         __instance.SetupDragItem(null, null, 1);
                     }
-                    CloseCompanionInventory(m_currentCompanion.m_companion.m_inventoryChanged);
+                    CloseCompanionInventory(m_currentCompanion.m_settler.m_inventoryChanged);
                     __instance.m_splitPanel.gameObject.SetActive(false);
                     __instance.m_firstContainerUpdate = true;
                     __instance.m_container.gameObject.SetActive(false);
@@ -205,7 +205,7 @@ public class CompanionContainer : MonoBehaviour
     {
         private static void Postfix()
         {
-            CloseCompanionInventory(m_currentCompanion != null && m_currentCompanion.m_companion.m_inventoryChanged);
+            CloseCompanionInventory(m_currentCompanion != null && m_currentCompanion.m_settler.m_inventoryChanged);
         }
     }
 
@@ -225,9 +225,9 @@ public class CompanionContainer : MonoBehaviour
         {
             if (Player.m_localPlayer.IsTeleporting() || m_currentCompanion == null) return true;
             __instance.SetupDragItem(null, null, 1);
-            Inventory inventory = m_currentCompanion.m_companion.GetInventory();
+            Inventory inventory = m_currentCompanion.m_settler.GetInventory();
             Player.m_localPlayer.GetInventory().MoveAll(inventory);
-            m_currentCompanion.m_companion.UpdateEquipment();
+            m_currentCompanion.m_settler.UpdateEquipment();
             return false;
         }
     }
@@ -239,8 +239,8 @@ public class CompanionContainer : MonoBehaviour
         {
             if (Player.m_localPlayer.IsTeleporting() || m_currentCompanion == null) return true;
             __instance.SetupDragItem(null, null, 1);
-            m_currentCompanion.m_companion.GetInventory().StackAll(Player.m_localPlayer.GetInventory());
-            m_currentCompanion.m_companion.UpdateEquipment();
+            m_currentCompanion.m_settler.GetInventory().StackAll(Player.m_localPlayer.GetInventory());
+            m_currentCompanion.m_settler.UpdateEquipment();
             return false;
         }
     }
@@ -252,19 +252,18 @@ public class CompanionContainer : MonoBehaviour
         {
             if (m_currentCompanion == null) return;
 
-            __instance.m_containerWeight.text = string.Format("{0}/{1}", (int)m_currentCompanion.m_companion.GetWeight(),
-                (int)m_currentCompanion.m_companion.GetMaxCarryWeight());
+            __instance.m_containerWeight.text = string.Format("{0}/{1}", (int)m_currentCompanion.m_settler.GetWeight(),
+                (int)m_currentCompanion.m_settler.GetMaxCarryWeight());
         }
     }
 
     [HarmonyPatch(typeof(InventoryGui), nameof(InventoryGui.OnSelectedItem))]
     private static class InventoryGUI_OnSelectedItem_Patch
     {
-        private static bool Prefix(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData item, Vector2i pos, InventoryGrid.Modifier mod)
+        private static bool Prefix(InventoryGui __instance, InventoryGrid grid, ItemDrop.ItemData? item, Vector2i pos, InventoryGrid.Modifier mod)
         {
             if (m_currentCompanion == null) return true;
-            if (mod is InventoryGrid.Modifier.Drop or InventoryGrid.Modifier.Select
-                or InventoryGrid.Modifier.Split) return true;
+            if (mod is InventoryGrid.Modifier.Drop or InventoryGrid.Modifier.Select or InventoryGrid.Modifier.Split) return true;
             if (__instance.m_currentContainer != null) return true;
             if (item == null) return true;
             if (__instance.m_dragGo) return true;
@@ -273,13 +272,13 @@ public class CompanionContainer : MonoBehaviour
             if (item.m_shared.m_questItem) return true;
             localPlayer.RemoveEquipAction(item);
             localPlayer.UnequipItem(item);
-            if (grid.GetInventory() == m_currentCompanion.m_companion.GetInventory())
+            if (grid.GetInventory() == m_currentCompanion.m_settler.GetInventory())
             {
                 localPlayer.GetInventory().MoveItemToThis(grid.GetInventory(), item);
             }
             else
             {
-                m_currentCompanion.m_companion.GetInventory().MoveItemToThis(localPlayer.GetInventory(), item);
+                m_currentCompanion.m_settler.GetInventory().MoveItemToThis(localPlayer.GetInventory(), item);
             }
             __instance.m_moveItemEffects.Create(__instance.transform.position, Quaternion.identity);
             return false;

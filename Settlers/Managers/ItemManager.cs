@@ -432,7 +432,7 @@ public class Item
 		None,
 	}
 
-	private static object? configManager;
+	public static object? configManager;
 
 	private delegate void setDmgFunc(ref HitData.DamageTypes dmg, float value);
 

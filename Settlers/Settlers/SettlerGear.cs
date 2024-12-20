@@ -75,9 +75,7 @@ public static class SettlerGear
         List<GameObject> prefabs = new();
         foreach (string itemName in m_settlerStartGear)
         {
-            var prefab = ZNetScene.instance.GetPrefab(itemName);
-            if (!prefab) continue;
-            prefabs.Add(prefab);
+            if (ZNetScene.instance.GetPrefab(itemName) is {} prefab) prefabs.Add(prefab);
         }
 
         m_cachedSettlerGear = prefabs.ToArray();

@@ -1,11 +1,12 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using BlueprintLocations.Managers;
 using HarmonyLib;
+using JetBrains.Annotations;
 using ServerSync;
 using Settlers.Behaviors;
 using Settlers.Managers;
@@ -18,7 +19,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.1.9";
+        internal const string ModVersion = "0.2.3";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -36,105 +37,24 @@ namespace Settlers
         public static SettlersPlugin _Plugin = null!;
         public static GameObject _Root = null!;
         public static Sprite m_settlerPin = null!;
-        public static AssetLoaderManager m_assetLoaderManager = null!;
-
-        public static ConfigEntry<Toggle> _locationEnabled = null!;
-        private static ConfigEntry<int> _quantity = null!;
-        private static ConfigEntry<Heightmap.Biome> _biomes = null!;
         public enum Toggle { On = 1, Off = 0 }
         
         private static ConfigEntry<Toggle> _serverConfigLocked = null!;
-        public static ConfigEntry<Toggle> _SettlersCanLumber = null!;
-        public static ConfigEntry<Toggle> _SettlerCanFish = null!;
-        public static ConfigEntry<Toggle> _SettlersCanMine = null!;
-        public static ConfigEntry<Toggle> _autoPickup = null!;
         public static ConfigEntry<string> _maleNames = null!;
         public static ConfigEntry<string> _femaleNames = null!;
         public static ConfigEntry<string> _lastNames = null!;
-        public static ConfigEntry<float> _SettlerBaseHealth = null!;
-        public static ConfigEntry<Toggle> _SettlerRequireFood = null!;
-
         public static ConfigEntry<string> _elfMaleNames = null!;
         public static ConfigEntry<string> _elfFemaleNames = null!;
         public static ConfigEntry<string> _elfLastNames = null!;
 
-        public static ConfigEntry<float> _baseMaxCarryWeight = null!;
-        private static ConfigEntry<KeyCode> _makeAllFollowKey = null!;
-        private static ConfigEntry<KeyCode> _makeAllUnfollowKey = null!;
-        public static ConfigEntry<Toggle> _replaceSpawns = null!;
-        public static ConfigEntry<float> _raiderDropChance = null!;
-        // public static ConfigEntry<Character.Faction> _raiderFaction = null!;
-        public static ConfigEntry<float> _raiderBaseHealth = null!;
-        public static ConfigEntry<Toggle> _addMinimapPin = null!;
-        public static ConfigEntry<float> _settlerTamingTime = null!;
-        public static ConfigEntry<Toggle> _ownerLock = null!;
-        public static ConfigEntry<float> _attackModifier = null!;
-        public static ConfigEntry<float> _onDamagedModifier = null!;
-        private static ConfigEntry<bool> _centerFirst = null!;
-        public static ConfigEntry<Toggle> _colorfulHair = null!;
-        public static ConfigEntry<int> _settlerPurchasePrice = null!;
-        
-        public static ConfigEntry<float> _harpoonPullSpeed = null!;
-        public static ConfigEntry<float> _shipHealth = null!;
-        
-        public static ConfigEntry<Toggle> _repairShips = null!;
-        public static ConfigEntry<string> _repairShipMat = null!;
-        public static ConfigEntry<int> _repairShipValue = null!;
-        public static ConfigEntry<float> _costModifier = null!;
 
-        public static ConfigEntry<Toggle> _elfTamable = null!;
-
-        public static ConfigEntry<Toggle> _pvp = null!;
-        public static ConfigEntry<float> _locationLootChance = null!;
         private void InitConfigs()
         {
             _serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
             _ = ConfigSync.AddLockingConfigEntry(_serverConfigLocked);
-
-            _autoPickup = config("2 - Settings", "Pickup Items", Toggle.On, "If on, settler and raiders picks up nearby items");
-            _attackModifier = config("2 - Settings", "Attack Modifier", 1f, new ConfigDescription("Make settlers and raiders weaker or stronger", new AcceptableValueRange<float>(0f, 2f)));
-            _onDamagedModifier = config("2 - Settings", "On Damaged Modifier", 1f, new ConfigDescription("Make settlers and raiders take more or less damage", new AcceptableValueRange<float>(0f, 2f)));
-            _colorfulHair = config("2 - Settings", "Colorful Hair", Toggle.Off, "If on, the hair color generation is completely random");
-
-            _locationEnabled = config("3 - Locations", "Enabled", Toggle.On, "If on, blueprint locations will generate");
-            _quantity = config("3 - Locations", "Quantity", 600, "Set amount of blueprint locations to generate");
-            _biomes = config("3 - Locations", "Biomes", Heightmap.Biome.All, "Set biomes settler locations can generate");
-            _centerFirst = config("3 - Locations", "Center First", true, "If true, locations will be placed center of map and expand");
-            _locationLootChance = config("3 - Locations", "Loot Chance", 1f,
-                new ConfigDescription("Set chance for treasure in locations", new AcceptableValueRange<float>(0f, 1f)));
-            
-            _raiderBaseHealth = config("4 - Raiders", "Raider Base Health", 75f, "Set raider base health, multiplied by level");
-            // _raiderFaction = config("4 - Raiders", "Raider Faction", Character.Faction.SeaMonsters, "Set raider faction");
-            _replaceSpawns = config("4 - Raiders", "Replace Creature Spawners", Toggle.Off, "If on, raiders replace creature spawners");
-            _raiderDropChance = config("4 - Raiders", "Raider Gear Drop Chance", 0.2f, new ConfigDescription("Set chance to drop items", new AcceptableValueRange<float>(0f, 1f)));
-            
-            _SettlersCanLumber = config("5 - Settlers", "Can Lumber", Toggle.On, "If on, settlers will lumber trees, logs and stumps, if has axe");
-            _SettlersCanMine = config("5 - Settlers", "Can Mine", Toggle.On, "If on, settlers will mine any rocks that drop ore or scraps if has pickaxe");
-            _SettlerCanFish = config("5 - Settlers", "Can Fish", Toggle.On, "If on, settlers will fish if has rod and bait");
-            _settlerPurchasePrice = config("5 - Settlers", "Purchase Price", 999, "Set price to purchase tamed settler from haldor");
-            _settlerTamingTime = config("5 - Settlers", "Tame Duration", 1800f, "Set amount of time required to tame settler");
-            _baseMaxCarryWeight = config("5 - Settlers", "Base Carry Weight", 300f, "Set base carry weight for settlers");
-            _makeAllFollowKey = config("5 - Settlers", "Make All Follow Key", KeyCode.None, "Set the key that will make all tamed settlers follow you, if they aren't following");
-            _makeAllUnfollowKey = config("5 - Settlers", "Make All Unfollow Key", KeyCode.None, "Set the key that will make all tamed settlers unfollow, if they are following");
-            _addMinimapPin = config("5 - Settlers", "Add Pin", Toggle.On, "If on, when settler is following a pin will be added on the minimap to track them");
-            _ownerLock = config("5 - Settlers", "Inventory Locked", Toggle.Off, "If on, only owner can access settler inventory");
-            _elfTamable = config("5 - Settlers", "Tamable Elves", Toggle.Off, "If on, elves are also tamable");
-            _pvp = config("5 - Settlers", "PVP", Toggle.Off, "If on, settlers attack other settlers if tamed and not owned by same player");
-            _SettlerBaseHealth = config("5 - Settlers", "Base Health", 50f, "Set settlers base health");
-            _SettlerRequireFood = config("5 - Settlers", "Require Food", Toggle.On, "If on, settlers require food to perform tasks");
-            
-            _harpoonPullSpeed = config("6 - Raider Ships", "Harpoon pull speed", 25f, "Set the speed of harpoon pull+");
-            _shipHealth = config("6 - Raider Ships", "Ship Health", 5000f, "Set the health of the raider ship");
-            
-            _repairShips = config("7 - Player Ships", "Repair On Water", Toggle.Off, "If on, players can repair their ships without a crafting station");
-            _repairShipMat = config("7 - Player Ships", "Material", "Wood", "Set the material requirements to repair while on water");
-            _repairShipValue = config("7 - Player Ships", "Material Amount", 1, "Set the amount of material needed to repair ship, multiplied by ship health");
-            _costModifier = config("7 - Player Ships", "Cost Modifier", 2f, new ConfigDescription("Set the divider of the total cost amount, larger number makes it cheaper", new AcceptableValueRange<float>(1, 10)));
-            
             _maleNames = config("Names", "Male", string.Join(":", Randomizer.m_maleFirstNames), "List of first names seperated by :");
             _femaleNames = config("Names", "Female", string.Join(":", Randomizer.m_femaleFirstNames), "List out first names seperated by :");
             _lastNames = config("Names", "Last", string.Join(":", Randomizer.m_lastNames), "List of last names seperated by :");
-            
             _elfMaleNames = config("Names", "Elf Male", string.Join(":", Randomizer.m_maleFirstNames), "List of first names seperated by :");
             _elfFemaleNames = config("Names", "Elf Female", string.Join(":", Randomizer.m_femaleFirstNames), "List out first names seperated by :");
             _elfLastNames = config("Names", "Elf Last", string.Join(":", Randomizer.m_lastNames), "List of last names seperated by :");
@@ -152,45 +72,88 @@ namespace Settlers
             InitConfigs();
             m_settlerPin = _assetBundle.LoadAsset<Sprite>("mapicon_settler_32");
             _Plugin = this;
-            m_assetLoaderManager = new AssetLoaderManager(_Plugin.Info.Metadata, SettlersLogger);
             _Root = new GameObject("root");
             DontDestroyOnLoad(_Root);
             _Root.SetActive(false);
-            LoadMockLocation();
+            GlobalSpawn.SpawnList = _Root.AddComponent<SpawnSystemList>();
             Commands.LoadServerLocationChange();
-            BlueprintManager.LoadBlueprints();
             Localizer.Load();
+            
+            RaiderShipMan.RaiderShip MerchantShip = new RaiderShipMan.RaiderShip("VikingShip", "RaiderShip");
+            MerchantShip.ObjectsToDestroy.Add("ashdamageeffects");
+            MerchantShip.ObjectsToDestroy.Add("ControlGui");
+            MerchantShip.ObjectsToDestroy.Add("ship/visual/unused");
+            MerchantShip.ObjectsToDestroy.Add("ship/visual/Customize/ShipTentRight");
+            MerchantShip.ObjectsToDestroy.Add("ship/visual/Customize/ShipTentLeft");
+            MerchantShip.ObjectsToDestroy.Add("interactive/sit_box/box");
+            MerchantShip.ObjectsToDestroy.Add("interactive/sit_box (1)/box");
+            MerchantShip.ObjectsToDestroy.Add("interactive/sit_box (2)/box");
+            MerchantShip.ObjectsToDestroy.Add("interactive/sit_box (3)/box");
+            MerchantShip.ObjectsToDestroy.Add("interactive/sit_box (4)/box");
+            MerchantShip.ObjectsToDestroy.Add("interactive/controlls/box");
+            MerchantShip.ObjectsToDestroy.Add("interactive/controlls/rudder_button");
+            MerchantShip.ObjectsToEnable.Add("ship/visual/Customize");
+            MerchantShip.Biome = Heightmap.Biome.Ocean;
+            MerchantShip.addOars = true;
+            
+            RaiderShipMan.RaiderShip AshlandShip = new RaiderShipMan.RaiderShip("VikingShip_Ashlands", "RaiderShip_Ashlands");
+            AshlandShip.ObjectsToDestroy.Add("ControlGui");
+            AshlandShip.ObjectsToDestroy.Add("ship/visual/unused");
+            AshlandShip.ObjectsToDestroy.Add("ship/visual/Mast/Sail");
+            AshlandShip.ObjectsToDestroy.Add("ship/visual/Customize");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (1)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (2)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (3)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (4)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (5)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (6)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (7)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (8)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/sit_box (9)/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/controls/box");
+            AshlandShip.ObjectsToDestroy.Add("interactive/controls/rudder_button");
+            AshlandShip.ObjectsToDestroy.Add("Hides_Plane.004");
+            
+            VikingManager.Settler Settler = new VikingManager.Settler("VikingSettler");
+            Settler.SetBiome(Heightmap.Biome.Meadows);
+            Settler.SetupConfigs();
+            TraderManager.MerchantItem SettlerPurchase = new TraderManager.MerchantItem("SwordBronze", "SettlerSword");
+            SettlerPurchase.SharedName = "$name_vikingsettler";
+            SettlerPurchase.Description = "$purchase_settler_desc lvl 1";
+            SettlerPurchase.RequiredGlobalKey = config("VikingSettler", "Purchase Required Key", "defeated_vikingraider", "Set required key to access trade item");
+            SettlerPurchase.Cost = config("VikingSettler", "Cost", 999, "Set price of settler");
+            SettlerPurchase.Enabled = config("VikingSettler", "Can Purchase", Toggle.Off, "If on, settlers can be purchased at haldor");
+            SettlerPurchase.Action = (__instance) =>
+            {
+                if (ZNetScene.instance.GetPrefab("VikingSettler") is not { } prefab) return;
+                Vector2 random = UnityEngine.Random.insideUnitCircle * 5f;
+                Vector3 pos = Player.m_localPlayer.transform.position + new Vector3(random.x, 0f, random.y);
+                GameObject clone = UnityEngine.Object.Instantiate(prefab, pos, Quaternion.identity);
+                if (!clone.TryGetComponent(out Companion component) || !clone.TryGetComponent(out TameableCompanion tameableCompanion)) return;
+                tameableCompanion.Tame();
+                component.SetLevel(SettlerPurchase.Level);
+                Player.m_localPlayer.GetInventory().RemoveItem(__instance.m_coinPrefab.m_itemData.m_shared.m_name, __instance.m_selectedItem.m_price);
+                __instance.m_buyEffects.Create(__instance.transform.position, Quaternion.identity);
+                __instance.FillList();
+            };
+            VikingManager.Sailor Sailor = new VikingManager.Sailor("VikingSailor");
+            Sailor.SetupConfigs();
+            foreach (Heightmap.Biome biome in Enum.GetValues(typeof(Heightmap.Biome)))
+            {
+                if (biome is Heightmap.Biome.None or Heightmap.Biome.All or Heightmap.Biome.Ocean) continue;
+                var raider = "VikingRaider_" + biome;
+                var elf = "VikingElf_" + biome;
+                VikingManager.Elf Elf = new VikingManager.Elf(elf);
+                Elf.SetBiome(biome);
+                Elf.SetupConfigs();
+                VikingManager.Raider Raider = new VikingManager.Raider(raider);
+                Raider.SetBiome(biome);
+                Raider.SetupConfigs();
+            }
+
             Assembly assembly = Assembly.GetExecutingAssembly();
             _harmony.PatchAll(assembly);
             SetupWatcher();
-        }
-
-        public void Update()
-        {
-            if (!Player.m_localPlayer) return;
-            if (Input.GetKeyDown(_makeAllFollowKey.Value))
-            {
-                Companion.MakeAllFollow(Player.m_localPlayer, 30f, true);
-            }
-
-            if (Input.GetKeyDown(_makeAllUnfollowKey.Value))
-            {
-                Companion.MakeAllFollow(Player.m_localPlayer, 30f, false);
-            }
-        }
-        
-        private void LoadMockLocation()
-        {
-            LocationManager.LocationData location = new LocationManager.LocationData("BlueprintLocation", _locationBundle)
-            {
-                m_data =
-                {
-                    m_quantity = _quantity.Value,
-                    m_clearArea = true,
-                    m_biome = _biomes.Value,
-                    m_centerFirst = _centerFirst.Value
-                }
-            };
         }
 
         private void OnDestroy() => Config.Save();
@@ -249,6 +212,34 @@ namespace Settlers
             bool synchronizedSetting = true)
         {
             return config(group, name, value, new ConfigDescription(description), synchronizedSetting);
+        }
+
+        public ConfigEntry<T> config<T>(string group, string name, T value, string description, int order,
+            bool synchronizedSetting = true)
+        {
+            return config(group, name, value,
+                new ConfigDescription(description, null, new ConfigurationManagerAttributes() { Order = order }),
+                synchronizedSetting);
+        }
+        
+        public ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, int order,
+            bool synchronizedSetting = true)
+        {
+            ConfigDescription extendedDescription =
+                new(description.Description + (synchronizedSetting ? " [Synced with Server]" : " [Not Synced with Server]"), 
+                    description.AcceptableValues, 
+                    description.Tags,
+                    new ConfigurationManagerAttributes(){ Order = order}
+                    );
+            return config(group, name, value, extendedDescription);
+        }
+
+        public class ConfigurationManagerAttributes
+        {
+            [UsedImplicitly] public int? Order;
+            [UsedImplicitly] public bool? Browsable;
+            [UsedImplicitly] public string? Category;
+            [UsedImplicitly] public Action<ConfigEntryBase>? CustomDrawer;
         }
     }
 }

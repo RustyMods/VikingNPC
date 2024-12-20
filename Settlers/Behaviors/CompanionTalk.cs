@@ -59,9 +59,8 @@ public class CompanionTalk : MonoBehaviour
 
     private bool ShouldUpdate()
     {
-        if (m_companion.IsRaider() || m_companion.IsElf() || m_companion.IsSailor()) return true;
-        return m_companionAI.m_treeTarget == null && m_companionAI.m_rockTarget == null &&
-               m_companionAI.m_fishTarget == null && m_companionAI.m_repairPiece == null;
+        if (m_companionAI is not SettlerAI settlerAI) return true;
+        return settlerAI.m_treeTarget is null && settlerAI.m_rockTarget is null && settlerAI.m_fishTarget is null;
     }
 
     public void LookTowardsTarget()
@@ -74,14 +73,14 @@ public class CompanionTalk : MonoBehaviour
     }
     public void Update()
     {
-        if (m_companionAI.IsAlerted() || m_companionAI.GetTargetCreature() != null || m_companionAI.GetStaticTarget() != null || !ShouldUpdate() || !m_nview.IsValid()) return;
+        if (m_companionAI.IsAlerted() || m_companionAI.GetTargetCreature() is not null || m_companionAI.GetStaticTarget() is not null || !ShouldUpdate() || !m_nview.IsValid()) return;
         
         UpdateTarget();
-        if (m_targetPlayer != null)
+        if (m_targetPlayer is {} player)
         {
             if (m_seeTarget)
             {
-                float num = Vector3.Distance(m_targetPlayer.transform.position, transform.position);
+                float num = Vector3.Distance(player.transform.position, transform.position);
                 if (!m_didGreet && num < m_greetRange)
                 {
                     m_didGreet = true;
@@ -97,8 +96,7 @@ public class CompanionTalk : MonoBehaviour
         }
         if (m_isSitting)
         {
-            var followTarget = m_companionAI.GetFollowTarget();
-            if (followTarget == null || Vector3.Distance(followTarget.transform.position, transform.position) > 10f)
+            if (m_companionAI.GetFollowTarget() is not {} followTarget || Vector3.Distance(followTarget.transform.position, transform.position) > 10f)
             {
                 m_animator.ResetTrigger(EmoteSit);
                 m_isSitting = false;
@@ -127,8 +125,7 @@ public class CompanionTalk : MonoBehaviour
         if (Time.time - m_lastTargetUpdate <= 1.0) return;
         m_lastTargetUpdate = Time.time;
         m_targetPlayer = null;
-        Player closestPlayer = Player.GetClosestPlayer(transform.position, m_maxRange);
-        if (closestPlayer == null || m_companionAI.IsEnemy(closestPlayer)) return;
+        if (Player.GetClosestPlayer(transform.position, m_maxRange) is not {} closestPlayer || m_companionAI.IsEnemy(closestPlayer)) return;
         m_seeTarget = m_companionAI.CanSeeTarget(closestPlayer);
         m_hearTarget = m_companionAI.CanHearTarget(closestPlayer);
         if (!m_seeTarget && !m_hearTarget) return;

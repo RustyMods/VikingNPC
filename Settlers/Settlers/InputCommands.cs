@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using HarmonyLib;
 using Settlers.Behaviors;
 
@@ -39,21 +40,21 @@ public static class InputCommands
         m_actions["follow"] = companion =>
         {
             if (companion.m_companionAI.GetFollowTarget() != null) return;
-            if (companion.tameableCompanion == null) return;
-            companion.tameableCompanion.Command(Player.m_localPlayer);
+            if (companion.m_tameableCompanion == null) return;
+            companion.m_tameableCompanion.Command(Player.m_localPlayer);
         };
         m_actions["stay"] = companion =>
         {
-            if (companion.tameableCompanion == null) return;
+            if (companion.m_tameableCompanion == null) return;
             var follow = companion.m_companionAI.GetFollowTarget();
             if (!follow.TryGetComponent(out Player player)) return;
             if (player != Player.m_localPlayer) return;
-            companion.tameableCompanion.Command(Player.m_localPlayer);
+            companion.m_tameableCompanion.Command(Player.m_localPlayer);
         };
         m_actions["come"] = companion =>
         {
-            if (!companion.IsTamed() || !Player.m_localPlayer) return;
-            companion.Warp(Player.m_localPlayer);
+            if (!companion.IsTamed() || !Player.m_localPlayer || companion is not Settler settler) return;
+            settler.Warp(Player.m_localPlayer);
         };
 
         m_actions["hide"] = companion =>
@@ -78,11 +79,12 @@ public static class InputCommands
         }
     }
 
-    private static void HandleBarberShop(string text)
+    private static bool HandleBarberShop(string text)
     {
         string[] words = text.Split(' ');
         int index = GetNumberInString(words);
-        if (index is 0 or > 20) return;
+        if (index > 20) return false;
+        bool updated = false;
         foreach (var companion in Companion.m_instances)
         {
             string[] names = companion.m_name.Split(' ');
@@ -93,12 +95,34 @@ public static class InputCommands
                 companion.m_visEquipment.SetHairItem("Hair" + index);
                 companion.m_hairItem = "Hair" + index;
                 companion.m_nview.GetZDO().Set("HairIndex".GetStableHashCode(), index);
+                updated = true;
             }
             else if (text.ToLower().Contains("beard"))
             {
                 companion.m_visEquipment.SetBeardItem("Beard" + index);
                 companion.m_beardItem = "Beard" + index;
                 companion.m_nview.GetZDO().Set("BeardIndex".GetStableHashCode(), index);
+                updated = true;
+            }
+        }
+
+        return updated;
+    }
+
+    private static void HandleSexChange(string text)
+    {
+        string[] words = text.Split(' ');
+        int modelIndex = -1;
+        if (words.Contains("female")) modelIndex = 1;
+        else if (words.Contains("male")) modelIndex = 0;
+        if (modelIndex != -1)
+        {
+            foreach (var companion in Companion.m_instances)
+            {
+                string[] names = companion.m_name.Split(' ');
+                if (!IsNamePartOfSentence(text, names)) continue;
+                companion.m_nview.GetZDO().Set(ZDOVars.s_modelIndex, modelIndex);
+                companion.m_visEquipment.UpdateBaseModel();
             }
         }
     }
@@ -189,7 +213,8 @@ public static class InputCommands
             string[] words = text.Split(' ');
             if (HandleCommands(text, words)) return;
             HandleConversations(text);
-            HandleBarberShop(text);
+            if (HandleBarberShop(text)) return;
+            HandleSexChange(text);
         }
         
     }

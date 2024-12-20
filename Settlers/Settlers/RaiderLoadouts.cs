@@ -60,9 +60,9 @@ public static class RaiderLoadOut
         };
     }
 
-    public static GameObject[]? GetRaiderEquipment(Heightmap.Biome biome, bool isSailor)
+    public static GameObject[] GetRaiderEquipment(Heightmap.Biome biome, bool isSailor)
     {
-        if (!ZNetScene.instance) return null;
+        if (!ZNetScene.instance) return new GameObject[] { };
         List<GameObject> result = new();
         var sailorBiome = Heightmap.Biome.BlackForest;
         if (isSailor)

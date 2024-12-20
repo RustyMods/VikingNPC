@@ -8,8 +8,7 @@ public static class CompanionSkill
 {
     public static void Setup()
     {
-        var icon = RegisterSprite("companionicon.png");
-        if (icon == null) return;
+        if (RegisterSprite("companionicon.png") is not { } icon) return;
         Skill companion = new("Companion", icon);
         companion.Description.English("Improves settlers base health and reduces taming time");
         companion.Configurable = true;

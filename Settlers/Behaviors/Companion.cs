@@ -1,9 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using BepInEx;
 using HarmonyLib;
-using Settlers.Settlers;
+using Settlers.Managers;
 using SkillManager;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -15,38 +14,30 @@ public class Companion : Humanoid
     public static readonly List<Companion> m_instances = new();
     private static readonly int m_ownerKey = "VikingSettlerOwner".GetStableHashCode();
     private static readonly int m_ownerNameKey = "VikingSettlerOwnerName".GetStableHashCode();
-    private static readonly int m_raider = "VikingRaider".GetStableHashCode();
-    private static readonly int m_elf = "VikingElf".GetStableHashCode();
-    private static readonly int m_sailor = "VikingSailor".GetStableHashCode();
     private static readonly int Blocking = Animator.StringToHash("blocking");
-
     public CompanionAI m_companionAI = null!;
     public CompanionTalk m_companionTalk = null!;
-    public TameableCompanion tameableCompanion = null!;
-    
-    // private uint m_lastRevision;
-    // private string m_lastDataString = "";
-    private bool m_loading;
+    public TameableCompanion m_tameableCompanion = null!;
+    public VikingManager.SE_Viking StatusEffect = null!;
     public float m_autoPickupRange = 2f;
     public int m_autoPickupMask;
     public float m_checkDistanceTimer;
     public string m_followTargetName = "";
     public float m_playerMaxDistance = 50f;
-
     public EffectList m_warpEffect = new EffectList();
     public EffectList m_equipStartEffects = new();
     public EffectList m_killedEffects = new();
     public GameObject? m_tombstone;
     public readonly List<Player.Food> m_foods = new();
     private float m_foodUpdateTimer;
-    private Heightmap.Biome m_currentBiome = Heightmap.Biome.None;
+    public Heightmap.Biome Tier = Heightmap.Biome.Meadows;
     private readonly List<MinorActionData> m_actionQueue = new();
     private float m_actionQueuePause;
     public string m_actionAnimation = "";
     public ItemDrop.ItemData? m_weaponLoaded;
     public bool m_inventoryChanged;
     private float m_maxEitr;
-    private float m_eitr;
+    public float m_eitr;
     private float m_statsTimer;
     public bool m_attached;
     private bool m_attachedToShip;
@@ -56,138 +47,61 @@ public class Companion : Humanoid
     private Vector3 m_detachOffset;
     private string m_attachAnimation = "";
     private Collider[]? m_attachColliders;
-    public bool m_startAsRaider;
-    private Minimap.PinData? m_pin;
+    public Minimap.PinData? m_pin;
     private float m_pinTimer;
-    public bool m_startAsElf;
-    public bool m_startAsSailor;
-    private bool m_teleporting;
-
+    public bool m_loading;
+    public VikingManager.VikingConfigs configs = null!;
     public float[]? m_equipmentModifierValues;
+    private float m_blockingTimer;
 
     public override void Awake()
     {
-        
         base.Awake();
+        configs = VikingManager.GetData(name)?.configs ?? new VikingManager.VikingConfigs();
         m_equipmentModifierValues = new float[Player.s_equipmentModifierSources.Length];
-        if (m_startAsRaider) SetRaider(true);
-        if (m_startAsElf) SetElf(true);
-        if (m_startAsSailor) SetSailor(true);
-        
         m_autoPickupMask = LayerMask.GetMask("item");
         m_companionAI = GetComponent<CompanionAI>();
         m_companionTalk = GetComponent<CompanionTalk>();
-        tameableCompanion = GetComponent<TameableCompanion>();
-
-        m_nview.Register<Vector3, Vector3>(nameof(RPC_Warp), RPC_Warp);
-        m_nview.Register<bool>(nameof(RPC_UpdateEquipment), RPC_UpdateEquipment);
+        m_tameableCompanion = GetComponent<TameableCompanion>();
         m_name = m_nview.GetZDO().GetString(ZDOVars.s_tamedName);
         m_instances.Add(this);
         m_visEquipment.m_isPlayer = true;
-
-        GetFollowTargetName();
-        if (IsTamed())
-        {
-            m_companionAI.m_aggravatable = false;
-            // m_faction = Faction.Players;
-        }
-        
-        SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level * GetSkillModifier());
-        GetSEMan().AddStatusEffect(nameof(RaiderSE).GetStableHashCode());
+        if (IsTamed()) m_companionAI.m_aggravatable = false;
+        GetSEMan().AddStatusEffect(StatusEffect);
     }
     public override void Start()
     {
-        bool isRaider = IsRaider();
-        bool isElf = IsElf();
-        bool isSailor = IsSailor();
-        if (isRaider || isSailor)
-        {
-            GetLoadOut(isElf, isSailor);
-            SetGearQuality(m_level);
-            SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level * GetSkillModifier());
-            // if (isRaider) m_faction = SettlersPlugin._raiderFaction.Value;
-            GiveDefaultItems();
-        }
-        else
-        {
-            if (isElf && !IsTamed())
-            {
-                GetLoadOut(isElf, isSailor);
-                SetGearQuality(m_level);
-                SetMaxHealth(SettlersPlugin._raiderBaseHealth.Value * m_level * GetSkillModifier());
-                GiveDefaultItems();
-            }
-            else
-            {
-                SetMaxHealth(SettlersPlugin._SettlerBaseHealth.Value * m_level * GetSkillModifier());
-                LoadInventory();
-                if (m_inventory.GetAllItems().Count == 0)
-                {
-                    m_defaultItems = SettlerGear.GetSettlerGear();
-                    GiveDefaultItems();
-                    SetGearQuality(m_level);
-                }
-            }
-        }
+        SetupVikingHealth();
         m_inventory.m_onChanged += SaveInventory;
     }
 
-    public void FixedUpdate()
+    public void FixedUpdate() => UpdateViking(Time.deltaTime);
+    
+    protected virtual bool UpdateViking(float dt)
     {
-        float fixedDeltaTime = Time.deltaTime;
-        if (!m_nview) return;
-        if (m_nview.GetZDO() == null) return;
-        if (!m_nview.IsOwner()) return;
-        if (IsDead()) return;
+        if (!m_nview || m_nview.GetZDO() == null || !m_nview.IsOwner() || IsDead()) return false;
+        UpdateActionQueue(dt);
+        UpdateWeaponLoading(GetCurrentWeapon(), dt);
+        UpdateBlocking(dt);
+        return true;
+    }
+
+    public void UpdateBlocking(float dt)
+    {
+        m_blockingTimer += dt;
+        if (m_blockingTimer < 1f) return;
+        m_blockingTimer = 0.0f;
         if (!m_companionAI.IsAlerted() && IsBlocking())
         {
             m_animator.SetBool(Blocking, false);
             m_blocking = false;
             m_nview.GetZDO().Set(ZDOVars.s_isBlockingHash, false);
         }
-        bool isSailor = IsSailor();
-        if (IsRaider() || isSailor)
-        {
-            if (!isSailor) AutoPickup(fixedDeltaTime);
-            UpdateActionQueue(fixedDeltaTime);
-            UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
-            if (isSailor)
-            {
-                UpdateAttach();
-            }
-        }
-        else
-        {
-            if (!IsTamed())
-            {
-                UpdateAggravated();
-                if (!IsElf()) return;
-                AutoPickup(fixedDeltaTime);
-                UpdateActionQueue(fixedDeltaTime);
-                UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
-                return;
-            }
-            if (UpdateAttach()) return;
-            UpdateActionQueue(fixedDeltaTime);
-            AutoPickup(fixedDeltaTime);
-            UpdateWarp(fixedDeltaTime);
-            UpdateFood(fixedDeltaTime, false);
-            UpdateWeaponLoading(GetCurrentWeapon(), fixedDeltaTime);
-            UpdateStats(fixedDeltaTime);
-            UpdatePins(fixedDeltaTime);
-        }
     }
     
-    public void SetSkillModifier(float modifier)
-    {
-        if (modifier <= 0f) modifier = 1f;
-        m_nview.ClaimOwnership();
-        m_nview.GetZDO().Set("SkillModifier".GetStableHashCode(), modifier);
-    }
+    public virtual void SetupVikingHealth() => SetMaxHealth(configs.BaseHealth.Value * m_level);
 
-    public float GetSkillModifier() => m_nview.GetZDO().GetFloat("SkillModifier".GetStableHashCode(), 1f);
-
-    private void UpdateAggravated()
+    public void UpdateAggravated()
     {
         if (!m_companionAI.m_aggravated) return;
         if (m_companionAI.IsAlerted()) return;
@@ -202,41 +116,8 @@ public class Companion : Humanoid
             item.m_quality = quality;
         }
     }
-    
-    public override bool TeleportTo(Vector3 pos, Quaternion rot, bool distantTeleport)
-    {
-        if (!m_nview.IsOwner())
-        {
-            // Tells everyone in the area to run this command, only the owner of the companion will successfully teleport
-            m_nview.InvokeRPC(nameof(RPC_TeleportTo), pos, rot, distantTeleport);
-            return false;
-        }
-        Teleport(pos, rot, distantTeleport);
-        return true;
-    }
-    public void Teleport(Vector3 pos, Quaternion rot, bool distantTeleport)
-    {
-        m_teleporting = true;
-        Vector3 location;
-        if (distantTeleport)
-        {
-            location = pos + new Vector3(0f, 2f, 0f);
-        }
-        else
-        {
-            Vector3 random = Random.insideUnitSphere * 10f;
-            location = pos + new Vector3(random.x, 0f, random.z);
-            location.y = ZoneSystem.instance.GetSolidHeight(location) + 0.5f;
-        }
 
-        var transform1 = transform;
-        transform1.position = location;
-        transform1.rotation = rot;
-        m_body.velocity = Vector3.zero;
-        m_teleporting = false;
-    }
-
-    public void UpdatePins(float dt)
+    public void UpdatePin(float dt)
     {
         if (m_pin == null) return;
         m_pinTimer += dt;
@@ -246,113 +127,26 @@ public class Companion : Humanoid
         m_pin.m_pos = transform.position;
     }
 
-    public bool IsRaider() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_raider);
-    public void SetRaider(bool enable)
-    {
-        m_nview.GetZDO().Set(m_raider, enable);
-        if (enable) m_defeatSetGlobalKey = "defeated_vikingraider";
-    }
-
-    public bool IsSailor() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_sailor);
-
-    public void SetSailor(bool enable)
-    {
-        m_nview.GetZDO().Set(m_sailor, enable);
-        if (enable) m_defeatSetGlobalKey = "defeated_vikingsailor";
-    }
-
-    public bool IsElf() => m_nview.IsValid() && m_nview.GetZDO().GetBool(m_elf);
-
-    public void SetElf(bool enable)
-    {
-        m_nview.GetZDO().Set(m_elf, enable);
-        if (enable) m_defeatSetGlobalKey = "defeated_vikingelf";
-    }
-    private void GetLoadOut(bool isElf, bool isSailor)
-    {
-        m_currentBiome = Heightmap.FindBiome(transform.position);
-        GameObject[]? raiderItems = isElf ? ElfLoadOut.GetElfEquipment(m_currentBiome) : RaiderLoadOut.GetRaiderEquipment(m_currentBiome, isSailor);
-        if (raiderItems != null)
-        {
-            m_defaultItems = raiderItems;
-        }
-    }
+    public virtual void GetLoadOut(){}
     private void UpdateEncumbered()
     {
         if (IsEncumbered()) m_seman.AddStatusEffect(SEMan.s_statusEffectEncumbered);
         else m_seman.RemoveStatusEffect(SEMan.s_statusEffectEncumbered);
     }
-    private void GetFollowTargetName()
+    public void GetFollowTargetName()
     {
-        if (m_companionAI == null) return;
-        if (m_companionAI.GetFollowTarget() == null) return;
-        if (!m_companionAI.GetFollowTarget().TryGetComponent(out Player player)) return;
-        m_followTargetName = player.GetHoverName();
-    }
-    public Heightmap.Biome GetCurrentBiome()
-    {
-        m_currentBiome = Heightmap.FindBiome(transform.position);
-        return m_currentBiome;
-    }
-    public void UpdateWarp(float dt)
-    {
-        if (IsEncumbered()) return;
-        m_checkDistanceTimer += dt;
-        if (m_checkDistanceTimer < 5f) return;
-        m_checkDistanceTimer = 0.0f;
-        if (m_companionAI.GetFollowTarget() == null) return;
-        if (!m_companionAI.GetFollowTarget().TryGetComponent(out Player component)) return;
-        if (Vector3.Distance(transform.position, component.transform.position) < m_playerMaxDistance) return;
-        Warp(component);
+        if (m_companionAI != null && m_companionAI.GetFollowTarget() is { } followTarget 
+                                  && followTarget.TryGetComponent(out Player player))
+        {
+            m_followTargetName = player.GetHoverName();
+        }
     }
 
-    public void Warp(Player player)
-    {
-        if (m_companionAI == null) return;
-        if (player.IsTeleporting()) return;
-        Vector3 location = player.GetLookDir() * 5f + player.transform.position;
-        if (!m_nview.IsOwner())
-        {
-            m_nview.InvokeRPC(nameof(RPC_Warp), player.transform.position, location);
-        }
-        else
-        {
-            ZoneSystem.instance.GetSolidHeight(location, out float height, 1000);
-            if (height >= 0.0 && Mathf.Abs(height - location.y) <= 2f && Vector3.Distance(location, player.transform.position) >= 2f)
-            {
-                location.y = height;
-            }
-        
-            if (!IsOwner()) m_nview.ClaimOwnership();
-            m_companionAI.StopMoving();
-            Transform transform1 = transform;
-            transform1.position = location;
-            transform1.rotation = Quaternion.identity;
-            m_body.velocity = Vector3.zero;
-            m_warpEffect.Create(transform1.position, Quaternion.identity);
-        }
-    }
-    public void RPC_Warp(long sender, Vector3 playerPos, Vector3 pos)
-    {
-        if (m_teleporting) return;
-        ZoneSystem.instance.GetSolidHeight(pos, out float height, 1000);
-        if (height >= 0.0 && Mathf.Abs(height - pos.y) <= 2f && Vector3.Distance(pos, playerPos) >= 2f)
-        {
-            pos.y = height;
-        }
-
-        if (!IsOwner()) m_nview.ClaimOwnership();
-        if (m_companionAI != null) m_companionAI.StopMoving();
-        Transform transform1 = transform;
-        transform1.position = pos;
-        transform1.rotation = Quaternion.identity;
-        m_body.velocity = Vector3.zero;
-        m_warpEffect.Create(transform1.position, Quaternion.identity);
-    }
+    public bool IsElf() => this is Elf;
     public bool IsInventoryFull() => GetInventory().NrOfItems() >= m_inventory.m_width * m_inventory.m_height;
     public void AutoPickup(float dt)
     {
-        if (SettlersPlugin._autoPickup.Value is SettlersPlugin.Toggle.Off) return;
+        if (configs.AutoPickup.Value is SettlersPlugin.Toggle.Off) return;
         if (IsDead() || IsInventoryFull() || IsEncumbered() || m_companionTalk.InPlayerBase()) return;
         Vector3 vector3_1 = transform.position + Vector3.up;
         foreach (Collider collider in Physics.OverlapSphere(vector3_1, m_autoPickupRange, m_autoPickupMask))
@@ -393,55 +187,19 @@ public class Companion : Humanoid
     {
         Transform transform1 = transform;
         m_killedEffects.Create(transform1.position, transform1.rotation, transform1);
-        bool isRaider = IsRaider();
-        bool isElf = IsElf();
-        if (isRaider || (isElf && !IsTamed()))
-        {
-            ZoneSystem.instance.SetGlobalKey(IsRaider() ? "defeated_vikingraider" : IsElf() ? "defeated_vikingelf" : "defeated_viking");
-            DropDefaultItems();
-            if (TryGetComponent(out CharacterDrop characterDrop))
-            {
-                characterDrop.m_drops.Clear();
-                characterDrop.m_drops = RaiderDrops.GetRaiderDrops(m_currentBiome);
-            }
-        }
-        else if (IsTamed()) CreateTombStone();
         RemovePins();
         base.OnDeath();
     }
 
-    private void DropDefaultItems()
-    {
-        if (SettlersPlugin._raiderDropChance.Value == 0f) return;
-        foreach (GameObject item in m_defaultItems)
-        {
-            if (item.name == "ElvenEars") continue;
-            if (!item.TryGetComponent(out ItemDrop itemDrop)) continue;
-            if (Random.value > SettlersPlugin._raiderDropChance.Value) continue;
-            ItemDrop.ItemData data = itemDrop.m_itemData.Clone();
-            if (data.m_dropPrefab == null) continue;
-            data.m_quality = m_level;
-            ItemDrop drop = ItemDrop.DropItem(data, 1, transform.position, Quaternion.identity);
-            m_dropEffects.Create(drop.transform.position, Quaternion.identity);
-        }
-    }
-    
     public void RemovePins()
     {
         if (m_pin == null || !Minimap.instance) return;
         Minimap.instance.RemovePin(m_pin);
     }
 
-    public override bool HaveEitr(float amount = 0)
-    {
-        if (IsRaider() || IsElf() || IsSailor()) return true;
-        return amount < m_eitr;
-    }
-
     public override bool StartAttack(Character? target, bool secondaryAttack)
     {
-        if (InAttack() && !HaveQueuedChain() || InDodge() || !CanMove() || IsKnockedBack() || IsStaggering() ||
-            InMinorAction()) return false;
+        if (InAttack() && !HaveQueuedChain() || InDodge() || !CanMove() || IsKnockedBack() || IsStaggering() || InMinorAction()) return false;
     
         ItemDrop.ItemData currentWeapon = GetCurrentWeapon();
         if (currentWeapon == null || (!currentWeapon.HaveSecondaryAttack() && !currentWeapon.HavePrimaryAttack())) return false;
@@ -474,7 +232,6 @@ public class Companion : Humanoid
         }
         return true;
     }
-    
     
     public override void ClearActionQueue() => m_actionQueue.Clear();
 
@@ -677,18 +434,6 @@ public class Companion : Humanoid
         m_currentAttack = null;
     }
 
-    private void CreateTombStone()
-    {
-        if (GetInventory().NrOfItems() == 0 || m_tombstone == null) return;
-        if (!ShouldCreateTombStone()) return;
-        GameObject tomb = Instantiate(m_tombstone, GetCenterPoint(), transform.rotation);
-        if (!tomb.TryGetComponent(out TombStone component)) return;
-        component.Setup(m_name, 0L);
-        component.m_container.GetInventory().MoveAll(GetInventory());
-    }
-
-    private bool ShouldCreateTombStone() => m_nview.GetZDO().GetBool("InventoryChanged".GetStableHashCode());
-    
     public override void SetupVisEquipment(VisEquipment visEq, bool isRagdoll)
     {
         if (!isRagdoll)
@@ -708,7 +453,7 @@ public class Companion : Humanoid
         if (TryGetComponent(out Randomizer randomHuman))
         {
             visEq.SetHairColor(randomHuman.m_hairColor);
-            if (IsElf()) visEq.SetSkinColor(randomHuman.m_skinColor);
+            if (this is Elf) visEq.SetSkinColor(randomHuman.m_skinColor);
         }
     }
 
@@ -719,102 +464,8 @@ public class Companion : Humanoid
         m_inventory.Save(pkg);
         string? data = pkg.GetBase64();
         m_nview.GetZDO().Set(ZDOVars.s_items, data);
-        // m_lastRevision = m_nview.GetZDO().DataRevision;
-        // m_lastDataString = data;
         m_nview.GetZDO().Set("InventoryChanged".GetStableHashCode(), true);
         m_inventoryChanged = true;
-    }
-
-    private void LoadInventory()
-    {
-        // if (m_nview.GetZDO().DataRevision == m_lastRevision) return;
-        string? data = m_nview.GetZDO().GetString(ZDOVars.s_items);
-        if (data.IsNullOrWhiteSpace()) return;
-        // if (data.IsNullOrWhiteSpace() || m_lastDataString == data) return;
-        ZPackage pkg = new ZPackage(data);
-        m_loading = true;
-        m_inventory.Load(pkg);
-        m_loading = false;
-        // m_lastRevision = m_nview.GetZDO().DataRevision;
-        // m_lastDataString = data;
-        UpdateEquipment(false);
-    }
-
-    private void CheckEquipment(ItemDrop.ItemData? item, List<ItemDrop.ItemData> inventory)
-    {
-        if (item == null) return;
-        if (inventory.Any(x => x.m_shared.m_name == item.m_shared.m_name)) return;
-        UnequipItem(item);
-    }
-
-    public void UpdateEquipment(bool toggle = true)
-    {
-        if (m_nview.IsOwner()) RPC_UpdateEquipment(0L, toggle);
-        else m_nview.InvokeRPC(nameof(RPC_UpdateEquipment), toggle);
-    }
-
-    private void RPC_UpdateEquipment(long sender, bool toggle = true)
-    {
-        m_inventoryChanged = false;
-        if (m_companionAI != null)
-        {
-            m_companionAI.m_fishTarget = null;
-            m_companionAI.m_rockTarget = null;
-            m_companionAI.m_treeTarget = null;
-        }
-
-        List<ItemDrop.ItemData>? items = m_inventory.GetAllItems();
-        CheckEquipment(m_helmetItem, items);
-        CheckEquipment(m_chestItem, items);
-        CheckEquipment(m_legItem, items);
-        CheckEquipment(m_shoulderItem, items);
-        CheckEquipment(m_rightItem, items);
-        CheckEquipment(m_leftItem, items);
-        CheckEquipment(m_utilityItem, items);
-        CheckEquipment(m_hiddenLeftItem, items);
-        CheckEquipment(m_hiddenRightItem, items);
-        foreach (ItemDrop.ItemData? item in items.OrderBy(x => x.m_shared.m_armor).ToList())
-        {
-            if (!item.IsEquipable()) continue;
-            switch (item.m_shared.m_itemType)
-            {
-                case ItemDrop.ItemData.ItemType.Helmet:
-                    if (m_helmetItem == null ||
-                        (m_helmetItem != null && item.m_shared.m_armor > m_helmetItem.m_shared.m_armor))
-                    {
-                        if (toggle) ToggleEquipped(item);
-                        else EquipItem(item);
-                    }
-                    break;
-                case ItemDrop.ItemData.ItemType.Chest:
-                    if (m_chestItem == null ||
-                        (m_chestItem != null && item.m_shared.m_armor > m_chestItem.m_shared.m_armor))
-                    {
-                        if (toggle) ToggleEquipped(item);
-                        else EquipItem(item);
-                    }
-                    break;
-                case ItemDrop.ItemData.ItemType.Legs:
-                    if (m_legItem == null || (m_legItem != null && item.m_shared.m_armor > m_legItem.m_shared.m_armor))
-                    {
-                        if (toggle) ToggleEquipped(item);
-                        else EquipItem(item);
-                    }
-                    break;
-                case ItemDrop.ItemData.ItemType.Shoulder:
-                    if (m_shoulderItem == null ||
-                        (m_shoulderItem != null && item.m_shared.m_armor > m_shoulderItem.m_shared.m_armor))
-                    {
-                        if (toggle) ToggleEquipped(item);
-                        else EquipItem(item);
-                    }
-                    break;
-                default:
-                    if (toggle) ToggleEquipped(item);
-                    else EquipItem(item);
-                    break;
-            }
-        }
     }
     public override void OnDestroy()
     {
@@ -841,7 +492,7 @@ public class Companion : Humanoid
         return bodyArmor;
     }
 
-    private void UpdateFood(float dt, bool forceUpdate)
+    public void UpdateFood(float dt, bool forceUpdate)
     {
         if (!IsTamed()) return;
         m_foodUpdateTimer += dt;
@@ -849,7 +500,7 @@ public class Companion : Humanoid
         m_foodUpdateTimer = 0.0f;
         if (!forceUpdate) UpdateConsumeFromInventory();
         UpdateFoodTimers();
-        GetTotalFoodValue(out float hp, out float stamina, out float eitr);
+        GetTotalFoodValue(out float hp, out float _, out float eitr);
         SetMaxHealth(hp);
         SetMaxEitr(eitr);
     }
@@ -860,7 +511,7 @@ public class Companion : Humanoid
         m_eitr = Mathf.Clamp(m_eitr, 0.0f, m_maxEitr);
     }
 
-    private void UpdateStats(float dt)
+    public void UpdateStats(float dt)
     {
         m_statsTimer += dt;
         if (m_statsTimer < 1f) return;
@@ -972,13 +623,13 @@ public class Companion : Humanoid
         }
 
         if (consumedItem == null) return;
-        tameableCompanion.OnConsumedItemData(consumedItem);
+        m_tameableCompanion.OnConsumedItemData(consumedItem);
         GetInventory().RemoveOneItem(consumedItem);
     }
 
-    private void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
+    public virtual void GetTotalFoodValue(out float hp, out float stamina, out float eitr)
     {
-        hp = SettlersPlugin._SettlerBaseHealth.Value * m_level * GetSkillModifier();
+        hp = configs.BaseHealth.Value * m_level;
         stamina = 50f;
         eitr = 0.0f;
         foreach (Player.Food? food in m_foods)
@@ -1031,7 +682,6 @@ public class Companion : Humanoid
         mostDepletedFood.m_stamina = item.m_shared.m_foodStamina;
         UpdateFood(0.0f, true);
         return true;
-
     }
 
     private Player.Food? GetMostDepletedFood()
@@ -1067,7 +717,7 @@ public class Companion : Humanoid
         return m_foods.Count < 3;
     }
 
-    public void SetOwner(Player player)
+    public void SetMaster(Player player)
     {
         if (m_nview.GetZDO().GetLong(m_ownerKey) != 0L) return;
         m_nview.GetZDO().Set(m_ownerKey, player.GetPlayerID());
@@ -1079,102 +729,18 @@ public class Companion : Humanoid
         foreach (Companion companion in m_instances)
         {
             if (Vector3.Distance(companion.transform.position, point) > radius) continue;
-            if (companion.tameableCompanion == null) continue;
-            companion.tameableCompanion.Tame();
+            if (companion.m_tameableCompanion == null) continue;
+            companion.m_tameableCompanion.Tame();
         }
     }
-
-    public static void MakeAllFollow(Player player, float radius, bool follow = true)
-    {
-        int count = 0;
-        if (follow)
-        {
-            foreach (Companion companion in m_instances)
-            {
-                if (!companion.IsTamed()) continue;
-                if (companion.m_companionAI is not { } companionAI) continue;
-                // if (companion.m_companionAI == null) continue;
-                if (companionAI.GetFollowTarget() is null) continue;
-                if (Vector3.Distance(player.transform.position, companion.transform.position) > radius) continue;
-                companion.tameableCompanion.Command(player, false);
-                ++count;
-            }
-        }
-        else
-        {
-            foreach (Companion companion in m_instances)
-            {
-                if (!companion.IsTamed()) continue;
-                if (companion.m_companionAI is not { } companionAI) continue;
-                // if (companion.m_companionAI == null) continue;
-                if (companionAI.GetFollowTarget() is null) continue;
-                if (companion.m_followTargetName != player.GetPlayerName()) continue;
-                companion.tameableCompanion.Command(player, false);
-                ++count;
-            }
-        }
-        player.Message(MessageHud.MessageType.Center, count + " $msg_settlerfollows");
-    }
-    
-    public string GetOwnerName()
+    protected string GetOwnerName()
     {
         long ownerID = m_nview.GetZDO().GetLong(m_ownerKey);
         return ownerID == 0L ? "" : m_nview.GetZDO().GetString(m_ownerNameKey);
     }
-
-    private float GetEitr() => m_eitr;
     public override float GetMaxEitr() => !IsTamed() ? 9999f : m_maxEitr;
-    
-    public override void UseEitr(float eitr)
-    {
-        if (IsRaider() || IsElf()) return;
-        if (eitr == 0) return;
-        m_eitr -= eitr;
-        if (m_eitr < 0) m_eitr = 0;
-    }
-
-    public override string GetHoverText()
-    {
-        if (!m_nview.IsValid()) return "";
-        if (IsRaider() || IsSailor()) return "";
-        if (IsElf() && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.Off) return "";
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.Append(m_name);
-        if (IsTamed())
-        {
-            stringBuilder.AppendFormat(" ( {0} )", tameableCompanion.GetStatus());
-            stringBuilder.AppendFormat("\n[<color=yellow><b>{0}</b></color>] {1}", 
-                "$KEY_Use", 
-                m_companionAI != null && m_companionAI.GetFollowTarget() == null ? "$hud_follow" : "$hud_stay");
-            stringBuilder.Append("\n[<color=yellow><b>L.Shift + $KEY_Use</b></color>] $hud_interact");
-            if (SettlersPlugin._ownerLock.Value is SettlersPlugin.Toggle.On)
-            {
-                string ownerName = GetOwnerName();
-                if (!string.IsNullOrWhiteSpace(ownerName)) stringBuilder.AppendFormat("\n$hud_owner: {0}", ownerName);
-            }
-
-            stringBuilder.Append("\n[<color=yellow><b>L.Alt + $KEY_Use</b></color>] $hud_rename");
-            stringBuilder.Append("\n[<color=yellow>1-8</color>] $hud_give");
-            stringBuilder.AppendFormat("\n$se_health: {0}/{1}", (int)GetHealth(), (int)GetMaxHealth());
-            stringBuilder.AppendFormat("\n$item_armor: {0}", (int)GetBodyArmor());
-            if (GetMaxEitr() > 0) stringBuilder.AppendFormat("\n$se_eitr: <color=#E6E6FA>{0}</color>/<color=#B19CD9>{1}</color>", (int)GetEitr(), (int)GetMaxEitr());
-        }
-        else
-        {
-            int tameness = tameableCompanion.GetTameness();
-
-            stringBuilder.AppendFormat("\n({0}, {1})", 
-                tameness <= 0 ? "$hud_wild" : "$hud_tameness",
-                tameableCompanion.GetStatus() + (tameness <= 0 ? "" : "%"));
-
-            stringBuilder.Append("\n[<color=yellow>1-8</color>] $hud_give");
-        }
-
-        return Localization.instance.Localize(stringBuilder.ToString());
-    }
-    
+    public override string GetHoverText() => "";
     public override string GetHoverName() => m_name;
-
     public static Companion? GetNearestCompanion()
     {
         if (!Player.m_localPlayer) return null;
@@ -1193,39 +759,12 @@ public class Companion : Humanoid
         return companion;
     }
 
-    public void AddPin()
+    public virtual void AddPin()
     {
-        if (SettlersPlugin._addMinimapPin.Value is SettlersPlugin.Toggle.Off) return;
-        var pin = new Minimap.PinData()
-        {
-            m_type = Minimap.PinType.Player,
-            m_name = GetHoverName(),
-            m_pos = transform.position,
-            m_icon = SettlersPlugin.m_settlerPin,
-            m_save = false,
-            m_checked = false,
-            m_ownerID = Player.m_localPlayer.GetPlayerID(),
-            m_author = "SettlerPlugin"
-        };
-        pin.m_NamePinData = new Minimap.PinNameData(pin);
-        Minimap.instance.m_pins.Add(pin);
-        if (pin.m_type < (Minimap.PinType)Minimap.instance.m_visibleIconTypes.Length && !Minimap.instance.m_visibleIconTypes[(int)pin.m_type])
-        {
-            Minimap.instance.ToggleIconFilter(pin.m_type);
-        }
-
-        Minimap.instance.m_pinUpdateRequired = true;
-        m_pin = pin;
     }
-
     public override bool IsEncumbered() => GetInventory().GetTotalWeight() > GetMaxCarryWeight();
 
-    public float GetMaxCarryWeight()
-    {
-        float max = SettlersPlugin._baseMaxCarryWeight.Value;
-        m_seman.ModifyMaxCarryWeight(max, ref max);
-        return max;
-    }
+    public virtual float GetMaxCarryWeight() => 100f;
 
     public float GetWeight() => GetInventory().GetTotalWeight();
     public override void RaiseSkill(Skills.SkillType skill, float value = 1)
@@ -1300,17 +839,11 @@ public class Companion : Humanoid
         }
     }
 
-    // public override bool IsDead()
-    // {
-    //          Careful this made them never die!!!!
-    //     return m_nview.IsValid() && GetHealth() <= 0;
-    // }
-
-    private bool UpdateAttach()
+    protected bool UpdateAttach()
     {
         if (!m_attached)
         {
-            if (IsSailor()) OnDeath();
+            if (this is Sailor) OnDeath();
             return false;
         }
         
@@ -1330,7 +863,6 @@ public class Companion : Humanoid
         m_maxAirAltitude = transform.position.y;
         return true;
     }
-
     public override bool IsAttached() => m_attached || base.IsAttached();
     public override bool IsAttachedToShip() => m_attached && m_attachedToShip;
     public override void AttachStop()
@@ -1484,7 +1016,7 @@ public class Companion : Humanoid
             if (__instance is not Companion component) return true;
             List<ItemDrop.ItemData> allItems = component.GetInventory().GetAllItems();
             if (allItems.Count == 0 || component.InAttack()) return true;
-            ModifyRangedItems(allItems, component.IsSailor());
+            ModifyRangedItems(allItems, component is Sailor);
             return true;
         }
 
@@ -1606,7 +1138,7 @@ public class Companion : Humanoid
         private static void Postfix(Humanoid character, ref bool __result)
         {
             if (character is not Companion companion) return;
-            if (companion.IsRaider() || companion.IsSailor() || companion.IsElf())
+            if (companion is Raider or Sailor or Elf)
             {
                 __result = true;
             }
@@ -1619,7 +1151,7 @@ public class Companion : Humanoid
         private static void Prefix(Humanoid character, ItemDrop.ItemData weapon, ref bool __result)
         {
             if (character is not Companion companion) return;
-            if (companion.IsRaider() || companion.IsSailor() || companion.IsElf())
+            if (companion is Raider or Sailor or Elf)
             {
                 switch (weapon.m_shared.m_ammoType)
                 {
@@ -1628,6 +1160,7 @@ public class Companion : Humanoid
                         if (arrow.TryGetComponent(out ItemDrop arrowComponent))
                         {
                             ItemDrop.ItemData? cloneArrow = arrowComponent.m_itemData.Clone();
+                            cloneArrow.m_dropPrefab = arrow;
                             character.GetInventory().AddItem(cloneArrow);
                         }
 
@@ -1637,6 +1170,7 @@ public class Companion : Humanoid
                         if (bolt.TryGetComponent(out ItemDrop boltComponent))
                         {
                             ItemDrop.ItemData? cloneArrow = boltComponent.m_itemData.Clone();
+                            cloneArrow.m_dropPrefab = bolt;
                             character.GetInventory().AddItem(cloneArrow);
                         }
 

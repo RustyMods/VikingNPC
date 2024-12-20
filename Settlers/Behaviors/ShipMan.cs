@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using BepInEx.Configuration;
 using Settlers.Settlers;
 using UnityEngine;
 
@@ -40,9 +41,11 @@ public class ShipMan : MonoBehaviour, IDestructible, Hoverable
     private bool m_isBurning;
     private VisualType m_visual = VisualType.New;
     private string m_name = "$enemy_raidership";
+    public ConfigEntry<float>? m_shipHealth;
     private enum VisualType { New, Worn, Broken }
     public void Awake()
     {
+        if (RaiderShipMan.GetShipData(name) is { } data) m_shipHealth = data.m_shipHealth;
         m_nview = GetComponent<ZNetView>();
         m_shipAI = GetComponent<ShipAI>();
         if (m_nview.GetZDO() == null) return;
@@ -50,8 +53,7 @@ public class ShipMan : MonoBehaviour, IDestructible, Hoverable
         m_nview.Register<float>(nameof(RPC_HealthChanged), RPC_HealthChanged);
         m_nview.Register(nameof(RPC_CreateFragments), RPC_CreateFragments);
         m_nview.Register<float, bool>(nameof(RPC_Heal), RPC_Heal);
-        m_health = SettlersPlugin._shipHealth.Value;
-        m_health += Game.m_worldLevel * Game.instance.m_worldLevelPieceHPMultiplier;
+        m_health = m_shipHealth?.Value ?? 5000f + Game.m_worldLevel * Game.instance.m_worldLevelPieceHPMultiplier;
         SetHealth(m_health);
         m_biome = Heightmap.FindBiome(transform.position);
         m_container = GetComponentInChildren<Container>();
@@ -169,7 +171,7 @@ public class ShipMan : MonoBehaviour, IDestructible, Hoverable
         DamageText.instance.ShowText(DamageText.TextType.Heal, m_shipAI.m_body.worldCenterOfMass, hp);
     }
 
-    private float GetMaxHealth() => SettlersPlugin._shipHealth.Value;
+    private float GetMaxHealth() => m_shipHealth?.Value ?? 5000f;
     
     private void ClearFireEffects()
     {
@@ -223,7 +225,7 @@ public class ShipMan : MonoBehaviour, IDestructible, Hoverable
     public void RPC_Damage(long sender, HitData hit)
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner()) return;
-        if (hit.GetAttacker() && hit.GetAttacker() is Companion companion && companion.IsSailor()) return;
+        if (hit.GetAttacker() && hit.GetAttacker() is Sailor) return;
         if (GetHealth() <= 0.0) return;
         hit.ApplyResistance(m_damages, out HitData.DamageModifier significantModifier);
         float totalDamage = hit.GetTotalDamage();

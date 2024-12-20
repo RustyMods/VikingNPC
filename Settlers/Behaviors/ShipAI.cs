@@ -68,13 +68,8 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         m_sailObject = Utils.FindChild(transform, "Sail").gameObject;
         m_mastObject = Utils.FindChild(transform, "Mast").gameObject;
         m_rudderObject = Utils.FindChild(transform, "rudder").gameObject;
-        var oars = Utils.FindChild(transform, "oars");
-        if (oars != null)
-        {
-            m_oarsObject = oars.gameObject;
-        }
+        if (Utils.FindChild(transform, "oars") is { } oars) m_oarsObject = oars.gameObject;
         m_floatCollider = transform.Find("FloatCollider").GetComponent<BoxCollider>();
-
         m_nview = GetComponent<ZNetView>();
         m_body = GetComponent<Rigidbody>();
         m_destructible = GetComponent<IDestructible>();
@@ -219,7 +214,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         int index = 0;
         foreach (var companion in Companion.m_instances)
         {
-            if (!companion.m_nview.IsValid() || !companion.IsSailor() || companion.m_attached) continue;
+            if (!companion.m_nview.IsValid() || companion is not Sailor || companion.m_attached) continue;
             if (index > m_attachPoints.Count - 1) break;
             companion.AttachStart(m_attachPoints[index], null, false, false, true, "", new Vector3(0.0f, 0.5f, 0.0f));
             m_sailors[m_attachPoints[index]] = companion;

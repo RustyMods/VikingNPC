@@ -28,7 +28,7 @@ public static class Harpooning
                 __instance.m_character.transform.position);
             if (!__instance.m_character.IsAttached())
             {
-                float num = Utils.Pull(rigidbody, __instance.m_attacker.transform.position, m_pullTo, SettlersPlugin._harpoonPullSpeed.Value, __instance.m_pullForce, __instance.m_smoothDistance, true, true, __instance.m_forcePower);
+                float num = Utils.Pull(rigidbody, __instance.m_attacker.transform.position, m_pullTo, 25f, __instance.m_pullForce, __instance.m_smoothDistance, true, true, __instance.m_forcePower);
                 __instance.m_drainStaminaTimer += dt;
                 if (__instance.m_drainStaminaTimer > __instance.m_staminaDrainInterval && num > 0.0)
                 {

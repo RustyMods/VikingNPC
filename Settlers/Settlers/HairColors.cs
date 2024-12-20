@@ -12,10 +12,10 @@ public static class HairColors
     
     public static Vector3 GetHairColor()
     {
-        if (SettlersPlugin._colorfulHair.Value is SettlersPlugin.Toggle.On)
-        {
-            return new Vector3(Random.value, Random.value, Random.value);
-        }
+        // if (SettlersPlugin._colorfulHair.Value is SettlersPlugin.Toggle.On)
+        // {
+        //     return new Vector3(Random.value, Random.value, Random.value);
+        // }
         Color color = m_hairColors[Random.Range(0, m_hairColors.Count)];
         return new Vector3(color.r, color.g, color.b);
     }

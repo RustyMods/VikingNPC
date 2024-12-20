@@ -42,11 +42,11 @@ public class Randomizer : MonoBehaviour
     };
     public Vector3 m_hairColor = Vector3.zero;
     public Vector3 m_skinColor = Vector3.one;
-    public bool m_isElf;
     
     public ZNetView m_nview = null!;
     public Companion m_companion = null!;
     public VisEquipment m_visEquipment = null!;
+    public bool m_isElf = false;
     public void Awake()
     {
         m_nview = GetComponent<ZNetView>();
@@ -60,10 +60,11 @@ public class Randomizer : MonoBehaviour
         int beardIndex = m_nview.GetZDO().GetInt("BeardIndex".GetStableHashCode(), Random.Range(0, 20));
         Vector3 hairColor = m_nview.GetZDO().GetVec3(ZDOVars.s_hairColor, HairColors.GetHairColor());
         string tamedName = m_nview.GetZDO().GetString(ZDOVars.s_tamedName, GenerateName(modelIndex));
-        Vector3 skinColor = m_nview.GetZDO().GetVec3(ZDOVars.s_skinColor, m_isElf ? new Vector3(0.4f, 0.6f, 0.57f) : Vector3.one);
+        Vector3 skinColor = m_nview.GetZDO().GetVec3(ZDOVars.s_skinColor, m_companion is Elf ? new Vector3(0.4f, 0.6f, 0.57f) : Vector3.one);
 
         m_nview.GetZDO().Set(ZDOVars.s_tamedName, tamedName);
         m_nview.GetZDO().Set(ZDOVars.s_skinColor, skinColor);
+        m_nview.GetZDO().Set(ZDOVars.s_modelIndex, modelIndex);
 
         m_companion.m_hairItem = "Hair" + hairIndex;
         m_visEquipment.SetHairItem("Hair" + hairIndex);
@@ -84,7 +85,7 @@ public class Randomizer : MonoBehaviour
 
     private void GetConfigNames()
     {
-        if (m_companion.IsElf())
+        if (m_companion is Elf)
         {
             if (!SettlersPlugin._elfMaleNames.Value.IsNullOrWhiteSpace()) m_maleFirstNames = SettlersPlugin._elfMaleNames.Value.Split(':').ToList();
             if (!SettlersPlugin._elfFemaleNames.Value.IsNullOrWhiteSpace()) m_femaleFirstNames = SettlersPlugin._elfFemaleNames.Value.Split(':').ToList();

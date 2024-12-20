@@ -9,7 +9,7 @@ using YamlDotNet.Serialization;
 
 namespace Settlers.Settlers;
 
-public static class RaiderDrops
+public static class  RaiderDrops
 {
     private static readonly CustomSyncedValue<string> ServerRaiderDrops = new(SettlersPlugin.ConfigSync, "ServerRaiderDrops", "");
     private static readonly string m_fileName = "VikingRaiderDrops.yml";

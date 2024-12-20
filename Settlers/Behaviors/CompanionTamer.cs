@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using BepInEx;
 using Settlers.Settlers;
 using SkillManager;
@@ -10,7 +8,6 @@ namespace Settlers.Behaviors;
 
 public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
 {
-    public static List<TameableCompanion> m_instances = new();
     public EffectList m_tamedEffect = new EffectList();
     public EffectList m_sootheEffect = new EffectList();
     public EffectList m_petEffect = new EffectList();
@@ -21,8 +18,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     public Companion m_companion = null!;
     public CompanionAI m_companionAI = null!;
     public CompanionTalk m_companionTalk = null!;
-    public CompanionContainer m_companionContainer = null!;
-    
+    public SettlerContainer? m_companionContainer;
     public float m_lastPetTime;
 
     public void Awake()
@@ -31,28 +27,24 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         m_companion = GetComponent<Companion>();
         m_companionAI = GetComponent<CompanionAI>();
         m_companionTalk = GetComponent<CompanionTalk>();
-        m_companionContainer = GetComponent<CompanionContainer>();
+        m_companionContainer = GetComponent<SettlerContainer>();
 
         m_companionAI.m_onConsumedItem += OnConsumedItem;
 
         if (!m_nview.IsValid()) return;
-        m_instances.Add(this);
         m_nview.Register<ZDOID, bool>(nameof(RPC_Command), RPC_Command);
         m_nview.Register<string, string>(nameof(RPC_SetName), RPC_SetName);
         
         InvokeRepeating(nameof(TamingUpdate), 3f, 3f);
 
-        if (SettlersPlugin._settlerTamingTime.Value <= 0f)
+        switch (m_companion)
         {
-            m_companion.SetTamed(true);
+            case Settler { configs.TameTime.Value: <= 0f }:
+            case Elf { configs.Tameable.Value: SettlersPlugin.Toggle.On } elf when elf.configs.TameTime.Value <= 0f:
+                m_companion.SetTamed(true);
+                break;
         }
     }
-
-    public void OnDestroy()
-    {
-        m_instances.Remove(this);
-    }
-
     public void TamingUpdate()
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || m_companion.IsTamed() || IsHungry()) return;
@@ -73,7 +65,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         }
     }
 
-    public float GetSkillTimeModifier()
+    private float GetSkillTimeModifier()
     {
         if (Player.GetClosestPlayer(transform.position, 10f) is not { } player) return 1f;
         var skill = Skill.fromName("Companion");
@@ -86,26 +78,28 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
     {
         if (!m_nview.IsValid() || !m_nview.IsOwner() || m_companion.IsTamed()) return;
         if (m_companionAI == null) return;
-        if (m_companion.IsRaider() || m_companion.IsSailor()) return;
-        if (m_companion.IsElf() && SettlersPlugin._elfTamable.Value is SettlersPlugin.Toggle.Off) return;
+        if (m_companion is Elf { configs.Tameable.Value: SettlersPlugin.Toggle.Off }) return;
         m_companionAI.MakeTame();
         Transform transform1 = transform;
         Vector3 position = transform1.position;
         m_tamedEffect.Create(position, transform1.rotation);
-        Player closest = Player.GetClosestPlayer(position, 30f);
-        SetSkillModifier(closest);
+        if (Player.GetClosestPlayer(position, 30f) is { } closestPlayer)
+        {
+            SetSkillModifier(closestPlayer);
+            closestPlayer.Message(MessageHud.MessageType.Center, $"{m_companion.m_name} $hud_tamedone");
+            m_companion.SetMaster(closestPlayer);
+        }
         m_companionAI.m_aggravatable = false;
-        if (!closest) return;
-        closest.Message(MessageHud.MessageType.Center, $"{m_companion.m_name} $hud_tamedone");
-        m_companion.SetOwner(closest);
-        // m_companion.m_faction = Character.Faction.Players;
     }
 
     private void SetSkillModifier(Player player)
     {
-        Skills.SkillType skill = Skill.fromName("Companion");
-        player.RaiseSkill(skill);
-        m_companion.SetSkillModifier(1f + player.GetSkillLevel(skill) / 100f);
+        if (m_companion is Settler settler)
+        {
+            Skills.SkillType skill = Skill.fromName("Companion");
+            player.RaiseSkill(skill);
+            settler.SetSkillModifier(1f + player.GetSkillLevel(skill) / 100f);
+        }
     }
     
     public void DecreaseRemainingTime(float time)
@@ -115,8 +109,17 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         if (num < 0.0) num = 0.0f;
         m_nview.GetZDO().Set(ZDOVars.s_tameTimeLeft, num);
     }
-    
-    private float GetRemainingTamingTime() => !m_nview.IsValid() ? 0.0f : m_nview.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, SettlersPlugin._settlerTamingTime.Value);
+
+    private float GetRemainingTamingTime()
+    {
+        if (!m_nview.IsValid()) return 0.0f;
+        return m_companion switch
+        {
+            Settler settler => m_nview.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, settler.configs.TameTime?.Value ?? 1800f),
+            Elf elf => m_nview.GetZDO().GetFloat(ZDOVars.s_tameTimeLeft, elf.configs.TameTime?.Value ?? 1800f),
+            _ => 0.0f
+        };
+    }
     
     public void RPC_SetName(long sender, string input, string authorId)
     {
@@ -217,9 +220,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
             else
             {
                 if (Time.time - m_lastPetTime <= 1.0) return false;
-                if (user is Player player) m_companion.SetOwner(player);
                 m_lastPetTime = Time.time;
-
                 Transform transform1 = transform;
                 m_petEffect.Create(transform1.position, transform1.rotation);
                 if (m_companion.m_followTargetName.IsNullOrWhiteSpace() || m_companion.m_followTargetName == user.GetHoverName())
@@ -275,7 +276,7 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
             default:
                 if (!m_companion.IsTamed()) return false;
                 m_companion.GetInventory().AddItem(item);
-                m_companion.UpdateEquipment();
+                if (m_companion is Settler settler) settler.UpdateEquipment();
                 m_companionTalk.QueueSay(ItemSay.GetItemSay(item), "", null);
                 m_companion.SaveInventory();
                 break;
@@ -308,6 +309,14 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
         m_nview.GetZDO().Set(ZDOVars.s_tamedName, text);
         m_companion.m_name = text;
     }
-    
-    public int GetTameness() => (int)((1.0 - Mathf.Clamp01(GetRemainingTamingTime() / SettlersPlugin._settlerTamingTime.Value)) * 100.0);
+
+    public int GetTameness()
+    {
+        return m_companion switch
+        {
+            Settler settler => (int)((1.0 - Mathf.Clamp01(GetRemainingTamingTime() / settler.configs.TameTime?.Value ?? 1800f)) * 100.0),
+            Elf elf => (int)((1.0 - Mathf.Clamp01(GetRemainingTamingTime() / elf.configs.TameTime?.Value ?? 1800f)) * 100.0),
+            _ => 0
+        };
+    }
 }

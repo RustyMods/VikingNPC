@@ -99,7 +99,7 @@ public class Randomizer : MonoBehaviour
         }
     }
 
-    private string GenerateName(int modelIndex)
+    private static string GenerateName(int modelIndex)
     {
         var firstName = modelIndex != 0
             ? m_femaleFirstNames[Random.Range(0, m_femaleFirstNames.Count)]

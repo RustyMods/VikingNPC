@@ -9,6 +9,7 @@ using HarmonyLib;
 using JetBrains.Annotations;
 using ServerSync;
 using Settlers.Behaviors;
+using Settlers.ExtraConfigs;
 using Settlers.Managers;
 using Settlers.Settlers;
 using UnityEngine;
@@ -19,7 +20,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.2.3";
+        internal const string ModVersion = "0.2.4";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";

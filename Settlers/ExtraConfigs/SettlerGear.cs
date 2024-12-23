@@ -3,10 +3,11 @@ using System.IO;
 using BepInEx;
 using HarmonyLib;
 using ServerSync;
+using Settlers.Settlers;
 using UnityEngine;
 using YamlDotNet.Serialization;
 
-namespace Settlers.Settlers;
+namespace Settlers.ExtraConfigs;
 
 public static class SettlerGear
 {

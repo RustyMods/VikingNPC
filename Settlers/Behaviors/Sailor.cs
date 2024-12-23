@@ -1,10 +1,21 @@
 ﻿
+using Settlers.ExtraConfigs;
 using Settlers.Settlers;
 
 namespace Settlers.Behaviors;
 
 public class Sailor : Companion
 {
+    public override void Awake()
+    {
+        base.Awake();
+        if (TryGetComponent(out CharacterDrop characterDrop))
+        {
+            characterDrop.m_drops.Clear();
+            characterDrop.m_drops = RaiderDrops.GetRaiderDrops(Tier);
+        }
+    }
+
     public override void Start()
     {
         GetLoadOut();

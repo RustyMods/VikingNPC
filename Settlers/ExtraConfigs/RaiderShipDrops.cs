@@ -4,9 +4,10 @@ using System.Linq;
 using BepInEx;
 using HarmonyLib;
 using ServerSync;
+using Settlers.Settlers;
 using YamlDotNet.Serialization;
 
-namespace Settlers.Settlers;
+namespace Settlers.ExtraConfigs;
 
 public static class RaiderShipDrops
 {

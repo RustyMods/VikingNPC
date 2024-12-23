@@ -1,4 +1,5 @@
-﻿using Settlers.Settlers;
+﻿using Settlers.ExtraConfigs;
+using Settlers.Settlers;
 using UnityEngine;
 
 namespace Settlers.Behaviors;
@@ -9,6 +10,11 @@ public class Raider : Companion
     {
         base.Awake();
         m_onDeath += OnRaiderDeath;
+        if (TryGetComponent(out CharacterDrop characterDrop))
+        {
+            characterDrop.m_drops.Clear();
+            characterDrop.m_drops = RaiderDrops.GetRaiderDrops(Tier);
+        }
     }
 
     public override void Start()
@@ -27,11 +33,6 @@ public class Raider : Companion
     private void OnRaiderDeath()
     {
         ZoneSystem.instance.SetGlobalKey("defeated_vikingraider");
-        if (TryGetComponent(out CharacterDrop characterDrop))
-        {
-            characterDrop.m_drops.Clear();
-            characterDrop.m_drops = RaiderDrops.GetRaiderDrops(Tier);
-        }
         if (configs.DropChance?.Value == 0f) return;
         foreach (GameObject item in m_defaultItems)
         {

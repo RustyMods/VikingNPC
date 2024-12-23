@@ -3,17 +3,16 @@ using System.Collections.Generic;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Settlers.Behaviors;
+using Settlers.Settlers;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Settlers.Settlers;
+namespace Settlers.Managers;
 
 public static class RaiderShipMan
 {
     private static readonly Dictionary<string, RaiderShip> Ships = new();
-
-    public static RaiderShip? GetShipData(string name) =>
-        Ships.TryGetValue(name.Replace("(Clone)", String.Empty), out RaiderShip ship) ? ship : null;
+    public static RaiderShip? GetShipData(string name) => Ships.TryGetValue(name.Replace("(Clone)", String.Empty), out RaiderShip ship) ? ship : null;
     [HarmonyPatch(typeof(ObjectDB), nameof(ObjectDB.Awake))]
     private static class ObjectDB_Awake_Patch
     {

@@ -32,15 +32,14 @@ public static class Conversation
         if (!Directory.Exists(MyPaths.GetFolderPath())) Directory.CreateDirectory(MyPaths.GetFolderPath());
         if (!File.Exists(m_filePath))
         {
-            var serializer = new SerializerBuilder().Build();
+            ISerializer serializer = new SerializerBuilder().Build();
             File.WriteAllText(m_filePath, serializer.Serialize(m_speech));
             return;
         }
-        var deserializer = new DeserializerBuilder().Build();
+        IDeserializer deserializer = new DeserializerBuilder().Build();
         try
         {
-            var serial = File.ReadAllText(m_filePath);
-            m_speech = deserializer.Deserialize<Dictionary<string, List<string>>>(serial);
+            m_speech = deserializer.Deserialize<Dictionary<string, List<string>>>(File.ReadAllText(m_filePath));
         }
         catch
         {

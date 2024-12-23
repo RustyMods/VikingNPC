@@ -152,20 +152,25 @@
         <Compile Include="Behaviors\ShipMan.cs" />
         <Compile Include="Behaviors\CompanionTamer.cs" />
         <Compile Include="Behaviors\VikingAI.cs" />
+        <Compile Include="ExtraConfigs\ElfLoadout.cs" />
+        <Compile Include="ExtraConfigs\RaiderDrops.cs" />
+        <Compile Include="ExtraConfigs\RaiderLoadouts.cs" />
+        <Compile Include="ExtraConfigs\RaiderShipDrops.cs" />
+        <Compile Include="ExtraConfigs\SettlerGear.cs" />
         <Compile Include="Managers\AssetLoaderManager.cs" />
+        <Compile Include="Managers\GlobalSpawn.cs" />
         <Compile Include="Managers\ItemManager.cs" />
         <Compile Include="Managers\LocalizationManager.cs" />
+        <Compile Include="Managers\RaiderShip.cs" />
+        <Compile Include="Managers\RaidManager.cs" />
         <Compile Include="Managers\TraderManager.cs" />
         <Compile Include="Managers\VikingManager.cs" />
         <Compile Include="Plugin.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
         <Compile Include="Settlers\CompanionSkill.cs" />
         <Compile Include="Settlers\Conversation.cs" />
-        <Compile Include="Settlers\RaiderShip.cs" />
         <Compile Include="Settlers\Commands.cs" />
-        <Compile Include="Settlers\ElfLoadout.cs" />
         <Compile Include="Settlers\Emoting.cs" />
-        <Compile Include="Settlers\GlobalSpawn.cs" />
         <Compile Include="Settlers\HairColors.cs" />
         <Compile Include="Settlers\Harpooning.cs" />
         <Compile Include="Settlers\InputCommands.cs" />
@@ -173,11 +178,6 @@
         <Compile Include="Settlers\LineAttachPatch.cs" />
         <Compile Include="Settlers\MyPaths.cs" />
         <Compile Include="Settlers\PukePatches.cs" />
-        <Compile Include="Settlers\RaiderLoadouts.cs" />
-        <Compile Include="Settlers\RaiderDrops.cs" />
-        <Compile Include="Settlers\RaiderShipDrops.cs" />
-        <Compile Include="Settlers\Raids.cs" />
-        <Compile Include="Settlers\SettlerGear.cs" />
         <Compile Include="Settlers\TargetFinder.cs" />
     </ItemGroup>
     <ItemGroup>

@@ -2,7 +2,6 @@
 using System.Linq;
 using BepInEx.Configuration;
 using HarmonyLib;
-using Settlers.Settlers;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -13,7 +12,6 @@ public class VikingManager
     private static GameObject? VikingRagDoll;
     private static GameObject Player = null!;
     private static Player PlayerComponent = null!;
-    private static bool RegisteredTradeItem;
     private static readonly Dictionary<string, Viking> Vikings = new();
 
     static VikingManager()
@@ -45,8 +43,8 @@ public class VikingManager
     private static void CreateRagDoll()
     {
         if (VikingRagDoll != null) return;
-        GameObject newRagDoll = Object.Instantiate(ZNetScene.instance.GetPrefab("Player_ragdoll"), SettlersPlugin._Root.transform, false);
-        if (newRagDoll.TryGetComponent(out Ragdoll rag))
+        GameObject prefab = Object.Instantiate(ZNetScene.instance.GetPrefab("Player_ragdoll"), SettlersPlugin._Root.transform, false);
+        if (prefab.TryGetComponent(out Ragdoll rag))
         {
             rag.m_ttl = 8f;
             rag.m_removeEffect = new()
@@ -63,9 +61,9 @@ public class VikingManager
             rag.m_float = true;
             rag.m_dropItems = true;
         }
-        newRagDoll.name = "viking_settler_ragdoll";
-        Register(newRagDoll);
-        VikingRagDoll = newRagDoll;
+        prefab.name = "viking_npc_ragdoll";
+        Register(prefab);
+        VikingRagDoll = prefab;
     }
     public static void Register(GameObject prefab)
     {
@@ -109,13 +107,13 @@ public class VikingManager
     
     public class Elf : Viking
     {
-        public Behaviors.TameableCompanion TameableCompanion = null!;
+        private Behaviors.TameableCompanion TameableCompanion = null!;
         public string CloneTameEffectsFrom = "Boar";
         public SettlersPlugin.Toggle Tameable = SettlersPlugin.Toggle.Off;
         public float DropChance = 0.1f;
         public float TameTime = 1800f;
         public SettlersPlugin.Toggle AddPin = SettlersPlugin.Toggle.On;
-        public Settlers.GlobalSpawn.CustomSpawnData SpawnData = null!;
+        public GlobalSpawn.CustomSpawnData SpawnData = null!;
         public Elf(string prefabName) : base(prefabName) => VikingType = VikingType.Elf;
         
         public override void SetupConfigs()
@@ -125,7 +123,7 @@ public class VikingManager
             configs.Track = SettlersPlugin._Plugin.config(PrefabName, "Add Pin", AddPin, "If on, when viking is following, a pin will be added on the minimap to track", GetOrder());
             configs.TameTime = SettlersPlugin._Plugin.config(PrefabName, "Tame Duration", TameTime, "Set amount of time required to tame viking", GetOrder());
             configs.DropChance = SettlersPlugin._Plugin.config(PrefabName, "Drop Chance", DropChance, new ConfigDescription("Set chance to drop weapon or armor items", new AcceptableValueRange<float>(0f, 1f)), GetOrder());
-            SpawnData = new Settlers.GlobalSpawn.CustomSpawnData(this)
+            SpawnData = new GlobalSpawn.CustomSpawnData(this)
             {
                 m_spawnInterval = 1000f,
                 m_spawnDistance = 50f,
@@ -158,8 +156,7 @@ public class VikingManager
     }
     public class Settler : Viking
     {
-        public Behaviors.SettlerContainer m_settlerContainer = null!;
-        public Behaviors.TameableCompanion TameableCompanion = null!;
+        private Behaviors.TameableCompanion TameableCompanion = null!;
         public string CloneTameEffectsFrom = "Boar";
         public SettlersPlugin.Toggle CanLumber = SettlersPlugin.Toggle.On;
         public SettlersPlugin.Toggle CanMine = SettlersPlugin.Toggle.On;
@@ -169,7 +166,7 @@ public class VikingManager
         public SettlersPlugin.Toggle AddPin = SettlersPlugin.Toggle.On;
         private SettlersPlugin.Toggle Locked = SettlersPlugin.Toggle.Off;
         private SettlersPlugin.Toggle RequireFood = SettlersPlugin.Toggle.On;
-        public Settlers.GlobalSpawn.CustomSpawnData SpawnData = null!;
+        public GlobalSpawn.CustomSpawnData SpawnData = null!;
         public Settler(string prefabName) : base(prefabName) => VikingType = VikingType.Settler;
         public override void SetupConfigs()
         {
@@ -182,7 +179,7 @@ public class VikingManager
             configs.Track = SettlersPlugin._Plugin.config(PrefabName, "Add Pin", AddPin, "If on, when viking is following, a pin will be added on the minimap to track", GetOrder());
             configs.Locked = SettlersPlugin._Plugin.config(PrefabName, "Inventory Private", Locked, "If on, only owners can access viking inventory", GetOrder());
             configs.RequireFood = SettlersPlugin._Plugin.config(PrefabName, "Require Food", RequireFood, "If on, viking require food to perform tasks", GetOrder());
-            SpawnData = new Settlers.GlobalSpawn.CustomSpawnData(this)
+            SpawnData = new GlobalSpawn.CustomSpawnData(this)
             {
                 m_spawnInterval = 1000f,
                 m_spawnDistance = 50f,
@@ -198,7 +195,7 @@ public class VikingManager
             Companion.m_group = "Settlers";
             Behaviors.CustomFactions.CustomFaction customFaction = new("Settlers", true);
             Companion.m_faction = customFaction.m_faction;
-            m_settlerContainer = Prefab.AddComponent<Behaviors.SettlerContainer>();
+            Prefab.AddComponent<Behaviors.SettlerContainer>();
             AddTameable();
             SpawnData.m_prefab = Prefab;
             return true;
@@ -234,19 +231,17 @@ public class VikingManager
 
     public class Raider : Viking
     {
-        public CharacterDrop CharacterDrop = null!;
         public float DropChance = 0.1f;
-        public Settlers.GlobalSpawn.CustomSpawnData SpawnData = null!;
+        public GlobalSpawn.CustomSpawnData SpawnData = null!;
         public Raider(string prefabName) : base(prefabName)
         {
             VikingType = VikingType.Raider;
         }
-
         public override void SetupConfigs()
         {
             base.SetupConfigs();
             configs.DropChance = SettlersPlugin._Plugin.config(PrefabName, "Drop Chance", DropChance, new ConfigDescription("Set chance to drop weapon or armor items", new AcceptableValueRange<float>(0f, 1f)), GetOrder());
-            SpawnData = new Settlers.GlobalSpawn.CustomSpawnData(this)
+            SpawnData = new GlobalSpawn.CustomSpawnData(this)
             {
                 m_spawnInterval = 1000f,
                 m_spawnDistance = 50f,
@@ -263,8 +258,9 @@ public class VikingManager
             Companion.m_group = "Raiders";
             Behaviors.CustomFactions.CustomFaction customFaction = new("Raiders", false);
             Companion.m_faction = customFaction.m_faction;
-            CharacterDrop = Prefab.AddComponent<CharacterDrop>();
+            Prefab.AddComponent<CharacterDrop>();
             SpawnData.m_prefab = Prefab;
+            RaidManager.Event.Add(SpawnData);
             return true;
         }
     }

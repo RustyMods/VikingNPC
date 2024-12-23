@@ -84,12 +84,10 @@ public static class TraderManager
             RequiredGlobalKey.SettingChanged += (_, _) => TradeItem.m_requiredGlobalKey = RequiredGlobalKey.Value;
             SharedTradeItems[SharedName] = this;
         }
-
     }
-
     public static void Setup()
     {
-        foreach(var item in TradeItems.Values) item.Load();
+        foreach(MerchantItem? item in TradeItems.Values) item.Load();
     }
     
     [HarmonyPatch(typeof(StoreGui), nameof(StoreGui.BuySelectedItem))]

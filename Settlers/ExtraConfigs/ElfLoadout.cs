@@ -1,15 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BepInEx;
 using HarmonyLib;
 using ServerSync;
+using Settlers.Settlers;
 using UnityEngine;
 using YamlDotNet.Serialization;
 using Random = UnityEngine.Random;
 
-namespace Settlers.Settlers;
+namespace Settlers.ExtraConfigs;
 
 public static class ElfLoadOut
 {

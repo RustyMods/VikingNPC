@@ -6,11 +6,10 @@ using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Settlers.Behaviors;
-using Settlers.Managers;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace Settlers.Settlers;
+namespace Settlers.Managers;
 
 public static class GlobalSpawn
 {

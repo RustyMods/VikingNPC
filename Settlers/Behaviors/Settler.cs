@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Text;
 using BepInEx;
+using Settlers.ExtraConfigs;
 using Settlers.Settlers;
 using UnityEngine;
 using Random = UnityEngine.Random;

@@ -274,9 +274,9 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
                 }
                 break;
             default:
-                if (!m_companion.IsTamed()) return false;
+                if (!m_companion.IsTamed() || m_companion is not Settler settler) return false;
                 m_companion.GetInventory().AddItem(item);
-                if (m_companion is Settler settler) settler.UpdateEquipment();
+                settler.UpdateEquipment();
                 m_companionTalk.QueueSay(ItemSay.GetItemSay(item), "", null);
                 m_companion.SaveInventory();
                 break;

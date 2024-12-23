@@ -4,10 +4,10 @@ using System.IO;
 using BepInEx;
 using HarmonyLib;
 using ServerSync;
-using UnityEngine;
+using Settlers.Settlers;
 using YamlDotNet.Serialization;
 
-namespace Settlers.Settlers;
+namespace Settlers.ExtraConfigs;
 
 public static class  RaiderDrops
 {
@@ -36,8 +36,7 @@ public static class  RaiderDrops
         List<CharacterDrop.Drop> result = new();
         foreach (Data? drop in data)
         {
-            GameObject? prefab = ZNetScene.instance.GetPrefab(drop.ItemName);
-            if (!prefab) continue;
+            if (ZNetScene.instance.GetPrefab(drop.ItemName) is not {} prefab) continue;
             result.Add(new CharacterDrop.Drop()
             {
                 m_prefab = prefab,

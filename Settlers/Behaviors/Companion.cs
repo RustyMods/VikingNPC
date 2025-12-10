@@ -74,9 +74,12 @@ public class Companion : Humanoid
         SetupVikingHealth();
         m_inventory.m_onChanged += SaveInventory;
     }
+    public override void CustomFixedUpdate(float fixedDeltaTime)
+    {
+        base.CustomFixedUpdate(fixedDeltaTime);
+        UpdateViking(fixedDeltaTime);
+    }
 
-    public void FixedUpdate() => UpdateViking(Time.deltaTime);
-    
     protected virtual bool UpdateViking(float dt)
     {
         if (!m_nview || m_nview.GetZDO() == null || !m_nview.IsOwner() || IsDead()) return false;

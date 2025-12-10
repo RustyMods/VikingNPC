@@ -46,8 +46,7 @@ public class Randomizer : MonoBehaviour
     public ZNetView m_nview = null!;
     public Companion m_companion = null!;
     public VisEquipment m_visEquipment = null!;
-    public bool m_isElf = false;
-    public void Awake()
+    public void Start()
     {
         m_nview = GetComponent<ZNetView>();
         m_companion = GetComponent<Companion>();
@@ -65,22 +64,28 @@ public class Randomizer : MonoBehaviour
         m_nview.GetZDO().Set(ZDOVars.s_tamedName, tamedName);
         m_nview.GetZDO().Set(ZDOVars.s_skinColor, skinColor);
         m_nview.GetZDO().Set(ZDOVars.s_modelIndex, modelIndex);
+        m_nview.GetZDO().Set(ZDOVars.s_hairItem, $"Hair{hairIndex}".GetStableHashCode());
+        m_nview.GetZDO().Set("HairIndex".GetStableHashCode(), hairIndex);
+        m_nview.GetZDO().Set("BeardIndex".GetStableHashCode(), beardIndex);
+        // 1 = Female, 0 = Male
+        if (modelIndex == 1) beardIndex = 0;
+        m_nview.GetZDO().Set(ZDOVars.s_beardItem, $"Beard{beardIndex}".GetStableHashCode());
+        m_nview.GetZDO().Set(ZDOVars.s_hairColor, hairColor);
 
+        m_visEquipment.m_modelIndex = modelIndex;
+        m_visEquipment.m_hairItem = "Hair" + hairIndex;
+        m_visEquipment.m_beardItem = "Beard" + beardIndex;
         m_companion.m_hairItem = "Hair" + hairIndex;
-        m_visEquipment.SetHairItem("Hair" + hairIndex);
-        
-        if (modelIndex == 0)
-        {
-            m_companion.m_beardItem = "Beard" + beardIndex;
-            m_visEquipment.SetBeardItem("Beard" + beardIndex);
-        }
-        
-        m_visEquipment.SetHairColor(hairColor);
-        m_visEquipment.SetModel(modelIndex);
+        m_companion.m_beardItem = "Beard" + beardIndex;
         m_companion.m_name = tamedName;
-
         m_hairColor = hairColor;
         m_skinColor = skinColor;
+        
+        m_visEquipment.UpdateBaseModel();
+        m_visEquipment.UpdateColors();
+        m_visEquipment.SetHairEquipped(hairIndex);
+        m_visEquipment.SetBeardEquipped(beardIndex);
+        m_visEquipment.SetHairColor(hairColor);
     }
 
     private void GetConfigNames()

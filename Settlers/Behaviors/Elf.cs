@@ -112,7 +112,6 @@ public class Elf : Companion
             m_save = false,
             m_checked = false,
             m_ownerID = Player.m_localPlayer.GetPlayerID(),
-            m_author = "SettlerPlugin"
         };
         pin.m_NamePinData = new Minimap.PinNameData(pin);
         Minimap.instance.m_pins.Add(pin);

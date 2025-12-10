@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using Settlers.Behaviors;
+using Splatform;
+using UnityEngine;
 
 namespace Settlers.Settlers;
 
@@ -205,7 +207,7 @@ public static class InputCommands
         private static void Postfix() => LoadCommandActions();
     }
 
-    [HarmonyPatch(typeof(Terminal), nameof(Terminal.AddString), typeof(string), typeof(string), typeof(Talker.Type), typeof(bool))]
+    [HarmonyPatch(typeof(Terminal), nameof(Terminal.AddString), typeof(PlatformUserID), typeof(string), typeof(Talker.Type), typeof(bool))]
     private static class Terminal_AddString_Patch
     {
         private static void Postfix(string text)

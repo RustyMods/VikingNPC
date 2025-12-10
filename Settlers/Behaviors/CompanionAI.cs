@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using BepInEx;
 using HarmonyLib;
 using UnityEngine;
@@ -27,8 +26,6 @@ public class CompanionAI : MonsterAI
         m_companion = GetComponent<Companion>();
         m_companionTalk = GetComponent<CompanionTalk>();
         m_tameableCompanion = GetComponent<TameableCompanion>();
-        m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "")
-            .Where(item => !item.m_itemData.m_shared.m_consumeStatusEffect).ToList();;
         m_nview.Register<string>(nameof(RPC_SetBehavior), RPC_SetBehavior);
     }
 
@@ -180,6 +177,7 @@ public class CompanionAI : MonsterAI
     {
         private static bool Prefix(BaseAI __instance, float dt)
         {
+            // only runs if owner
             if (__instance is not CompanionAI component) return true;
             UpdateHealthRegeneration(component, dt);
             return false;

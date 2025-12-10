@@ -3,7 +3,6 @@ using System.Linq;
 using System.Text;
 using BepInEx;
 using Settlers.ExtraConfigs;
-using Settlers.Settlers;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -320,7 +319,6 @@ public class Settler : Companion
             m_save = false,
             m_checked = false,
             m_ownerID = Player.m_localPlayer.GetPlayerID(),
-            m_author = "SettlerPlugin"
         };
         pin.m_NamePinData = new Minimap.PinNameData(pin);
         Minimap.instance.m_pins.Add(pin);

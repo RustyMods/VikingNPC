@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Settlers.Behaviors;
-using Settlers.Settlers;
 using UnityEngine;
 using Object = UnityEngine.Object;
 

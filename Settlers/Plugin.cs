@@ -20,7 +20,7 @@ namespace Settlers
     public class SettlersPlugin : BaseUnityPlugin
     {
         internal const string ModName = "VikingNPC";
-        internal const string ModVersion = "0.2.4";
+        internal const string ModVersion = "0.2.7";
         internal const string Author = "RustyMods";
         private const string ModGUID = Author + "." + ModName;
         private static readonly string ConfigFileName = ModGUID + ".cfg";
@@ -77,7 +77,7 @@ namespace Settlers
             DontDestroyOnLoad(_Root);
             _Root.SetActive(false);
             GlobalSpawn.SpawnList = _Root.AddComponent<SpawnSystemList>();
-            Commands.LoadServerLocationChange();
+            // Commands.LoadServerLocationChange();
             Localizer.Load();
             
             RaiderShipMan.RaiderShip MerchantShip = new RaiderShipMan.RaiderShip("VikingShip", "RaiderShip");

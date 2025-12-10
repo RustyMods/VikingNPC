@@ -39,9 +39,11 @@ public class TameableCompanion : MonoBehaviour, Interactable, TextReceiver
 
         switch (m_companion)
         {
-            case Settler { configs.TameTime.Value: <= 0f }:
-            case Elf { configs.Tameable.Value: SettlersPlugin.Toggle.On } elf when elf.configs.TameTime.Value <= 0f:
-                m_companion.SetTamed(true);
+            case Settler:
+                if (m_companion.configs.TameTime?.Value <= 0f) m_companion.SetTamed(true);
+                break;
+            case Elf:
+                if (m_companion.configs.TameTime?.Value <= 0f) m_companion.SetTamed(true);
                 break;
         }
     }

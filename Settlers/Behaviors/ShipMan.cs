@@ -28,9 +28,9 @@ public class ShipMan : MonoBehaviour, IDestructible, Hoverable
     public EffectList m_hitEffect = new();
     public EffectList m_fireEffect = new();
     public float m_destroyNoise;
-    public static List<ShipMan> m_instances = new();
+    public static readonly List<ShipMan> m_instances = new();
     public ZNetView m_nview = null!;
-    public WaterVolume m_previousWaterVolume;
+    // public WaterVolume m_previousWaterVolume;
     public Heightmap.Biome m_biome;
     private ShipAI m_shipAI = null!;
     private float m_burnDamageTime;
@@ -220,7 +220,7 @@ public class ShipMan : MonoBehaviour, IDestructible, Hoverable
 
     public void OnDestroy() => m_instances.Remove(this);
     
-    public bool IsUnderWater() => Floating.IsUnderWater(transform.position, ref m_previousWaterVolume);
+    // public bool IsUnderWater() => Floating.IsUnderWater(transform.position, ref m_previousWaterVolume);
 
     public float GetHealth() => m_nview.GetZDO().GetFloat(ZDOVars.s_health, m_health);
 

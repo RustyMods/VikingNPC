@@ -27,8 +27,10 @@ public class VikingManager
         RegisterElfEars();
         CreateRagDoll();
         TraderManager.Setup();
-        foreach(var viking in Vikings.Values) viking.Load();
-        foreach(var viking in Vikings.Values) viking.RegisterPrefab();
+        foreach (var viking in Vikings.Values)
+        {
+            if (viking.Load()) viking.RegisterPrefab();
+        }
     }
     private static void RegisterElfEars()
     {
@@ -482,6 +484,7 @@ public class VikingManager
             CompanionAI.m_consumeItems = new();
             CompanionAI.m_aggravatable = Aggravatable;
             CompanionAI.m_attackPlayerObjects = AttackPlayerObjects;
+            CompanionAI.m_consumeItems = ObjectDB.instance.GetAllItems(ItemDrop.ItemData.ItemType.Consumable, "").Where(item => !item.m_itemData.m_shared.m_consumeStatusEffect).ToList();;
         }
         private void AddRandomTalk()
         {

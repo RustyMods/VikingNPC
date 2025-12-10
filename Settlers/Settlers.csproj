@@ -10,7 +10,7 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>Settlers</RootNamespace>
         <AssemblyName>VikingNPC</AssemblyName>
-        <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <LangVersion>10</LangVersion>
         <Nullable>enable</Nullable>
@@ -89,6 +89,9 @@
         </Reference>
         <Reference Include="SoftReferenceableAssets">
           <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\SoftReferenceableAssets_publicized.dll</HintPath>
+        </Reference>
+        <Reference Include="Splatform">
+          <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed\publicized_assemblies\Splatform_publicized.dll</HintPath>
         </Reference>
         <Reference Include="System" />
         <Reference Include="System.Core" />
@@ -187,10 +190,10 @@
         <EmbeddedResource Include="..\..\..\bundles_2024\blueprintlocationbundle">
           <Link>assets\blueprintlocationbundle</Link>
         </EmbeddedResource>
-        <EmbeddedResource Include="..\..\..\VALHEIM RIPPED\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\elfassets">
+        <EmbeddedResource Include="..\..\..\VALHEIM RIPPED\BOG WITCH\AssetBundles\StandaloneWindows\elfassets">
           <Link>assets\elfassets</Link>
         </EmbeddedResource>
-        <EmbeddedResource Include="..\..\..\VALHEIM RIPPED\ashland rip\AshlandRIP\AssetBundles\StandaloneWindows\oarsbundle">
+        <EmbeddedResource Include="..\..\..\VALHEIM RIPPED\BOG WITCH\AssetBundles\StandaloneWindows\oarsbundle">
           <Link>assets\oarsbundle</Link>
         </EmbeddedResource>
         <Content Include=".gitignore" />

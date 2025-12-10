@@ -146,7 +146,7 @@ public class ShipAI : MonoBehaviour, IUpdateAI
         float rowingAngle = Mathf.Sin(Time.time) * 30f;
         foreach (Transform child in m_oarsObject.transform)
         {
-            child.localEulerAngles = new Vector3(0f, 0f, rowingAngle);
+            child.localEulerAngles = new Vector3(0f, 90f, rowingAngle);
         }
     }
     public void UpdateCheckSailors()
